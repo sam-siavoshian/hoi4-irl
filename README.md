@@ -17,7 +17,20 @@ It is a tracker, not a game — nothing happens unless you report it (apart from
 | Anatolian Front | Turkey | Friends & Social |
 | Persian Gulf Theatre | Royal Navy | Personal Life |
 
-Rename any of them in **Staff › Settings**.
+Rename any of them in **Staff › Settings**, describe what belongs to each (the judge reads it), or sign an armistice to switch a front off.
+
+## What is in it
+
+- **Report** by voice or text; one report can hold several events, each on its own front and its own day ("yesterday I…").
+  Or log by hand in two taps. Everything is reviewed before it is applied, and can be edited, undone or deleted later.
+- **Fronts** move province by province. Divisions, air regiments, fleets, factories, ports, supply hubs and railways all react.
+- **Main effort** — pick the front that matters most right now; wins there go further.
+- **Operations** — a codename, an objective city and a deadline, pinned on the map.
+- **Chronicle** — calendar heat-map, day streak, filters, and a replay of the whole war on the map.
+- **Briefing** — the week's movement, an honest assessment with orders from the chief of staff (Claude, or a simple offline version),
+  a shareable text report and a shareable map image.
+- **Commanders** earn traits, big engagements get battle names, regions you fully retake are restored as satrapies under
+  their Old Persian names, and there are sixteen decorations to earn.
 
 ## Run it
 

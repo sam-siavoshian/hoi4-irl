@@ -57,6 +57,30 @@ const HONOR = {
 const SHIP_NAMES = ['Homa', 'Azarbaijan', 'Khuzestan', 'Gilan', 'Mazandaran', 'Artemiz', 'Damavand', 'Sahand', 'Alvand', 'Zagros', 'Kaveh', 'Rostam',
   'Sohrab', 'Arash', 'Darius', 'Kourosh', 'Xerxes', 'Kambujiya', 'Bahram', 'Shapur', 'Anushirvan', 'Faramarz', 'Zal', 'Siavash'];
 const SHIP_CLASSES = ['Gunboat', 'Sloop', 'Destroyer', 'Submarine', 'Destroyer', 'Light Cruiser', 'Submarine', 'Destroyer', 'Heavy Cruiser', 'Light Cruiser', 'Battlecruiser', 'Battleship'];
+const COMMANDERS = { afg: 'Gen. Dariush Khorasani', cau: 'Gen. Babak Azari', tks: 'Gen. Arash Torkaman', irq: 'Gen. Kaveh Zagrosi', raj: 'Gen. Rostam Sistani', tur: 'Gen. Farhad Urmavi', glf: 'Adm. Sohrab Daryayi' };
+export const TRAITS = [
+  ['armour', ['breakthrough'], 3, 'Armour officer', 'Three armoured breakthroughs'], ['trench', ['fortify'], 3, 'Trench fighter', 'Held the line three times'],
+  ['logistics', ['infrastructure'], 3, 'Logistician', 'Three construction programmes'], ['air', ['air_superiority', 'cas_strike'], 3, 'Air liaison', 'Three air victories'],
+  ['hunter', ['encirclement'], 2, 'Encircler', 'Closed two pockets'], ['organiser', ['reinforce'], 3, 'Organiser', 'Rebuilt the army three times'],
+  ['sea', ['naval_victory'], 3, 'Sea wolf', 'Three naval victories'], ['stoic', ['enemy_offensive', 'enemy_breakthrough', 'encircled'], 5, 'Old guard', 'Survived five enemy offensives'],
+];
+// Old Persian names of the lands, shown when a region is fully retaken
+export const SATRAPIES = {
+  'Herat': 'Haraiva', 'Kandahar': 'Harauvatish', 'Sistan': 'Zranka', 'Kabul': 'Gandara', 'Bactria': 'Bakhtrish', 'Turkmen SSR': 'Margush', 'Uzbek SSR': 'Suguda', 'Tajik SSR': 'Saka lands',
+  'Azerbaijan SSR': 'Aturpatakan', 'Armenian SSR': 'Armina', 'Georgian SSR': 'Kolkha', 'Mesopotamia': 'Babirush', 'Basra': 'the Sealand', 'Assyria': 'Athura', 'Western Desert': 'Arabaya',
+  'Syria': 'Abar-Nahara', 'Lebanon': 'Phoenicia', 'Palestine': 'Yehud', 'Transjordan': 'Nabataea', 'Lower Egypt': 'Mudraya', 'Upper Egypt': 'Upper Mudraya', 'Sinai': 'Sinai', 'Red Sea Coast': 'the Red Sea shore',
+  'Eastern Anatolia': 'Western Armina', 'Pontus': 'Pontus', 'Upper Mesopotamia': 'Upper Athura', 'Cappadocia': 'Katpatuka', 'Cilicia': 'Khilakku', 'Lydia': 'Sparda', 'Thrace': 'Skudra',
+  'Baluchistan Agency': 'Maka', 'Sindh': 'Hindush', 'Punjab': 'Thatagush', 'North-West Frontier': 'Eastern Gandara', 'Kuwait': 'Kuwait', 'Bahrain': 'Tylos', 'Qatar': 'Qatar', 'Trucial States': 'the Pirate Coast',
+  'Muscat & Oman': 'Mazun', 'Al-Hasa': 'Hagar', 'Nejd': 'Inner Arabaya', 'Hejaz': 'Hejaz',
+};
+export const MEDALS = [
+  ['first', 'First Blood', 'Win your first engagement'], ['ten', 'Order of the Lion and Sun', 'Ten victories'], ['fifty', 'Order of Aqdas', 'Fifty victories'],
+  ['decisive', 'Order of Zolfaghar', 'Win a decisive (severity 5) engagement'], ['week', 'Order of Homayoun', 'Report seven days in a row'], ['month', 'Order of the Crown', 'Report thirty days in a row'],
+  ['abroad', 'Across the Frontier', 'Capture your first foreign city'], ['phoenix', 'Simorgh', 'Liberate a city that had fallen'], ['babylon', 'Cyrus Cylinder', 'Enter Babylon'],
+  ['sardis', 'Royal Road', 'Reach Sardis, the western end of the Royal Road'], ['allfronts', 'Seven Banners', 'A victory on every active front within seven days'],
+  ['defender', 'Defender of Tehran', 'Drive the enemy back after he came within 250 km of the capital'], ['satrap', 'Satrap', 'Restore your first satrapy'],
+  ['comeback', 'Arash the Archer', 'Win after three defeats in a row on the same front'], ['thirty', 'Iron Chronicle', 'File thirty dispatches'], ['empire', 'Shahanshah', 'Restore the Achaemenid Empire'],
+];
 const ENEMY_NAMES = { AFG: 'Afghan', SOV: 'Soviet', IRQ: 'Iraqi', RAJ: 'British Indian', TUR: 'Turkish', GBR: 'British' };
 
 // Iranian states: starting infrastructure (0-5), civilian factories, military factories, dockyards
@@ -96,7 +120,10 @@ export function mapMeta(map) {
     for (const id of f.border) { const s = stateName(P[id].s); cnt[s] = (cnt[s] || 0) + 1; }
     const home = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
     const near = kind => buildings.filter(b => b.kind === kind).map(b => ({ b, d: dIr.has(b.prov) ? dIr.get(b.prov) : 9999 })).sort((a, b) => a.d - b.d).map(x => x.b);
-    frontMeta[f.id] = { dIr, dEn, home, ports: near('port'), hubs: near('hub'), airbases: near('airbase'), forts: near('fort') };
+    const cities = [...f.iranOrder, ...f.enemyOrder].map(([id]) => P[id]).filter(p => p.city);
+    const regions = new Map();
+    for (const [id] of f.enemyOrder) { const k = P[id].s; if (!regions.has(k)) regions.set(k, []); regions.get(k).push(id); }
+    frontMeta[f.id] = { dIr, dEn, home, ports: near('port'), hubs: near('hub'), airbases: near('airbase'), forts: near('fort'), cities, regions };
   }
   m = { stateName, iranStates, buildings, frontMeta, byName: Object.fromEntries(P.map(p => [p.n, p])) };
   metaCache.set(map, m);
@@ -108,14 +135,14 @@ function initialState(map, t0) {
   const st = {
     t: t0, fronts: {}, divisions: [], wings: [], fleets: [], states: {}, bld: {}, log: [], history: [],
     divSeq: 0, infraPoints: 0, railStage: 0, navalMerit: 0, shipSeq: 0, tehranFallen: false, empire: false,
-    totals: { wins: 0, losses: 0, neutral: 0, reports: 0 }, recent: [],
+    totals: { wins: 0, losses: 0, neutral: 0, reports: 0 }, recent: [], focus: null, ach: {}, battles: {}, satrapies: [], days: new Set(), threatened: false,
   };
   for (const s of meta.iranStates) { const [infra, civ, mil, dock] = STATE_START[s] || [1, 0, 0, 0]; st.states[s] = { infra, civ, mil, dock, dmg: 0, infraDmg: 0, bp: 0 }; }
   for (const b of meta.buildings) st.bld[b.id] = { lvl: b.kind === 'fort' ? 1 : b.kind === 'port' || b.kind === 'naval' ? 2 : 1, dmg: 0 };
   const guard = (type, name) => st.divisions.push({ id: `d${++st.divSeq}`, n: st.divSeq, name, type, front: null, str: 100, org: 100, xp: 60 });
-  guard('grd', '1st Imperial Guard Division'); guard('arm', '2nd Guard Armoured Brigade');
+  guard('grd', '1st Imperial Guard Division “Javidan”'); guard('arm', '2nd Guard Armoured Brigade');
   for (const f of map.fronts) {
-    st.fronts[f.id] = { id: f.id, pos: 0, air: 0, sea: 0, supply: 100, entrench: 1, enemyStr: 100, streak: 0, merit: 0, wins: 0, losses: 0, last: null, lastT: null, honor: 0, enemyArmor: 0 };
+    st.fronts[f.id] = { id: f.id, pos: 0, air: 0, sea: 0, supply: 100, entrench: 1, enemyStr: 100, streak: 0, merit: 0, wins: 0, losses: 0, last: null, lastT: null, honor: 0, enemyArmor: 0, acts: {}, cmd: { name: COMMANDERS[f.id], level: 1, traits: [] } };
     for (const type of START_OOB[f.id]) raise(st, f.id, type, 0, true);
   }
   st.wings = [
@@ -156,7 +183,7 @@ export function territory(map, st) {
       for (const [id, d] of f.iranOrder) { if (d <= thr) { if (!occ.has(id)) occ.set(id, f.id); } else { next = id; break; } }
       if (next != null) contested.push({ prov: next, front: f.id, side: 'iran' });
     } else if (pos < 0) {
-      const thr = (-pos / 100) * f.dMax + (pos <= -100 ? 1 : 0);
+      const thr = Math.pow(-pos / 100, 1.3) * f.dMax + (pos <= -100 ? 1 : 0); // the first objectives are close; the far satrapies take a campaign
       let next = null;
       for (const [id, d] of f.enemyOrder) { if (d <= thr) lib.set(id, f.id); else { next = id; break; } }
       if (next != null) contested.push({ prov: next, front: f.id, side: 'enemy' });
@@ -263,6 +290,8 @@ function applyItem(map, st, item, rnd, fx) {
   const note = t => fx.push({ front: f.id, text: t });
   const fleet = st.fleets[f.id === 'cau' || f.id === 'tks' ? 1 : 0];
   item.action = action;
+  fr.acts[action] = (fr.acts[action] || 0) + 1;
+  const wasStreak = fr.streak;
 
   if (A.side === 'neutral') { fr.last = { action, sev, t: st.t, side: 'neutral' }; fr.lastT = st.t; st.totals.neutral++; for (const d of divs) d.xp += 1; return; }
 
@@ -273,6 +302,8 @@ function applyItem(map, st, item, rnd, fx) {
     let mod = 1 + 0.15 * (avg('str') / 100 - 0.7) + fr.air / 400 + (fr.supply - 70) / 250 - (fr.enemyStr - 100) / 200 + (action === 'breakthrough' ? Math.min(0.3, armor * 0.1) : 0) + (f.naval ? fr.sea / 400 : 0);
     mod = clamp(mod, 0.5, 1.7) * (1 + 0.1 * Math.min(5, fr.streak - 1));
     mod *= fr.pos > 0 ? 1.25 : 1 - 0.55 * (-fr.pos / 100);
+    if (st.focus) mod *= st.focus === f.id ? 1.25 : 0.95;
+    if (wasStreak <= -3) st.ach.comeback ??= st.t;
     fr.pos = clamp(fr.pos - BASE[sev] * A.adv * mod, -100, 100);
     for (const d of divs) { d.xp += sev * 3; d.org = clamp(d.org - sev * 3 * rnd(), 5, 100); d.str = clamp(d.str - sev * 1.2 * rnd(), 5, 100); }
     fr.enemyStr = clamp(fr.enemyStr - sev * 2, 50, 160);
@@ -337,6 +368,7 @@ function applyItem(map, st, item, rnd, fx) {
     let mod = 1 - 0.04 * fr.entrench - 0.15 * (avg('org') / 100 - 0.5) + (100 - fr.supply) / 250 - fr.air / 400 + (fr.enemyStr - 100) / 200 - (f.naval ? fr.sea / 400 : 0);
     mod = clamp(mod, 0.5, 1.6) * (1 + 0.1 * Math.min(5, -fr.streak - 1));
     mod *= fr.pos < 0 ? 1.25 : 1 - 0.5 * (fr.pos / 100);
+    if (st.focus === f.id) mod *= 0.85;
     fr.pos = clamp(fr.pos + BASE[sev] * A.adv * mod, -100, 100);
     for (const d of divs) { d.xp += sev; d.org = clamp(d.org - sev * (6 + 6 * rnd()), 0, 100); d.str = clamp(d.str - sev * (2 + 5 * rnd()) * (A.adv > 0.5 ? 1 : 0.5), 0, 100); }
     fr.enemyStr = clamp(fr.enemyStr + sev * 2, 50, 160);
@@ -395,6 +427,8 @@ function applyItem(map, st, item, rnd, fx) {
       else { d.str = 20; d.org = 10; note(`${d.name} shattered — remnants regroup`); }
     }
   }
+  for (const [key, acts, need, name] of TRAITS) if (!fr.cmd.traits.includes(key) && acts.reduce((a, k) => a + (fr.acts[k] || 0), 0) >= need) { fr.cmd.traits.push(key); note(`${fr.cmd.name} earns the trait “${name}”`); }
+  const lvl = Math.min(9, 1 + Math.floor(fr.merit / 10)); if (lvl > fr.cmd.level) { fr.cmd.level = lvl; note(`${fr.cmd.name} promoted — skill ${lvl}`); }
   fr.last = { action, sev, t: st.t, side: A.side, delta: fr.pos - before };
   fr.lastT = st.t;
   item.delta = Math.round((fr.pos - before) * 10) / 10;
@@ -420,18 +454,35 @@ function cityNews(map, a, b, fx) {
 
 // ---- main entry ----
 // reports: [{id, ts, text, summary, items:[{front, outcome, severity, action, headline}]}]
-export function simulate(map, reports, now = Date.now()) {
+export function simulate(map, reports, now = Date.now(), opts = {}) {
   const sorted = reports.slice().sort((a, b) => a.ts - b.ts);
   const t0 = sorted.length ? Math.min(sorted[0].ts, now) : now;
   const st = initialState(map, t0);
   let terr = territory(map, st);
+  const meta = mapMeta(map);
+  const dayOf = ts => Math.floor((ts - new Date(ts).getTimezoneOffset() * 60000) / DAY);
+  const winDays = {};
   for (const rep of sorted) {
     advanceTime(map, st, rep.ts);
+    if (rep.kind === 'focus') {
+      st.focus = rep.front || null; const ff = map.fronts.find(f => f.id === rep.front);
+      st.log.push({ id: rep.id, ts: rep.ts, kind: 'focus', front: st.focus, items: [], fx: [{ front: st.focus, text: ff ? `Main effort shifted to the ${ff.name}` : 'Main effort stood down — forces evenly spread', tone: 'gold' }] });
+      continue;
+    }
     const rnd = rngFrom(hashStr(String(rep.id)));
     const fx = [];
     const items = (rep.items || []).map(i => ({ ...i }));
     const posBefore = Object.fromEntries(map.fronts.map(f => [f.id, st.fronts[f.id].pos]));
-    for (const it of items) applyItem(map, st, it, rnd, fx);
+    for (const it of items) {
+      applyItem(map, st, it, rnd, fx);
+      const f = map.fronts.find(x => x.id === it.front);
+      if (f && it.severity >= 4 && it.outcome !== 'neutral' && ACTIONS[it.action].adv >= 0.5) {
+        const tt = territory(map, st); const c = tt.contested.find(x => x.front === f.id); const at = map.provinces[c ? c.prov : f.border[0]];
+        let best = null, bd = 1e9; for (const p of meta.frontMeta[f.id].cities) { const d = havKm(at.ll, p.ll); if (d < bd) { bd = d; best = p; } }
+        if (best) { const n = (st.battles[best.n] = (st.battles[best.n] || 0) + 1); it.battle = `${['', '', 'Second ', 'Third ', 'Fourth ', 'Fifth '][n] ?? `${ord(n)} `}Battle of ${best.n}`; }
+      }
+      if (it.outcome === 'win') { st.ach.first ??= rep.ts; if (it.severity >= 5) st.ach.decisive ??= rep.ts; (winDays[it.front] ||= []).push(rep.ts); }
+    }
     const t2 = territory(map, st);
     cityNews(map, terr, t2, fx);
     for (const f of map.fronts) {
@@ -444,16 +495,32 @@ export function simulate(map, reports, now = Date.now()) {
       if (dLib > 0) fx.push({ front: f.id, text: `${dLib} province${dLib > 1 ? 's' : ''} captured`, tone: 'good' });
       if (dLib < 0) fx.push({ front: f.id, text: `${-dLib} captured province${dLib < -1 ? 's' : ''} lost`, tone: 'bad' });
     }
+    // satrapies (regions fully retaken)
+    const sat = [];
+    for (const f of map.fronts) for (const [k, ids] of meta.frontMeta[f.id].regions) if (ids.every(id => t2.lib.has(id))) sat.push(`${f.id}|${k}`);
+    const nameOf = key => { const n = meta.stateName(Number(key.split('|')[1])); return { key, front: key.split('|')[0], region: n, name: SATRAPIES[n] || n }; };
+    for (const k of sat) if (!st.satrapies.some(x => x.key === k)) { const o = nameOf(k); fx.push({ front: o.front, text: `Satrapy of ${o.name} restored (${o.region})`, tone: 'gold' }); st.ach.satrap ??= rep.ts; }
+    for (const o of st.satrapies) if (!sat.includes(o.key)) fx.push({ front: o.front, text: `Satrapy of ${o.name} lost`, tone: 'bad' });
+    st.satrapies = sat.map(nameOf);
+    // decorations
+    for (const x of fx) { if (x.city != null && x.tone === 'good') { if (/liberated/.test(x.text)) st.ach.phoenix ??= rep.ts; else { st.ach.abroad ??= rep.ts; const n = map.provinces[x.city].n; if (n === 'Babylon') st.ach.babylon ??= rep.ts; if (n === 'Sardis') st.ach.sardis ??= rep.ts; } } }
+    if (st.totals.wins >= 10) st.ach.ten ??= rep.ts; if (st.totals.wins >= 50) st.ach.fifty ??= rep.ts; if (st.totals.reports + 1 >= 30) st.ach.thirty ??= rep.ts;
+    st.days.add(dayOf(rep.ts)); let run = 0; for (let d = dayOf(rep.ts); st.days.has(d); d--) run++;
+    if (run >= 7) st.ach.week ??= rep.ts; if (run >= 30) st.ach.month ??= rep.ts;
+    const active = map.fronts.filter(f => !(opts.off || []).includes(f.id));
+    if (active.every(f => (winDays[f.id] || []).some(t => rep.ts - t <= 7 * DAY))) st.ach.allfronts ??= rep.ts;
+    if (t2.threat && t2.threat.km < 250) st.threatened = true; else if (st.threatened && (!t2.threat || t2.threat.km > 400)) { st.threatened = false; st.ach.defender ??= rep.ts; }
     const fallen = t2.occ.has(map.tehran);
     if (fallen && !st.tehranFallen) fx.push({ text: 'The government evacuates to Isfahan. The war goes on.', tone: 'bad' });
     if (!fallen && st.tehranFallen) fx.push({ text: 'Tehran is free again. The Shah returns to the capital.', tone: 'gold' });
     st.tehranFallen = fallen;
     const empire = map.fronts.every(f => st.fronts[f.id].pos <= -100);
     if (empire && !st.empire) fx.push({ text: 'THE ACHAEMENID EMPIRE IS RESTORED', tone: 'gold' });
-    st.empire = empire;
+    st.empire = empire; if (empire) st.ach.empire ??= rep.ts;
     terr = t2;
     st.totals.reports++;
     st.log.push({ id: rep.id, ts: rep.ts, text: rep.text, summary: rep.summary, source: rep.source, items, fx });
+    for (const f of map.fronts) st.fronts[f.id].streakNote = null;
     st.history.push({ ts: rep.ts, pos: Object.fromEntries(map.fronts.map(f => [f.id, Math.round(st.fronts[f.id].pos * 10) / 10])) });
   }
   advanceTime(map, st, Math.max(now, st.t));
@@ -473,6 +540,7 @@ export function simulate(map, reports, now = Date.now()) {
     divisions: st.divisions.length, planes: Math.round(st.wings.reduce((a, w) => a + w.planes, 0)), ships: st.fleets.reduce((a, f) => a + f.ships.length, 0),
     avgPos, name: st.empire ? 'Achaemenid Empire' : 'Imperial State of Iran',
   };
+  { const today = dayOf(now); let d = st.days.has(today) ? today : today - 1, run = 0; for (; st.days.has(d); d--) run++; st.dayStreak = run; st.reportedToday = st.days.has(today); }
   st.terr = terr;
   st.lines = frontlines(map, st, terr);
   return st;

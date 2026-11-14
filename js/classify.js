@@ -9,7 +9,7 @@ export const MODELS = [
   ['claude-haiku-5-5', 'Claude Haiku 5.5 — cheapest'],
 ];
 
-const SCHEMA = {
+const schemaFor = (map, off = []) => ({
   type: 'object',
   properties: {
     summary: { type: 'string', description: 'War communiqué, 1–3 sentences, in the voice of a general staff bulletin. Mention the real-life events in military language.' },
@@ -18,23 +18,24 @@ const SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          front: { type: 'string', enum: ['afg', 'cau', 'tks', 'irq', 'raj', 'tur', 'glf'] },
+          front: { type: 'string', enum: map.fronts.map(f => f.id).filter(id => !off.includes(id)) },
           outcome: { type: 'string', enum: ['win', 'loss', 'neutral'] },
           severity: { type: 'integer', enum: [1, 2, 3, 4, 5] },
           action: { type: 'string', enum: Object.keys(ACTIONS) },
           headline: { type: 'string', description: 'Short battle-report headline (max ~12 words) that names what really happened.' },
+          days_ago: { type: 'integer', enum: [0, 1, 2, 3, 4, 5, 6, 7], description: 'How many days before the report the event happened. 0 unless the user says otherwise (yesterday = 1).' },
         },
-        required: ['front', 'outcome', 'severity', 'action', 'headline'],
+        required: ['front', 'outcome', 'severity', 'action', 'headline', 'days_ago'],
         additionalProperties: false,
       },
     },
   },
   required: ['summary', 'items'],
   additionalProperties: false,
-};
+});
 
-export function buildSystem(map, labels) {
-  const fronts = map.fronts.map(f => `- ${f.id}: ${f.name} (vs ${f.enemyName}) = "${labels[f.id] || f.defaultLabel}"`).join('\n');
+export function buildSystem(map, labels, notes = {}, off = []) {
+  const fronts = map.fronts.filter(f => !off.includes(f.id)).map(f => `- ${f.id}: ${f.name} (vs ${f.enemyName}) = "${labels[f.id] || f.defaultLabel}"${notes[f.id] ? ` — the user describes this area as: ${notes[f.id]}` : ''}`).join('\n');
   return `You are the chief of the general staff for a personal life tracker drawn as a 1936 grand-strategy war map of Iran. Each border front stands for one area of the user's real life. The user tells you, in plain speech, what happened; you convert it into battle results. It is a metaphor for their life, not a game and not real warfare.
 
 Fronts and the life area each one represents:
@@ -48,6 +49,7 @@ For every distinct real-life event in the report, emit one item:
   Wins: offensive (ordinary progress), breakthrough (a sudden big leap forward), encirclement (decisively resolved a long-running problem), air_superiority (gained the upper hand / confidence / momentum), cas_strike (got decisive help or support from someone), naval_victory (only for the Persian Gulf, Caucasus or Turkestan fronts), infrastructure (built a habit, system, routine, long-term foundation), fortify (held the line, set boundaries, avoided a relapse, damage control), reinforce (rest, recovery, new resources, new people joining).
   Losses: enemy_offensive (ordinary setback), enemy_breakthrough (things collapsed quickly, "tank attack"), encircled (trapped, overwhelmed, no way out), enemy_cas (blindsided, criticised or attacked by someone), strategic_bombing (damage to long-term foundations: habits, health, finances), port_strike (lost an opportunity, a channel or a connection closed), supply_hub_bombed (burnout, exhaustion, sleep, energy or money ran out), naval_defeat (same fronts as naval_victory), attrition (slow grind, procrastination, neglect).
   Neutral: skirmish.
+- days_ago: 0 for today; if the user places an event in the past ("yesterday", "on Monday", "two days ago"), the number of days back, at most 7.
 - headline: a short dispatch that names the real event in military language, e.g. "Chemistry midterm failed — enemy armour breaks the line at Zabol".
 
 Then write "summary": a 1–3 sentence communiqué covering the whole report in the same voice, honest about how things are going. If the user explicitly uses war language ("heavy tank attack", "they bombed our supply hub", "we broke through"), honour it when choosing action and severity. If the report contains nothing to classify, return an empty items list and say so in the summary.`;
@@ -59,26 +61,30 @@ export function buildUser(map, st, labels, text) {
   return `Current situation:\n${sit}\n\nRecent dispatches (for continuity):\n${recent || '(none yet)'}\n\nToday's report from the user:\n"""\n${text}\n"""`;
 }
 
-function sanitize(map, data) {
-  const ids = new Set(map.fronts.map(f => f.id));
+function sanitize(map, data, off = []) {
+  const ids = new Set(map.fronts.map(f => f.id).filter(id => !off.includes(id)));
   const items = [];
   for (const i of data.items || []) {
     if (!ids.has(i.front)) continue;
     const outcome = ['win', 'loss', 'neutral'].includes(i.outcome) ? i.outcome : 'neutral';
     let action = i.action;
     if (!ACTIONS[action] || ACTIONS[action].side !== outcome) action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish';
-    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160) });
+    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160), days_ago: Math.max(0, Math.min(7, Math.round(Number(i.days_ago) || 0))) });
   }
   return { summary: String(data.summary || '').slice(0, 600), items };
 }
 
-export async function classifyLLM({ map, st, labels, text, apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
+const callClaude = o => callClaudeImpl(o);
+export async function classifyLLM({ map, st, labels, notes = {}, off = [], text, apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
   const body = {
     model, max_tokens: 4000,
-    system: buildSystem(map, labels),
+    system: buildSystem(map, labels, notes, off),
     messages: [{ role: 'user', content: buildUser(map, st, labels, text) }],
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: schemaFor(map, off) } },
   };
+  return { ...sanitize(map, await callClaude({ apiKey, model, body, fetchImpl }), off), source: 'llm' };
+}
+async function callClaudeImpl({ apiKey, model, body, fetchImpl = fetch }) {
   const call = async withFallback => {
     const headers = { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
     const b = { ...body };
@@ -101,7 +107,7 @@ export async function classifyLLM({ map, st, labels, text, apiKey, model = DEFAU
   if (data.stop_reason === 'max_tokens') throw new Error('The report was too long to classify in one go.');
   const block = (data.content || []).find(b => b.type === 'text');
   if (!block) throw new Error('Empty response from the model.');
-  return { ...sanitize(map, JSON.parse(block.text)), source: 'llm' };
+  return JSON.parse(block.text);
 }
 
 // ---------- offline keyword classifier ----------
@@ -122,11 +128,12 @@ const STRONG = ['very', 'really', 'extremely', 'huge', 'massive', 'heavy', 'horr
 const WEAK = ['little', 'slightly', 'kinda', 'kind of', 'bit', 'small', 'minor', 'somewhat', 'okay', 'ok', 'fine'];
 const has = (s, w) => new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(s);
 
-export function classifyLocal({ map, labels, text }) {
+export function classifyLocal({ map, labels, text, off = [] }) {
   const areaFront = {};
-  for (const f of map.fronts) { const lab = labels[f.id] || f.defaultLabel; const m = LABEL_AREA.find(([re]) => re.test(lab)); if (m && !areaFront[m[1]]) areaFront[m[1]] = f.id; }
-  const labelWords = map.fronts.map(f => [f.id, (labels[f.id] || f.defaultLabel).toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2)]);
-  const fallback = areaFront.personal || map.fronts.at(-1).id;
+  const fronts = map.fronts.filter(f => !off.includes(f.id));
+  for (const f of fronts) { const lab = labels[f.id] || f.defaultLabel; const m = LABEL_AREA.find(([re]) => re.test(lab)); if (m && !areaFront[m[1]]) areaFront[m[1]] = f.id; }
+  const labelWords = fronts.map(f => [f.id, (labels[f.id] || f.defaultLabel).toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2)]);
+  const fallback = areaFront.personal || fronts.at(-1).id;
   const clauses = text.split(/[.!?;\n]+|,\s*(?:and|but)\s+|\s+(?:and then|but|also)\s+|,\s+(?=i\s|my\s|we\s|our\s)/i).map(s => s.trim()).filter(s => s.length > 2);
   const items = []; let lastFront = null;
   for (const c of clauses) {
@@ -163,9 +170,10 @@ export function classifyLocal({ map, labels, text }) {
     const f = map.fronts.find(x => x.id === front);
     if (!(f.naval || f.id === 'cau' || f.id === 'tks') && action === 'port_strike') action = 'supply_hub_bombed';
     const head = c.length > 90 ? c.slice(0, 87) + '…' : c;
-    const dup = items.find(i => i.front === front && i.outcome === outcome);
+    const days_ago = /day before yesterday|two days ago|2 days ago/i.test(lc) ? 2 : /three days ago|3 days ago/i.test(lc) ? 3 : /yesterday/i.test(lc) ? 1 : 0;
+    const dup = items.find(i => i.front === front && i.outcome === outcome && i.days_ago === days_ago);
     if (dup) { dup.severity = Math.min(5, Math.max(dup.severity, sev) + (dup.severity === sev ? 1 : 0)); if (ACTIONS[action].adv > ACTIONS[dup.action].adv) dup.action = action; dup.headline = `${dup.headline}; ${head}`.slice(0, 160); continue; }
-    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1) });
+    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1), days_ago });
   }
   const w = items.filter(i => i.outcome === 'win').length, l = items.filter(i => i.outcome === 'loss').length;
   const names = ids => [...new Set(ids)].map(id => map.fronts.find(f => f.id === id).name).join(', ');
@@ -187,3 +195,40 @@ export async function classify(opts) {
   return classifyLocal(opts);
 }
 export { WIN_ACTIONS, LOSS_ACTIONS };
+
+// ---------- staff assessment ----------
+export async function assessLLM({ map, st, labels, off = [], apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
+  const active = map.fronts.filter(f => !off.includes(f.id));
+  const sit = active.map(f => { const fr = st.fronts[f.id]; return `${f.id} — ${labels[f.id] || f.defaultLabel} (${f.name}): ${statusOf(fr.pos).text}, position ${Math.round(fr.pos)}, streak ${fr.streak}, record ${fr.wins}W/${fr.losses}L`; }).join('\n');
+  const recent = st.log.filter(l => !l.kind).slice(-20).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${labels[i.front] || i.front} ${i.outcome} ${i.severity}] ${i.headline}`).join('; ')}`).join('\n');
+  const body = {
+    model, max_tokens: 4000,
+    system: `You are the chief of staff in a personal life tracker drawn as a 1936 war map of Iran. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`,
+    messages: [{ role: 'user', content: `Fronts (position −100 = all objectives taken, 0 = border, +100 = Tehran falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}` }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false } } },
+  };
+  const d = await callClaude({ apiKey, model, body, fetchImpl });
+  return { assessment: String(d.assessment || ''), orders: (d.orders || []).filter(o => active.some(f => f.id === o.front)).slice(0, 3), source: 'llm' };
+}
+export function assessLocal({ map, st, labels, off = [] }) {
+  const active = map.fronts.filter(f => !off.includes(f.id)); const L = f => labels[f.id] || f.defaultLabel;
+  const worst = active.slice().sort((a, b) => st.fronts[b.id].pos - st.fronts[a.id].pos), best = worst.slice().reverse();
+  const quiet = active.filter(f => !st.fronts[f.id].lastT || st.now - st.fronts[f.id].lastT > 7 * 86400000);
+  const parts = [];
+  const w = worst[0], b = best[0];
+  if (!st.log.length) return { assessment: 'No dispatches yet. The borders are quiet and the staff has nothing to assess. Report how your day went and the picture will form.', orders: [], source: 'local' };
+  if (st.fronts[w.id].pos > 4) parts.push(`${L(w)} is the weakest sector: ${statusOf(st.fronts[w.id].pos).text.toLowerCase()}${st.fronts[w.id].streak <= -2 ? `, ${-st.fronts[w.id].streak} defeats running` : ''}.`);
+  else parts.push('No front is currently behind the border.');
+  if (st.fronts[b.id].pos < -4) parts.push(`${L(b)} is carrying the war: ${statusOf(st.fronts[b.id].pos).text.toLowerCase()}.`);
+  if (quiet.length) parts.push(`Nothing has been heard from ${quiet.map(L).join(', ')} for over a week.`);
+  parts.push(`Overall stability stands at ${st.nation.stability}%.`);
+  const orders = [];
+  if (st.fronts[w.id].pos > 4) orders.push({ front: w.id, order: `Stabilise ${L(w)}: one small, certain win before anything ambitious.` });
+  if (quiet[0]) orders.push({ front: quiet[0].id, order: `Send a patrol to ${L(quiet[0])} — report something, good or bad.` });
+  if (st.fronts[b.id].pos < -4) orders.push({ front: b.id, order: `Keep the momentum on ${L(b)}; build something lasting there while it is going well.` });
+  return { assessment: parts.join(' '), orders: orders.slice(0, 3), source: 'local' };
+}
+export async function assess(opts) {
+  if (opts.apiKey) { try { return await assessLLM(opts); } catch (e) { return { ...assessLocal(opts), warning: `Claude unavailable (${e.message}).` }; } }
+  return assessLocal(opts);
+}

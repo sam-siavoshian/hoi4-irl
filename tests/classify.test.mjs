@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { simulate } from '../js/engine.js';
-import { classifyLocal, classifyLLM, classify, buildSystem } from '../js/classify.js';
+import { classifyLocal, classifyLLM, classify, buildSystem, assess } from '../js/classify.js';
 
 const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
 const labels = Object.fromEntries(map.fronts.map(f => [f.id, f.defaultLabel]));
@@ -39,7 +39,7 @@ test('LLM path: request shape and sanitising', async () => {
   assert.equal(seen.body.output_config.format.type, 'json_schema');
   assert.ok(!('temperature' in seen.body) && !('thinking' in seen.body));
   assert.match(seen.body.messages[0].content, /failed exam/);
-  assert.deepEqual(r.items, [{ front: 'afg', outcome: 'loss', severity: 5, action: 'enemy_offensive', headline: 'H' }]);
+  assert.deepEqual(r.items, [{ front: 'afg', outcome: 'loss', severity: 5, action: 'enemy_offensive', headline: 'H', days_ago: 0 }]);
   assert.match(buildSystem(map, labels), /afg: Afghan Front .* = "School"/);
 });
 test('LLM failure falls back to offline with a warning; 400 retries without fallbacks', async () => {
@@ -48,4 +48,14 @@ test('LLM failure falls back to offline with a warning; 400 retries without fall
   let n = 0;
   const r2 = await classifyLLM({ map, st, labels, text: 'x', apiKey: 'k', fetchImpl: async (u, init) => { n++; const b = JSON.parse(init.body); if (b.fallbacks) return { ok: false, status: 400, json: async () => ({}) }; return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: '{"summary":"ok","items":[]}' }] }) }; } });
   assert.equal(n, 2); assert.equal(r2.summary, 'ok');
+});
+
+test('days ago, switched-off fronts, notes and the staff assessment', async () => {
+  const r = classifyLocal({ map, labels, text: 'Yesterday I failed my exam. Today the gym went great.' });
+  assert.equal(r.items.find(i => i.front === 'afg').days_ago, 1); assert.equal(r.items.find(i => i.front === 'raj').days_ago, 0);
+  const off = classifyLocal({ map, labels, off: ['afg'], text: 'I failed my exam.' }); assert.ok(off.items.every(i => i.front !== 'afg'));
+  const sys = buildSystem(map, labels, { irq: 'my SaaS company' }, ['tur']); assert.match(sys, /my SaaS company/); assert.doesNotMatch(sys, /tur: Anatolian/);
+  const a = await assess({ map, st, labels }); assert.match(a.assessment, /No dispatches/);
+  const st2 = simulate(map, [{ id: 'a', ts: Date.now() - 1000, items: [{ front: 'afg', outcome: 'loss', severity: 4, action: 'enemy_offensive', headline: 'x' }] }], Date.now());
+  const b = await assess({ map, st: st2, labels }); assert.match(b.assessment, /School is the weakest/); assert.equal(b.orders[0].front, 'afg');
 });

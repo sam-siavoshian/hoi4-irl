@@ -87,3 +87,18 @@ test('sitrep reads sensibly', () => {
   const s = sitrep(map, st, { afg: 'School' });
   assert.match(s, /Afghan Front \(School\)/); assert.match(s, /occupied/);
 });
+
+test('main effort, battle names, commanders, satrapies and decorations', () => {
+  const base = [rep(1, [it('afg', 'win', 4, 'breakthrough')])];
+  const plain = simulate(map, base, T0 + 2 * DAY);
+  const focused = simulate(map, [{ id: 'f1', ts: T0, kind: 'focus', front: 'afg' }, ...base], T0 + 2 * DAY);
+  assert.ok(focused.fronts.afg.pos < plain.fronts.afg.pos); assert.equal(focused.focus, 'afg'); assert.equal(focused.log[0].kind, 'focus');
+  assert.match(plain.log[0].items[0].battle, /^Battle of /); assert.ok(plain.ach.first);
+  const reps = []; for (let i = 0; i < 40; i++) reps.push(rep(i, [it('cau', 'win', 5, 'breakthrough')]));
+  const st = simulate(map, reps, T0 + 41 * DAY);
+  assert.ok(st.satrapies.some(x => x.name === 'Armina')); assert.ok(st.ach.satrap && st.ach.week && st.ach.month && st.ach.ten && st.ach.decisive && st.ach.abroad);
+  assert.ok(st.fronts.cau.cmd.traits.includes('armour')); assert.ok(st.fronts.cau.cmd.level > 3); assert.equal(simulate(map, reps, T0 + 39 * DAY + 1000).dayStreak, 40); assert.equal(st.dayStreak, 0);
+  assert.ok(st.log.some(l => l.items.some(i => /^Second Battle of/.test(i.battle || ''))));
+  const cb = simulate(map, [rep(1, [it('tur', 'loss', 2, 'attrition')]), rep(2, [it('tur', 'loss', 2, 'attrition')]), rep(3, [it('tur', 'loss', 2, 'attrition')]), rep(4, [it('tur', 'win', 2, 'offensive')])], T0 + 5 * DAY);
+  assert.ok(cb.ach.comeback);
+});

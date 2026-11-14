@@ -2,7 +2,7 @@
 import { ACTIONS, DAY, mapMeta, statusOf } from './engine.js';
 
 export const FRONT_COLORS = { afg: '#4aa3c7', cau: '#d0604e', tks: '#dc8f3f', irq: '#c2aa3e', raj: '#cf5d84', tur: '#a195dc', glf: '#3fc0ab' };
-const IRAN = '#3f8f7a';
+const IRAN = '#3d8573';
 const TERRAIN_COL = { plains: '#7f9a5a', hills: '#8c8a5c', mountain: '#6f6558', desert: '#c9b27a', forest: '#4f7d4d', marsh: '#5b8a86', urban: '#a8a39a' };
 
 const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -17,7 +17,7 @@ export class MapView {
     this.ctx = base.getContext('2d'); this.octx = overlay.getContext('2d');
     this.view = { x: 0, y: 0, s: 0.3 };
     this.mode = 'political'; this.showEmpire = false;
-    this.st = null; this.labels = {}; this.selected = null;
+    this.st = null; this.labels = {}; this.selected = null; this.off = []; this.pins = [];
     this.hits = []; this.onTap = () => {}; this.onView = () => {};
     this.meta = mapMeta(map);
     this._prep(); this._bind();
@@ -40,7 +40,8 @@ export class MapView {
       p.path = path; p.bb = [x0, y0, x1, y1];
       const base = hex(m.countries[p.t].color);
       const tk = { mountain: -0.2, hills: -0.1, desert: 0.1, forest: -0.14, marsh: -0.06, urban: 0.16, plains: 0 }[p.tr] + (hash(p.id) - 0.5) * 0.07;
-      p.col = shade(base, tk);
+      const lum = base[0] * 0.3 + base[1] * 0.59 + base[2] * 0.11;
+      p.col = shade(mix(base, [lum, lum, lum], p.t === 'IRN' ? 0.05 : 0.3), tk * 0.8 - (p.t === 'IRN' ? 0 : 0.1));
     }
     for (const [tag, c] of Object.entries(m.countries)) { const path = new Path2D(); for (const poly of c.shape) for (const r of poly) ringPath(path, r); c.path = path; c.rgb = hex(c.color); }
     const line = pts => { const p = new Path2D(); p.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) p.lineTo(pts[i], pts[i + 1]); return p; };
@@ -188,8 +189,8 @@ export class MapView {
   draw() {
     const { ctx, map: m, view: v, st } = this; const k = this.dpr * v.s;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const g = ctx.createLinearGradient(0, 0, 0, this.base.height); g.addColorStop(0, '#16283a'); g.addColorStop(1, '#1b3246');
-    ctx.fillStyle = '#0c1620'; ctx.fillRect(0, 0, this.base.width, this.base.height);
+    const g = ctx.createLinearGradient(0, 0, 0, this.base.height); g.addColorStop(0, '#131f2b'); g.addColorStop(1, '#172633');
+    ctx.fillStyle = '#0b1218'; ctx.fillRect(0, 0, this.base.width, this.base.height);
     ctx.setTransform(k, 0, 0, k, -v.x * k, -v.y * k);
     ctx.fillStyle = g; ctx.fillRect(0, 0, m.w, m.h);
     ctx.save(); ctx.beginPath(); ctx.rect(0, 0, m.w, m.h); ctx.clip();
@@ -218,11 +219,11 @@ export class MapView {
       ctx.stroke();
     }
     // lakes + rivers
-    ctx.fillStyle = '#1a3044'; ctx.strokeStyle = 'rgba(150,200,225,0.25)'; ctx.lineWidth = 1.2 * px; for (const l of m.lakes) { ctx.fill(l.path); ctx.stroke(l.path); }
-    ctx.strokeStyle = 'rgba(86,146,190,0.75)'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1.3 * px, 1.6); for (const r of m.rivers) ctx.stroke(r.path);
+    ctx.fillStyle = '#152330'; ctx.strokeStyle = 'rgba(150,200,225,0.2)'; ctx.lineWidth = 1.2 * px; for (const l of m.lakes) { ctx.fill(l.path); ctx.stroke(l.path); }
+    ctx.strokeStyle = 'rgba(86,140,180,0.55)'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1.1 * px, 1.3); for (const r of m.rivers) ctx.stroke(r.path);
     // country borders
     ctx.lineJoin = 'round';
-    for (const [tag, c] of Object.entries(m.countries)) { ctx.strokeStyle = 'rgba(10,12,14,0.9)'; ctx.lineWidth = Math.max(1.8 * px, 2.2); ctx.stroke(c.path); }
+    for (const [tag, c] of Object.entries(m.countries)) { ctx.strokeStyle = 'rgba(8,10,12,0.85)'; ctx.lineWidth = Math.max(1.4 * px, 1.8); ctx.stroke(c.path); }
     // railways
     const infra = this.mode === 'infra';
     for (const r of m.railways) {
@@ -243,25 +244,26 @@ export class MapView {
   _frontLines(px) {
     const { ctx, map: m, st } = this; const P = m.provinces;
     for (const f of m.fronts) {
+      if (this.off.includes(f.id)) continue;
       const L = st.lines[f.id]; const fr = st.fronts[f.id];
       const touching = L.ours.some(id => P[id].adj.some(a => L.theirs.includes(a)));
       if (!touching) continue;
       const ours = new Path2D(), theirs = new Path2D();
       for (const id of L.ours) ours.addPath(P[id].path); for (const id of L.theirs) theirs.addPath(P[id].path);
-      const w = Math.max(3.2 * px, 3);
+      const w = Math.max(2.3 * px, 2.2);
       const hot = fr.last && st.now - fr.last.t < 3 * DAY;
       ctx.save(); ctx.clip(theirs); ctx.lineJoin = 'round';
-      ctx.strokeStyle = hot && fr.last.side === 'loss' ? 'rgba(255,70,50,0.98)' : 'rgba(214,58,46,0.95)'; ctx.lineWidth = w * 2; for (const id of L.ours) ctx.stroke(P[id].path);
+      ctx.strokeStyle = hot && fr.last.side === 'loss' ? 'rgba(240,84,66,1)' : 'rgba(214,74,60,0.95)'; ctx.lineWidth = w * 2; for (const id of L.ours) ctx.stroke(P[id].path);
       ctx.restore();
       ctx.save(); ctx.clip(ours); ctx.lineJoin = 'round';
-      ctx.strokeStyle = 'rgba(120,235,215,0.95)'; ctx.lineWidth = w * 1.5; for (const id of L.theirs) ctx.stroke(P[id].path);
+      ctx.strokeStyle = 'rgba(150,232,214,0.95)'; ctx.lineWidth = w * 1.5; for (const id of L.theirs) ctx.stroke(P[id].path);
       ctx.restore();
     }
   }
 
   _spaced(text, x, y, size, color, spacing, px, rot = 0, italic = false) {
     const ctx = this.ctx; ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate((rot * Math.PI) / 180);
-    ctx.font = `${italic ? 'italic ' : ''}600 ${size * px}px "Avenir Next Condensed","DIN Condensed","Arial Narrow","Roboto Condensed",sans-serif`; ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.font = `${italic ? 'italic ' : ''}600 ${size * px}px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif`; ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     const ws = [...text].map(ch => ctx.measureText(ch).width); const total = ws.reduce((a, b) => a + b, 0) + spacing * px * (text.length - 1); let cx = -total / 2;
     [...text].forEach((ch, i) => { ctx.fillText(ch, cx, 0); cx += ws[i] + spacing * px; }); ctx.restore();
   }
@@ -284,7 +286,7 @@ export class MapView {
       if (cap) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = (i % 2 ? 2.6 : 6) * px; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#0d1114'; ctx.lineWidth = px; ctx.stroke(); }
       else { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
       const fs = (p.vp >= 15 ? 12.5 : p.vp >= 5 ? 11 : 10) * px;
-      ctx.font = `${p.vp >= 10 ? 700 : 600} ${fs}px "Avenir Next Condensed","DIN Condensed","Arial Narrow","Roboto Condensed",sans-serif`;
+      ctx.font = `${p.vp >= 10 ? 700 : 600} ${fs}px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif`;
       ctx.lineWidth = 2.6 * px; ctx.strokeStyle = 'rgba(8,10,12,0.85)'; ctx.lineJoin = 'round';
       const name = cap ? p.n.toUpperCase() : p.n;
       ctx.strokeText(name, x + 6 * px, y - 1 * px); ctx.fillStyle = cap ? '#f7dc8b' : lost ? '#ffb3a3' : '#f4f1e6'; ctx.fillText(name, x + 6 * px, y - 1 * px);
@@ -327,9 +329,8 @@ export class MapView {
   counter(ctx, x, y, s, { type, n = 1, str = 100, org = 100, enemy = false, color, rank = 0, tag = null }) {
     const W = 34, H = 22; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
     if (n > 1) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.roundRect(-W / 2 + 3, -H / 2 + 3, W, H, 2.5); ctx.fill(); ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(-W / 2 + 2, -H / 2 + 2, W, H, 2.5); ctx.fill(); ctx.stroke(); }
-    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4 * s * this.dpr; ctx.shadowOffsetY = 1.5 * s * this.dpr;
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 3 * s * this.dpr; ctx.shadowOffsetY = 1 * s * this.dpr;
     ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-W / 2, -H / 2, W, H, 2.5); ctx.fill(); ctx.shadowColor = 'transparent';
-    const gr = ctx.createLinearGradient(0, -H / 2, 0, H / 2); gr.addColorStop(0, 'rgba(255,255,255,0.22)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)'); ctx.fillStyle = gr; ctx.fill();
     ctx.strokeStyle = enemy ? '#1a0d0b' : '#0b1614'; ctx.lineWidth = 1.3; ctx.stroke();
     // bars
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-W / 2 + 2, -H / 2 + 2.5, 5.4, H - 5);
@@ -355,8 +356,8 @@ export class MapView {
     if (rank > 1) { ctx.fillStyle = '#f2cf6b'; for (let i = 0; i < Math.min(4, rank - 1); i++) { ctx.beginPath(); ctx.arc(-W / 2 + 12 + i * 4.2, -H / 2 - 0.2, 1.5, 0, 7); ctx.fill(); } }
     if (n > 1) { ctx.fillStyle = '#10161a'; ctx.beginPath(); ctx.roundRect(W / 2 - 9, H / 2 - 6, 13, 10, 3); ctx.fill(); ctx.fillStyle = '#f6f3e8'; ctx.font = '700 8px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), W / 2 - 2.5, H / 2 - 0.7); }
     if (tag) {
-      ctx.font = '700 8.5px "Avenir Next Condensed","DIN Condensed","Arial Narrow",sans-serif'; const tw = ctx.measureText(tag.text).width + 9;
-      ctx.fillStyle = 'rgba(12,16,20,0.92)'; ctx.strokeStyle = tag.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(-tw / 2, -H / 2 - 15, tw, 11.5, 2.5); ctx.fill(); ctx.stroke();
+      ctx.font = '650 8px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif'; const tw = ctx.measureText(tag.text).width + 9;
+      ctx.fillStyle = 'rgba(12,15,18,0.88)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -H / 2 - 15, tw, 11.5, 5.75); ctx.fill();
       ctx.fillStyle = tag.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(tag.text, 0, -H / 2 - 9);
     }
     ctx.restore();
@@ -382,6 +383,7 @@ export class MapView {
       this.hits.push({ x: sx - w / 2, y: sy - h + 13 * cs * v.s, w, h, data });
     };
     for (const f of m.fronts) {
+      if (this.off.includes(f.id)) continue;
       const L = st.lines[f.id]; const fr = st.fronts[f.id];
       const en = m.countries[f.enemy]; const ecol = rgb(shade(en.rgb, -0.25));
       // enemy
@@ -392,12 +394,12 @@ export class MapView {
       const divs = st.divisions.filter(d => d.front === f.id);
       const slots = this._slots(L.ours, spread ? divs.length : 1);
       const groups = slots.map(() => []); divs.forEach((d, i) => groups[i % slots.length].push(d));
-      const label = (this.labels[f.id] || f.defaultLabel).toUpperCase();
+      const label = (this.labels[f.id] || f.defaultLabel).toUpperCase() + (st.focus === f.id ? ' ★' : '');
       slots.forEach((id, i) => {
         const g = groups[i]; if (!g.length) return; const c = P[id].c; const lead = g.slice().sort((a, b) => (b.type === 'arm') - (a.type === 'arm') || b.xp - a.xp)[0];
         const avg = k => g.reduce((a, d) => a + d[k], 0) / g.length;
         const mid = i === Math.floor(slots.length / 2);
-        place(c[0], c[1], { type: lead.type, n: g.length, str: avg('str'), org: avg('org'), color: '#2f6e60', rank: Math.max(...g.map(d => RANK(d.xp))), tag: mid ? { text: label, color: FRONT_COLORS[f.id] } : null }, { kind: 'front', id: f.id });
+        place(c[0], c[1], { type: lead.type, n: g.length, str: avg('str'), org: avg('org'), color: '#2c6557', rank: Math.max(...g.map(d => RANK(d.xp))), tag: mid ? { text: label, color: FRONT_COLORS[f.id] } : null }, { kind: 'front', id: f.id });
       });
     }
     // garrison
@@ -417,7 +419,7 @@ export class MapView {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, this.over.width, this.over.height);
     ctx.setTransform(k, 0, 0, k, -v.x * k, -v.y * k); const px = 1 / v.s; const t = now / 1000;
     for (const f of m.fronts) {
-      const fr = st.fronts[f.id]; if (!fr.last || st.now - fr.last.t > 3 * DAY || fr.last.side === 'neutral') continue;
+      const fr = st.fronts[f.id]; if (this.off.includes(f.id) || !fr.last || st.now - fr.last.t > 3 * DAY || fr.last.side === 'neutral') continue;
       const L = st.lines[f.id]; const mean = ids => { let x = 0, y = 0; for (const id of ids) { x += P[id].c[0]; y += P[id].c[1]; } return [x / ids.length, y / ids.length]; };
       const win = fr.last.side === 'win'; const A = ACTIONS[fr.last.action];
       // pick the contact point nearest to Tehran for losses / deepest for wins
@@ -449,6 +451,14 @@ export class MapView {
       this.hits = this.hits.filter(h => h.data.battle !== f.id);
       const [sx2, sy2] = this.toScreen(bx, by); this.hits.push({ x: sx2 - 16, y: sy2 - 16, w: 32, h: 32, data: { kind: 'front', id: f.id, battle: f.id } });
     }
+    // operation objectives
+    for (const pin of this.pins) {
+      const p = P[pin.prov]; const c = p.city || p.c; const x = c[0], y = c[1]; const bob = Math.sin(t * 2 + pin.prov) * 1.5 * px;
+      ctx.strokeStyle = '#0c1014'; ctx.lineWidth = 3 * px; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 22 * px + bob); ctx.stroke();
+      ctx.strokeStyle = '#f1ede4'; ctx.lineWidth = 1.5 * px; ctx.stroke();
+      ctx.fillStyle = pin.done ? '#5bbf8a' : pin.failed ? '#8a8f94' : '#e3b85c'; ctx.strokeStyle = '#0c1014'; ctx.lineWidth = px;
+      ctx.beginPath(); ctx.moveTo(x, y - 22 * px + bob); ctx.lineTo(x + 13 * px, y - 18 * px + bob); ctx.lineTo(x, y - 13.5 * px + bob); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
     // fires on damaged buildings
     for (const b of this.meta.buildings) {
       const d = st.bld[b.id].dmg; if (d < 0.25) continue; const p = P[b.prov]; const fl = 0.6 + 0.4 * Math.sin(t * 9 + b.prov);
@@ -460,5 +470,14 @@ export class MapView {
     if (st.terr.threat && st.terr.threat.km < 300 && !st.tehranFallen) { const c = P[m.tehran].city; const pulse = (t * 0.7) % 1; ctx.beginPath(); ctx.arc(c[0], c[1], (10 + pulse * 26) * px, 0, 7); ctx.strokeStyle = `rgba(255,80,60,${0.8 * (1 - pulse)})`; ctx.lineWidth = 2.2 * px; ctx.stroke(); }
   }
 }
+MapView.prototype.snapshot = function (lines = []) {
+  const c = document.createElement('canvas'); const d = this.dpr; const foot = (34 + lines.length * 19) * d;
+  c.width = this.base.width; c.height = this.base.height + foot; const x = c.getContext('2d');
+  x.drawImage(this.base, 0, 0); x.drawImage(this.over, 0, 0);
+  x.fillStyle = '#0e1113'; x.fillRect(0, this.base.height, c.width, foot);
+  x.fillStyle = '#e8e6e1'; x.textBaseline = 'top';
+  lines.forEach((l, i) => { x.font = `${i ? 500 : 700} ${(i ? 13 : 15) * d}px -apple-system,system-ui,sans-serif`; x.fillStyle = i ? '#9aa0a5' : '#e8e6e1'; x.fillText(l, 16 * d, this.base.height + (14 + i * 19) * d); });
+  return c;
+};
 function RANK(xp) { return xp >= 300 ? 5 : xp >= 180 ? 4 : xp >= 100 ? 3 : xp >= 50 ? 2 : xp >= 20 ? 1 : 0; }
 export { statusOf };
