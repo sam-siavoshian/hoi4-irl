@@ -2,7 +2,7 @@
 // Nothing here touches the DOM, so it runs under node for tests.
 
 export const DAY = 86400000;
-export const BASE = [0, 2.5, 5, 8, 12, 17]; // front movement (points of 100) by severity
+export const BASE = [0, 1.2, 2.5, 4, 6.5, 10]; // front movement (points of 100) by severity
 
 export const ACTIONS = {
   // wins
@@ -174,22 +174,24 @@ export function frontlines(map, st, terr) {
   const P = map.provinces;
   const { occ, lib } = terr;
   const res = {};
-  const iranCtl = p => (p.t === 'IRN' ? !occ.has(p.id) : lib.has(p.id));
   for (const f of map.fronts) {
     const fm = terr.meta.frontMeta[f.id];
+    const iranCtl = p => (p.t === 'IRN' ? !occ.has(p.id) : lib.get(p.id) === f.id);
     const hostile = p => (p.t === 'IRN' ? occ.get(p.id) === f.id : fm.dEn.has(p.id) && !lib.has(p.id));
     const ours = new Set(), theirs = new Set();
     const scan = (id) => { const p = P[id]; if (!hostile(p)) return; for (const a of p.adj) if (iranCtl(P[a])) { ours.add(a); theirs.add(id); } };
     for (const [id] of f.iranOrder) scan(id);
     for (const [id] of f.enemyOrder) scan(id);
-    if (f.naval && !ours.size) {
-      const pos = st.fronts[f.id].pos;
-      if (pos >= 0) { for (const id of f.border) if (!occ.has(id)) ours.add(id); for (const [id] of f.enemyOrder.slice(0, 8)) theirs.add(id); }
-      else { for (const [id] of f.enemyOrder) { if (lib.get(id) === f.id) ours.add(id); else if (theirs.size < 8) theirs.add(id); } }
+    const pos = st.fronts[f.id].pos;
+    if (!ours.size && pos < 0) {
+      // no land contact: hold the outermost ground taken (all objectives captured, or an overseas beachhead)
+      const mine = f.enemyOrder.filter(([id]) => lib.get(id) === f.id).slice(-6).map(([id]) => id);
+      for (const id of mine) { ours.add(id); for (const a of P[id].adj) { const q = P[a]; if (q.t !== 'IRN' && !lib.has(a)) theirs.add(a); } }
+      if (f.naval && !theirs.size) for (const [id] of f.enemyOrder) if (!lib.has(id) && theirs.size < 6) theirs.add(id);
     }
+    if (!ours.size && f.naval) { for (const id of f.border) if (!occ.has(id)) ours.add(id); for (const [id] of f.enemyOrder.slice(0, 8)) if (!lib.has(id)) theirs.add(id); }
     if (!ours.size) for (const id of f.border) if (!occ.has(id)) ours.add(id);
     if (!ours.size) ours.add(map.tehran);
-    if (!theirs.size) for (const [id] of f.enemyOrder.slice(-4)) theirs.add(id);
     res[f.id] = { ours: [...ours], theirs: [...theirs] };
   }
   return res;

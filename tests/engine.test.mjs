@@ -24,11 +24,11 @@ test('fresh state holds the border', () => {
 
 test('losses push the enemy in, wins push out', () => {
   const bad = simulate(map, [rep(1, [it('afg', 'loss', 4, 'enemy_breakthrough'), it('cau', 'loss', 3, 'enemy_offensive')])], T0 + 2 * DAY);
-  assert.ok(bad.fronts.afg.pos > 10); assert.ok(bad.terr.occ.size > 0);
+  assert.ok(bad.fronts.afg.pos > 6); assert.ok(bad.terr.occ.size > 0);
   assert.ok([...bad.terr.occ.values()].includes('afg'));
   assert.equal(bad.fronts.irq.pos, 0);
   const good = simulate(map, [rep(1, [it('afg', 'win', 4, 'breakthrough')])], T0 + 2 * DAY);
-  assert.ok(good.fronts.afg.pos < -10); assert.ok(good.terr.lib.size > 0); assert.equal(good.terr.occ.size, 0);
+  assert.ok(good.fronts.afg.pos < -6); assert.ok(good.terr.lib.size > 0); assert.equal(good.terr.occ.size, 0);
   assert.ok(good.log[0].fx.some(x => /captured/.test(x.text)));
 });
 
@@ -41,23 +41,23 @@ test('deterministic replay and undo', () => {
 });
 
 test('a catastrophic run reaches Tehran and is capped; recovery works', () => {
-  const reps = []; for (let i = 0; i < 40; i++) reps.push(rep(i, [it('tks', 'loss', 5, 'enemy_breakthrough')]));
-  const st = simulate(map, reps, T0 + 41 * DAY);
+  const reps = []; for (let i = 0; i < 60; i++) reps.push(rep(i, [it('tks', 'loss', 5, 'enemy_breakthrough')]));
+  const st = simulate(map, reps, T0 + 61 * DAY);
   assert.equal(st.fronts.tks.pos, 100); assert.ok(st.tehranFallen); assert.equal(statusOf(100).key, 'fallen');
   assert.ok(st.terr.occ.has(map.tehran)); assert.ok(st.divisions.filter(d => d.front === 'tks').length >= 1);
   assert.ok(st.log.some(l => l.fx.some(x => x.text === 'TEHRAN HAS FALLEN')));
-  for (let i = 40; i < 60; i++) reps.push(rep(i, [it('tks', 'win', 5, 'breakthrough')]));
-  const st2 = simulate(map, reps, T0 + 61 * DAY);
+  for (let i = 60; i < 80; i++) reps.push(rep(i, [it('tks', 'win', 5, 'breakthrough')]));
+  const st2 = simulate(map, reps, T0 + 81 * DAY);
   assert.ok(st2.fronts.tks.pos < 50); assert.ok(!st2.tehranFallen);
 });
 
 test('total victory restores the empire', () => {
   const reps = []; let k = 0;
-  for (let i = 0; i < 70; i++) reps.push(rep(k++, map.fronts.map(f => it(f.id, 'win', 5, 'breakthrough')), i));
-  const st = simulate(map, reps, T0 + 71 * DAY);
+  for (let i = 0; i < 120; i++) reps.push(rep(k++, map.fronts.map(f => it(f.id, 'win', 5, 'breakthrough')), i));
+  const st = simulate(map, reps, T0 + 121 * DAY);
   for (const f of map.fronts) assert.equal(st.fronts[f.id].pos, -100, f.id);
   assert.ok(st.empire); assert.equal(st.nation.name, 'Achaemenid Empire');
-  for (const f of map.fronts) assert.ok(st.lines[f.id].ours.length > 0);
+  for (const f of map.fronts) { assert.ok(st.lines[f.id].ours.length > 0); for (const id of st.lines[f.id].ours) assert.notEqual(map.provinces[id].t, 'IRN', f.id + ' holds the far frontier'); for (const id of st.lines[f.id].theirs) assert.ok(!st.terr.lib.has(id)); }
   assert.ok(st.divisions.length > 23);
 });
 
