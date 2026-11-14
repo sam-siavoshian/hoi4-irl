@@ -326,39 +326,22 @@ export class MapView {
     }
   }
 
-  counter(ctx, x, y, s, { type, n = 1, str = 100, org = 100, enemy = false, color, rank = 0, tag = null }) {
-    const W = 34, H = 22; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-    if (n > 1) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.roundRect(-W / 2 + 3, -H / 2 + 3, W, H, 2.5); ctx.fill(); ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(-W / 2 + 2, -H / 2 + 2, W, H, 2.5); ctx.fill(); ctx.stroke(); }
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 3 * s * this.dpr; ctx.shadowOffsetY = 1 * s * this.dpr;
-    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-W / 2, -H / 2, W, H, 2.5); ctx.fill(); ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = enemy ? '#1a0d0b' : '#0b1614'; ctx.lineWidth = 1.3; ctx.stroke();
-    // bars
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(-W / 2 + 2, -H / 2 + 2.5, 5.4, H - 5);
-    const bh = H - 6; ctx.fillStyle = '#63d06a'; ctx.fillRect(-W / 2 + 2.6, -H / 2 + 3 + bh * (1 - org / 100), 2, bh * org / 100);
-    ctx.fillStyle = '#e8a23c'; ctx.fillRect(-W / 2 + 4.9, -H / 2 + 3 + bh * (1 - str / 100), 2, bh * str / 100);
-    // symbol box
-    const bx = -W / 2 + 10, by = -H / 2 + 4, bw = W - 14, bhh = H - 8;
-    ctx.strokeStyle = ctx.fillStyle = '#f6f3e8'; ctx.lineWidth = 1.25; ctx.lineJoin = 'miter'; ctx.strokeRect(bx, by, bw, bhh);
-    ctx.beginPath();
-    const X = () => { ctx.moveTo(bx, by); ctx.lineTo(bx + bw, by + bhh); ctx.moveTo(bx + bw, by); ctx.lineTo(bx, by + bhh); };
-    switch (type) {
-      case 'inf': X(); ctx.stroke(); break;
-      case 'grd': X(); ctx.stroke(); ctx.beginPath(); ctx.arc(bx + bw / 2, by + bhh / 2, 2.2, 0, 7); ctx.fill(); break;
-      case 'cav': ctx.moveTo(bx, by + bhh); ctx.lineTo(bx + bw, by); ctx.stroke(); break;
-      case 'arm': ctx.ellipse(bx + bw / 2, by + bhh / 2, bw / 2 - 3, bhh / 2 - 2.6, 0, 0, 7); ctx.stroke(); break;
-      case 'mot': X(); ctx.stroke(); ctx.beginPath(); ctx.arc(bx + bw / 2 - 3.5, by + bhh + 1.6, 1.3, 0, 7); ctx.arc(bx + bw / 2 + 3.5, by + bhh + 1.6, 1.3, 0, 7); ctx.fill(); break;
-      case 'art': ctx.arc(bx + bw / 2, by + bhh / 2, 2.8, 0, 7); ctx.fill(); break;
-      case 'mtn': X(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(bx + bw / 2 - 3.2, by + bhh); ctx.lineTo(bx + bw / 2, by + bhh - 4.5); ctx.lineTo(bx + bw / 2 + 3.2, by + bhh); ctx.closePath(); ctx.fill(); break;
-      case 'mar': X(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(bx + 2, by + bhh / 2); ctx.bezierCurveTo(bx + bw * 0.3, by + bhh / 2 - 4, bx + bw * 0.4, by + bhh / 2 + 4, bx + bw / 2, by + bhh / 2); ctx.bezierCurveTo(bx + bw * 0.6, by + bhh / 2 - 4, bx + bw * 0.7, by + bhh / 2 + 4, bx + bw - 2, by + bhh / 2); ctx.stroke(); break;
-      case 'ship': ctx.moveTo(bx + 2, by + bhh / 2); ctx.lineTo(bx + bw - 2, by + bhh / 2); ctx.lineTo(bx + bw - 5, by + bhh - 2); ctx.lineTo(bx + 5, by + bhh - 2); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(bx + bw / 2, by + bhh / 2); ctx.lineTo(bx + bw / 2, by + 1.5); ctx.lineTo(bx + bw / 2 + 4, by + 4); ctx.stroke(); break;
-      case 'air': ctx.moveTo(bx + bw / 2, by + 1.5); ctx.lineTo(bx + bw / 2, by + bhh - 1.5); ctx.moveTo(bx + 3, by + bhh / 2 + 1); ctx.lineTo(bx + bw / 2, by + bhh / 2 - 2); ctx.lineTo(bx + bw - 3, by + bhh / 2 + 1); ctx.stroke(); break;
-    }
-    if (rank > 1) { ctx.fillStyle = '#f2cf6b'; for (let i = 0; i < Math.min(4, rank - 1); i++) { ctx.beginPath(); ctx.arc(-W / 2 + 12 + i * 4.2, -H / 2 - 0.2, 1.5, 0, 7); ctx.fill(); } }
-    if (n > 1) { ctx.fillStyle = '#10161a'; ctx.beginPath(); ctx.roundRect(W / 2 - 9, H / 2 - 6, 13, 10, 3); ctx.fill(); ctx.fillStyle = '#f6f3e8'; ctx.font = '700 8px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), W / 2 - 2.5, H / 2 - 0.7); }
+  // One token per division: a rounded tile with a plain pictogram and a strength bar.
+  token(ctx, x, y, s, { type, color, str = 100, enemy = false, tag = null, star = false }) {
+    const R = 11; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3 * s * this.dpr; ctx.shadowOffsetY = 1 * s * this.dpr;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-R, -R, R * 2, R * 2, 5); ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = 'rgba(8,10,12,0.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.strokeStyle = ctx.fillStyle = '#f5f2ea'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    glyph(ctx, type);
+    // strength bar
+    const w = R * 2 - 4, v = Math.max(0, Math.min(1, str / 100));
+    ctx.fillStyle = 'rgba(8,10,12,0.9)'; ctx.beginPath(); ctx.roundRect(-w / 2 - 1, R + 2, w + 2, 4.5, 2); ctx.fill();
+    ctx.fillStyle = v > 0.66 ? '#5bbf8a' : v > 0.33 ? '#dba24a' : '#e5604d'; ctx.beginPath(); ctx.roundRect(-w / 2, R + 3, Math.max(1.5, w * v), 2.5, 1.2); ctx.fill();
     if (tag) {
-      ctx.font = '650 8px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif'; const tw = ctx.measureText(tag.text).width + 9;
-      ctx.fillStyle = 'rgba(12,15,18,0.88)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -H / 2 - 15, tw, 11.5, 5.75); ctx.fill();
-      ctx.fillStyle = tag.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(tag.text, 0, -H / 2 - 9);
+      ctx.font = '650 8.5px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif'; const text = tag.text + (star ? ' ★' : ''); const tw = ctx.measureText(text).width + 10;
+      ctx.fillStyle = 'rgba(12,15,18,0.9)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -R - 16, tw, 12.5, 6); ctx.fill();
+      ctx.fillStyle = tag.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 0, -R - 9.5);
     }
     ctx.restore();
   }
@@ -376,41 +359,38 @@ export class MapView {
 
   _units(px) {
     const { ctx, map: m, st, view: v } = this; const P = m.provinces;
-    const spread = v.s > 0.62; const cs = px * Math.max(0.82, Math.min(1.25, 0.75 + v.s * 0.35));
+    const far = v.s < 0.42; const cs = px * Math.max(0.68, Math.min(1.3, 0.56 + v.s * 0.6)); const step = 25 * cs;
     const place = (x, y, opts, data) => {
-      this.counter(ctx, x, y, cs, opts);
-      const [sx, sy] = this.toScreen(x, y); const w = 38 * cs * v.s, h = (opts.tag ? 42 : 26) * cs * v.s;
-      this.hits.push({ x: sx - w / 2, y: sy - h + 13 * cs * v.s, w, h, data });
+      this.token(ctx, x, y, cs, opts);
+      const [sx, sy] = this.toScreen(x, y); const w = Math.max(30, 26 * cs * v.s);
+      this.hits.push({ x: sx - w / 2, y: sy - w / 2, w, h: w + 6, data });
+    };
+    // lay a list of tokens along a set of frontline provinces, side by side where they share one
+    const deploy = (ids, list, data, pull) => {
+      if (!ids.length || !list.length) return;
+      const slots = this._slots(ids, list.length); const groups = slots.map(() => []);
+      list.forEach((u, i) => groups[i % slots.length].push(u));
+      slots.forEach((id, gi) => {
+        const g = groups[gi]; const c = P[id].c;
+        g.forEach((u, k) => place(c[0] + (k - (g.length - 1) / 2) * step + (pull ? pull[0] : 0), c[1] + (pull ? pull[1] : 0), u, data));
+      });
     };
     for (const f of m.fronts) {
       if (this.off.includes(f.id)) continue;
-      const L = st.lines[f.id]; const fr = st.fronts[f.id];
-      const en = m.countries[f.enemy]; const ecol = rgb(shade(en.rgb, -0.25));
-      // enemy
-      const eN = Math.max(2, Math.round(2 + fr.enemyStr / 30 + Math.max(0, fr.pos) / 25));
-      const eslots = L.theirs.length ? this._slots(L.theirs, spread ? Math.min(eN, 4) : 1) : [];
-      eslots.forEach((id, i) => { const c = P[id].c; const cnt = Math.ceil(eN / eslots.length); place(c[0], c[1], { type: fr.enemyArmor > 0.5 && i === 0 ? 'arm' : f.naval ? 'ship' : 'inf', n: cnt, str: Math.min(100, fr.enemyStr * 0.8), org: Math.min(100, fr.enemyStr * 0.75), enemy: true, color: ecol }, { kind: 'front', id: f.id }); });
-      // ours
+      const L = st.lines[f.id]; const fr = st.fronts[f.id]; const data = { kind: 'front', id: f.id };
+      const ecol = rgb(shade(m.countries[f.enemy].rgb, -0.3));
+      const eN = far ? 1 : Math.max(2, Math.min(8, Math.round(2 + fr.enemyStr / 30 + Math.max(0, fr.pos) / 25))); const arm = Math.min(eN - 1, Math.round(fr.enemyArmor + (f.enemy === 'SOV' ? 1 : 0)));
+      deploy(L.theirs, Array.from({ length: eN }, (_, i) => ({ type: (far ? fr.enemyArmor > 0.5 : i < arm) ? 'arm' : f.naval && i % 2 ? 'ship' : i === eN - 1 && eN > 3 ? 'art' : 'inf', color: ecol, str: Math.min(100, fr.enemyStr * 0.8), enemy: true })), data);
       const divs = st.divisions.filter(d => d.front === f.id);
-      const slots = this._slots(L.ours, spread ? divs.length : 1);
-      const groups = slots.map(() => []); divs.forEach((d, i) => groups[i % slots.length].push(d));
-      const label = (this.labels[f.id] || f.defaultLabel).toUpperCase() + (st.focus === f.id ? ' ★' : '');
-      slots.forEach((id, i) => {
-        const g = groups[i]; if (!g.length) return; const c = P[id].c; const lead = g.slice().sort((a, b) => (b.type === 'arm') - (a.type === 'arm') || b.xp - a.xp)[0];
-        const avg = k => g.reduce((a, d) => a + d[k], 0) / g.length;
-        const mid = i === Math.floor(slots.length / 2);
-        place(c[0], c[1], { type: lead.type, n: g.length, str: avg('str'), org: avg('org'), color: '#2c6557', rank: Math.max(...g.map(d => RANK(d.xp))), tag: mid ? { text: label, color: FRONT_COLORS[f.id] } : null }, { kind: 'front', id: f.id });
-      });
+      const label = (this.labels[f.id] || f.defaultLabel).toUpperCase(); const mid = Math.floor((divs.length - 1) / 2);
+      deploy(L.ours, divs.map((d, i) => ({ type: d.type, color: '#2c6557', str: d.str, tag: i === mid ? { text: label, color: FRONT_COLORS[f.id] } : null, star: st.focus === f.id })), data);
     }
-    // garrison
-    const guard = st.divisions.filter(d => !d.front); const t = P[m.tehran].city;
-    if (guard.length && !st.tehranFallen) place(t[0] - 4 * px, t[1] - 22 * px, { type: 'grd', n: guard.length, color: '#7a5c22', rank: 3 }, { kind: 'province', id: m.tehran });
-    // fleets and air wings
-    const at = n => this.meta.byName[n];
-    const seaPos = { south: this.proj(50.4, 28.3), north: this.proj(50.6, 38.3) };
-    for (const fl of st.fleets) { const [x, y] = seaPos[fl.id]; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', n: fl.ships.length, str: hp, org: hp, color: '#28587a', tag: v.s > 0.5 ? { text: fl.name.toUpperCase(), color: '#9cc8ea' } : null }, { kind: 'fleet', id: fl.id }); }
-    const es = this.proj(56.9, 25.6); const g = st.fronts.glf; place(es[0], es[1], { type: 'ship', n: Math.max(2, Math.round(6 - g.sea / 25)), str: 90, org: 90, enemy: true, color: rgb(shade(m.countries.GBR.rgb, -0.25)) }, { kind: 'front', id: 'glf' });
-    if (v.s > 0.5 || this.mode === 'air') for (const w of st.wings) { const p = at(w.base); if (!p) continue; const k = st.wings.filter(x => x.base === w.base).indexOf(w); place(p.city[0] + 26 * px + k * 6 * px, p.city[1] - 20 * px - k * 5 * px, { type: 'air', n: 1, str: (w.planes / w.max) * 100, org: 100, color: '#4a5f8a' }, { kind: 'wing', id: w.id }); }
+    const t = P[m.tehran].city;
+    if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k) => place(t[0] + (k - 0.5) * step, t[1] - 24 * px, { type: d.type, color: '#8a6a2a', str: d.str }, { kind: 'province', id: m.tehran }));
+    const seaPos = { south: this.proj(50.6, 28.1), north: this.proj(50.8, 38.4) };
+    for (const fl of st.fleets) { const [x, y] = seaPos[fl.id]; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
+    if (!this.off.includes('glf')) { const es = this.proj(57.2, 25.5); place(es[0], es[1], { type: 'ship', color: rgb(shade(m.countries.GBR.rgb, -0.3)), str: 90, enemy: true }, { kind: 'front', id: 'glf' }); }
+    if (v.s > 0.55 || this.mode === 'air') for (const w of st.wings) { const p = this.meta.byName[w.base]; if (!p) continue; const k = st.wings.filter(x => x.base === w.base).indexOf(w); place(p.city[0] + 30 * px + k * step, p.city[1] - 26 * px, { type: 'air', color: '#4a5f8a', str: (w.planes / w.max) * 100 }, { kind: 'wing', id: w.id }); }
   }
 
   // ---------------- animated overlay ----------------
@@ -452,7 +432,7 @@ export class MapView {
       const [sx2, sy2] = this.toScreen(bx, by); this.hits.push({ x: sx2 - 16, y: sy2 - 16, w: 32, h: 32, data: { kind: 'front', id: f.id, battle: f.id } });
     }
     // operation objectives
-    for (const pin of this.pins) {
+    for (const pin of v.s < 0.42 ? [] : this.pins) {
       const p = P[pin.prov]; const c = p.city || p.c; const x = c[0], y = c[1]; const bob = Math.sin(t * 2 + pin.prov) * 1.5 * px;
       ctx.strokeStyle = '#0c1014'; ctx.lineWidth = 3 * px; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 22 * px + bob); ctx.stroke();
       ctx.strokeStyle = '#f1ede4'; ctx.lineWidth = 1.5 * px; ctx.stroke();
@@ -479,5 +459,33 @@ MapView.prototype.snapshot = function (lines = []) {
   lines.forEach((l, i) => { x.font = `${i ? 500 : 700} ${(i ? 13 : 15) * d}px -apple-system,system-ui,sans-serif`; x.fillStyle = i ? '#9aa0a5' : '#e8e6e1'; x.fillText(l, 16 * d, this.base.height + (14 + i * 19) * d); });
   return c;
 };
+// Pictograms, drawn in a 22×22 box centred on 0,0
+function glyph(ctx, type) {
+  ctx.beginPath();
+  switch (type) {
+    case 'inf': // helmet
+      ctx.moveTo(-6, 2); ctx.bezierCurveTo(-6, -8, 6, -8, 6, 2); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(-8, 3.5); ctx.lineTo(8, 3.5); ctx.stroke(); break;
+    case 'grd': // crown
+      ctx.moveTo(-7, 5); ctx.lineTo(-7.5, -4); ctx.lineTo(-3.5, 0); ctx.lineTo(0, -6); ctx.lineTo(3.5, 0); ctx.lineTo(7.5, -4); ctx.lineTo(7, 5); ctx.closePath(); ctx.fill(); break;
+    case 'arm': // tank
+      ctx.roundRect(-8, 0, 16, 6, 3); ctx.fill(); ctx.beginPath(); ctx.roundRect(-4, -5, 7, 5, 1.5); ctx.fill(); ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(9, -3); ctx.stroke(); break;
+    case 'mot': // truck
+      ctx.rect(-8, -4, 9, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(1, -1); ctx.lineTo(5, -1); ctx.lineTo(8, 1.5); ctx.lineTo(8, 3); ctx.lineTo(1, 3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(-4.5, 4.5, 2, 0, 7); ctx.arc(4.5, 4.5, 2, 0, 7); ctx.fill(); break;
+    case 'art': // field gun
+      ctx.lineWidth = 2.6; ctx.moveTo(-6, 2); ctx.lineTo(7, -5); ctx.stroke(); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(-2, 3, 3.6, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(-2, 3, 0.9, 0, 7); ctx.fill(); break;
+    case 'cav': // horseshoe
+      ctx.lineWidth = 2.6; ctx.arc(0, -0.5, 5.5, Math.PI * 0.82, Math.PI * 0.18, false); ctx.stroke(); break;
+    case 'mtn': // peaks
+      ctx.moveTo(-8.5, 6); ctx.lineTo(-2.5, -5); ctx.lineTo(1, 1); ctx.lineTo(3.5, -2.5); ctx.lineTo(8.5, 6); ctx.closePath(); ctx.fill(); break;
+    case 'mar': // anchor
+      ctx.arc(0, -5, 1.8, 0, 7); ctx.moveTo(0, -3.2); ctx.lineTo(0, 6.5); ctx.moveTo(-3.5, -0.8); ctx.lineTo(3.5, -0.8); ctx.moveTo(-6, 2); ctx.quadraticCurveTo(-5, 6.5, 0, 6.5); ctx.quadraticCurveTo(5, 6.5, 6, 2); ctx.stroke(); break;
+    case 'ship':
+      ctx.moveTo(-8.5, 1); ctx.lineTo(8.5, 1); ctx.lineTo(5.5, 6); ctx.lineTo(-5.5, 6); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.rect(-3, -3, 5, 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(0, -7); ctx.stroke(); break;
+    case 'air':
+      ctx.moveTo(0, -7.5); ctx.lineTo(1.6, -2); ctx.lineTo(8.5, 2); ctx.lineTo(8.5, 3.5); ctx.lineTo(1.4, 2); ctx.lineTo(1, 5.5); ctx.lineTo(3.2, 7.2); ctx.lineTo(-3.2, 7.2); ctx.lineTo(-1, 5.5); ctx.lineTo(-1.4, 2); ctx.lineTo(-8.5, 3.5); ctx.lineTo(-8.5, 2); ctx.lineTo(-1.6, -2); ctx.closePath(); ctx.fill(); break;
+    default: ctx.arc(0, 0, 4, 0, 7); ctx.fill();
+  }
+}
 function RANK(xp) { return xp >= 300 ? 5 : xp >= 180 ? 4 : xp >= 100 ? 3 : xp >= 50 ? 2 : xp >= 20 ? 1 : 0; }
 export { statusOf };

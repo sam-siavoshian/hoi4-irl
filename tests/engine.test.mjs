@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce } from '../js/engine.js';
+import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective } from '../js/engine.js';
 
 const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
 const T0 = Date.UTC(2026, 10, 1);
@@ -101,4 +101,10 @@ test('main effort, battle names, commanders, satrapies and decorations', () => {
   assert.ok(st.log.some(l => l.items.some(i => /^Second Battle of/.test(i.battle || ''))));
   const cb = simulate(map, [rep(1, [it('tur', 'loss', 2, 'attrition')]), rep(2, [it('tur', 'loss', 2, 'attrition')]), rep(3, [it('tur', 'loss', 2, 'attrition')]), rep(4, [it('tur', 'win', 2, 'offensive')])], T0 + 5 * DAY);
   assert.ok(cb.ach.comeback);
+});
+
+test('the staff picks the next objective by itself', () => {
+  assert.match(objective(map, simulate(map, [], T0), 'afg').text, /^Capture /);
+  const lost = simulate(map, Array.from({ length: 12 }, (_, i) => rep(i, [it('afg', 'loss', 5, 'enemy_breakthrough')])), T0 + 13 * DAY);
+  assert.match(objective(map, lost, 'afg').text, /^Liberate /);
 });

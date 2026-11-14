@@ -582,3 +582,12 @@ export function sitrep(map, st, labels = {}) {
   lines.push(`Stability ${st.nation.stability}% · War support ${st.nation.warSupport}% · ${st.nation.divisions} divisions in the field.`);
   return lines.join('\n');
 }
+
+// What the staff is aiming for next on a front — decided here, not by the user.
+export function objective(map, st, fid) {
+  const f = map.fronts.find(x => x.id === fid), P = map.provinces, t = st.terr;
+  for (const [id] of f.iranOrder) { const p = P[id]; if (p.city && p.vp >= 3 && t.occ.get(id) === fid) return { prov: id, text: `Liberate ${p.n}`, kind: 'liberate' }; }
+  if (st.fronts[fid].pos > 0.5) return { prov: null, text: 'Throw the enemy back over the border', kind: 'border' };
+  for (const [id] of f.enemyOrder) { const p = P[id]; if (p.city && p.vp >= 3 && !t.lib.has(id)) return { prov: id, text: `Capture ${p.n}`, kind: 'capture' }; }
+  return { prov: null, text: `${f.satrapy} restored`, kind: 'done' };
+}

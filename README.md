@@ -17,20 +17,21 @@ It is a tracker, not a game — nothing happens unless you report it (apart from
 | Anatolian Front | Turkey | Friends & Social |
 | Persian Gulf Theatre | Royal Navy | Personal Life |
 
-Rename any of them in **Staff › Settings**, describe what belongs to each (the judge reads it), or sign an armistice to switch a front off.
+Rename or pause any of them in Settings.
 
-## What is in it
+## How you use it
 
-- **Report** by voice or text; one report can hold several events, each on its own front and its own day ("yesterday I…").
-  Or log by hand in two taps. Everything is reviewed before it is applied, and can be edited, undone or deleted later.
-- **Fronts** move province by province. Divisions, air regiments, fleets, factories, ports, supply hubs and railways all react.
-- **Main effort** — pick the front that matters most right now; wins there go further.
-- **Operations** — a codename, an objective city and a deadline, pinned on the map.
-- **Chronicle** — calendar heat-map, day streak, filters, and a replay of the whole war on the map.
-- **Briefing** — the week's movement, an honest assessment with orders from the chief of staff (Claude, or a simple offline version),
-  a shareable text report and a shareable map image.
-- **Commanders** earn traits, big engagements get battle names, regions you fully retake are restored as satrapies under
-  their Old Persian names, and there are sixteen decorations to earn.
+Three places, one button.
+
+- **The microphone** — say or type what happened and press Send. The staff sorts it by front, decides win or loss and how big,
+  dates it ("yesterday I…") and applies it. Undo is one tap. If it cannot tell where something belongs it asks one question.
+- **Fronts** — every front with its status, next objective, divisions and a one-tap Win / Loss.
+- **History** — a calendar, every entry (edit or delete), and a replay of the whole war on the map.
+
+Tap the flag at the top for the overview (how things are going, the staff's read, what you have earned, share, settings).
+
+Everything else runs by itself in the engine: objectives, repairs, new divisions, commanders, battle names, satrapies
+restored under their Old Persian names, decorations, railways.
 
 ## Run it
 
@@ -48,15 +49,15 @@ It must be served over HTTPS for the microphone and offline mode to work.
 
 ## Judgement and voice
 
-- **Claude (recommended):** paste a Claude API key in Staff › Settings. Reports are classified by Claude straight from
+- **Claude (recommended):** paste a Claude API key in Settings. Reports are classified by Claude straight from
   the browser (default model `claude-opus-5-5`, changeable). The key is stored only on the device.
-- **No key:** a simple offline keyword classifier is used. You always review and can edit the result before it is applied.
+- **No key:** a simple offline keyword classifier is used. You can undo or edit any entry.
 - **Voice:** uses the browser's speech recognition where available. iOS home-screen apps sometimes refuse it — in that
   case use the microphone key on the keyboard, or add an ElevenLabs key in Settings to record and transcribe with Scribe.
 
 ## Data
 
-Everything is stored in `localStorage` on the device. Use **Staff › Backup › Export** regularly; a Safari tab and the
+Everything is stored in `localStorage` on the device. Use **Settings › More › Export backup** regularly; a Safari tab and the
 home-screen app keep separate storage, so export/import to move between them.
 
 ## Development
