@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ARTESH</title>
+<meta name="description" content="A war map of your life. Iran, 1936 borders.">
+<meta name="theme-color" content="#0b0e10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ARTESH">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <main id="mapwrap"><canvas id="base"></canvas><canvas id="over"></canvas></main>
+
+  <header id="top">
+    <button class="ident glass" data-act="emblem" aria-label="Nation">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><defs><clipPath id="rc"><circle cx="20" cy="20" r="18"/></clipPath></defs>
+        <g clip-path="url(#rc)"><rect width="40" height="14" fill="#3f9467"/><rect y="14" width="40" height="12" fill="#efeadb"/><rect y="26" width="40" height="14" fill="#cf4a39"/><circle cx="20" cy="20" r="4.6" fill="#e3b85c"/></g></svg>
+      <div><b id="nation-name">Imperial State of Iran</b><span id="nation-date"></span></div>
+    </button>
+    <button id="stats" class="glass" data-act="open" data-sheet="nation" aria-label="National figures"></button>
+  </header>
+  <div id="alerts"></div>
+
+  <div id="rail" class="glass">
+    <button data-act="modes" aria-label="Map layers" id="layers-btn"></button>
+    <button data-act="home" aria-label="Centre on Iran" id="home-btn"></button>
+    <button class="desk" data-act="zoom" data-k="1.6" aria-label="Zoom in" id="zin-btn"></button>
+    <button class="desk" data-act="zoom" data-k="0.625" aria-label="Zoom out" id="zout-btn"></button>
+  </div>
+  <div id="modes" class="glass" hidden></div>
+  <div id="legend" class="glass"></div>
+  <div id="replay" class="glass" hidden></div>
+
+  <section id="sheet" hidden>
+    <header><button class="back" data-act="back" aria-label="Back" hidden></button><h2 id="sheet-title"></h2><button class="x" data-act="close" aria-label="Close"></button></header>
+    <div id="sheet-body"></div>
+  </section>
+
+  <nav id="nav" class="glass"></nav>
+  <div id="toast" class="glass" hidden></div>
+  <div id="banner" class="glass" hidden></div>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

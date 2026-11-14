@@ -1,0 +1,24 @@
+{
+  "name": "artesh",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ARTESH \u2014 a grand-strategy war map of your life (Iran, 1936 borders)",
+  "scripts": {
+    "start": "node server.mjs",
+    "serve": "node tools/serve.mjs",
+    "build:map": "node tools/build-map.mjs",
+    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "d3-delaunay": "^6.0.4",
+    "polygon-clipping": "^0.15.7",
+    "topojson-client": "^3.1.0",
+    "topojson-simplify": "^3.0.3",
+    "world-atlas": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
