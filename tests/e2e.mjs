@@ -3,11 +3,17 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import os from 'node:os';
+import path from 'node:path';
+import { mockOpenAI } from './mock-openai.mjs';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
 const PORT = 8123, URL_ = `http://localhost:${PORT}/`;
 const shots = new URL('./shots/', import.meta.url).pathname; fs.rmSync(shots, { recursive: true, force: true }); fs.mkdirSync(shots, { recursive: true });
-const server = spawn('node', ['tools/serve.mjs'], { env: { ...process.env, PORT }, stdio: 'ignore' });
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-e2e-'));
+const mock = await mockOpenAI(8124);
+const server = spawn('node', ['server.mjs'], { env: { ...process.env, PORT, HOST: '127.0.0.1', ARTESH_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ARTESH_DATA_DIR: dataDir }, stdio: 'ignore' });
+const login = async p => { await p.goto(URL_); if (await p.locator('#p').count()) { await p.fill('#p', 'open sesame'); await p.click('button'); } await p.waitForFunction(() => window.__artesh?.st); };
 await new Promise(r => setTimeout(r, 700));
 const browser = await chromium.launch();
 const errors = []; let passed = 0;
@@ -19,13 +25,25 @@ async function open(opts = {}, init) {
   const p = await ctx.newPage(); if (init) await p.addInitScript(init);
   p.on('pageerror', e => errors.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text())) errors.push('console: ' + m.text()); });
-  await p.goto(URL_); await p.waitForFunction(() => window.__artesh?.st);
+  await login(p);
   return { ctx, p };
 }
 const shot = async (p, n) => { await p.waitForTimeout(350); await p.screenshot({ path: `${shots}${n}.png` }); };
 const body = p => p.textContent('#sheet-body');
 
 try {
+  {
+    const c0 = await browser.newContext({ ...devices['iPhone 14 Pro'] }); const q = await c0.newPage();
+    await step('private: a password wall, then the app', async () => {
+      const r = await q.goto(URL_); assert.equal(r.status(), 401); assert.ok(await q.locator('#p').count()); assert.equal(await q.locator('#mapwrap').count(), 0);
+      await q.screenshot({ path: shots + '00-login.png' });
+      await q.fill('#p', 'nope'); await q.click('button'); await q.waitForFunction(() => /Wrong/.test(document.querySelector('#e').textContent));
+      await q.fill('#p', 'open sesame'); await q.click('button'); await q.waitForFunction(() => window.__artesh?.st);
+      assert.deepEqual(await q.evaluate(() => window.__artesh.cfg), { server: true, judge: 'gpt-6-luna', transcribe: 'gpt-transcribe', login: true });
+      assert.equal(await q.evaluate(() => JSON.stringify(localStorage).includes('sk-')), false);
+    });
+    await c0.close();
+  }
   let { ctx, p } = await open();
   await step('first run: name your fronts', async () => {
     assert.equal(await p.textContent('#sheet-title'), 'Your fronts'); await shot(p, '00-welcome');
@@ -48,7 +66,7 @@ try {
     assert.ok(await p.isHidden('#sheet'));
     const s = await st(p); assert.ok(s.fronts.afg.pos > 2); assert.ok(s.fronts.cau.pos > 0); assert.ok(s.fronts.tur.pos < 0);
     assert.equal(s.log, 2, 'yesterday and today are filed on their own days'); assert.equal(s.streak, 2);
-    assert.match(await p.textContent('#toast'), /Saved · 1 win, 2 losses/);
+    assert.match(await p.textContent('#toast'), /Saved · 1 win, 2 losses/); assert.equal(mock.seen.at(-1).body.model, 'gpt-6-luna');
   });
   await p.waitForTimeout(1200); await shot(p, '03-after');
 
@@ -96,23 +114,18 @@ try {
     for (const m of ['life', 'infra', 'political']) { await p.click('[data-act=modes]'); if (m === 'life') await shot(p, '11-layers'); await p.click(`[data-mode=${m}]`); if (m === 'life') await shot(p, '12-life'); }
   });
 
-  await step('Claude key in settings → judged by Claude from the browser; paused fronts are left out', async () => {
-    let req;
-    await p.route('https://api.anthropic.com/v1/messages', async route => {
-      req = JSON.parse(route.request().postData()); const h = route.request().headers(); assert.equal(h['x-api-key'], 'sk-ant-test'); assert.equal(h['anthropic-dangerous-direct-browser-access'], 'true');
-      const text = /chief of staff/.test(req.system) ? JSON.stringify({ assessment: 'School is bleeding; the startup carries the war.', orders: [{ front: 'afg', order: 'Two hours on the problem set tonight.' }] })
-        : JSON.stringify({ summary: 'The Mesopotamian Front has broken open.', items: [{ front: 'irq', outcome: 'win', severity: 5, action: 'breakthrough', headline: 'Seed round closed', days_ago: 0 }, { front: 'glf', outcome: 'loss', severity: 4, action: 'port_strike', headline: 'Missed the flight', days_ago: 0 }] });
-      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text }] }) });
-    });
+  await step('judged by gpt-6-luna through the server; paused fronts are left out', async () => {
     await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]');
-    await p.fill('[data-bind="set.apiKey"]', 'sk-ant-test'); await p.click('[data-act=togglefront][data-id=raj]'); assert.deepEqual(await p.evaluate(() => window.__artesh.data.off), ['raj']); await shot(p, '13-settings');
+    assert.match(await body(p), /Judged by gpt-6-luna/); assert.match(await body(p), /gpt-transcribe/); assert.equal(await p.locator('input[type=password]').count(), 0);
+    await p.click('[data-act=togglefront][data-id=raj]'); assert.deepEqual(await p.evaluate(() => window.__artesh.data.off), ['raj']); await shot(p, '13-settings');
     await p.click('#nav .report'); await p.fill('#rtext', 'We closed the seed round! But I missed my flight home.'); await p.click('[data-act=send]'); await p.waitForSelector('#banner:not([hidden])');
-    assert.match(req.messages[0].content, /closed the seed round/); assert.match(req.system, /Guitar/); assert.doesNotMatch(req.system, /raj: Baluchistan/); assert.equal(req.model, 'claude-opus-5-5');
+    const req = mock.seen.filter(x => x.path === '/v1/responses').at(-1).body;
+    assert.match(req.input[1].content, /closed the seed round/); assert.match(req.input[0].content, /Guitar/); assert.doesNotMatch(req.input[0].content, /raj: Baluchistan/); assert.equal(req.model, 'gpt-6-luna');
+    assert.ok(!req.text.format.schema.properties.items.items.properties.front.enum.includes('raj'));
     const s = await st(p); assert.ok(s.fronts.irq.pos < -6); assert.ok(s.lib > 0); assert.ok(s.fronts.glf.pos > 0); assert.ok(s.ach.decisive);
     await p.waitForTimeout(1300); await shot(p, '14-breakthrough');
     await p.click('[data-act=emblem]'); await p.waitForFunction(() => /bleeding/.test(document.querySelector('#sheet-body').textContent));
     assert.match(await body(p), /Two hours on the problem set/); assert.match(await body(p), /Order of Zolfaghar/); await shot(p, '15-overview');
-    await p.unroute('https://api.anthropic.com/v1/messages');
   });
 
   await step('share saves the map and copies the report', async () => {
@@ -124,37 +137,36 @@ try {
   await step('backup: export → reset → import', async () => {
     await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); await p.click('summary');
     const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-act=export]')]); const file = shots + 'backup.json'; await dl.saveAs(file);
-    const j = JSON.parse(fs.readFileSync(file)); assert.equal(j.reports.length, 2); assert.equal(j.settings.apiKey, ''); assert.deepEqual(j.off, ['raj']);
+    const j = JSON.parse(fs.readFileSync(file)); assert.equal(j.reports.length, 2); assert.doesNotMatch(JSON.stringify(j), /sk-/); assert.deepEqual(j.off, ['raj']);
     p.once('dialog', d => d.accept()); await p.click('[data-act=reset]'); assert.equal((await st(p)).log, 0);
     await p.setInputFiles('#importfile', file); await p.waitForTimeout(300);
-    assert.equal((await st(p)).log, 2); assert.equal(await p.evaluate(() => window.__artesh.data.settings.apiKey), 'sk-ant-test');
+    assert.equal((await st(p)).log, 2);
   });
-  await ctx.close();
 
-  ({ ctx, p } = await open({}, `${seed()}; window.SpeechRecognition = window.webkitSpeechRecognition = class { start() { setTimeout(() => this.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'had a great workout at the gym' }], { isFinal: true })] }), 80); } stop() { setTimeout(() => this.onend(), 20); } };`));
-  await step('voice: speak, stop, send', async () => {
-    await p.click('#nav .report'); await p.click('[data-act=mic]'); await p.waitForTimeout(250);
-    assert.ok(await p.locator('.mic.live').count()); assert.equal(await p.inputValue('#rtext'), 'had a great workout at the gym'); await shot(p, '16-listening');
-    await p.click('[data-act=mic]'); await p.waitForTimeout(150); await p.click('[data-act=send]'); await p.waitForTimeout(300); assert.ok((await st(p)).fronts.raj.pos < 0);
+  await step('another device signs in and sees the same war', async () => {
+    await p.waitForTimeout(900);
+    const o = await open(); const s2 = await o.p.evaluate(() => ({ n: window.__artesh.data.reports.length, off: window.__artesh.data.off, tur: window.__artesh.data.labels.tur }));
+    assert.equal(s2.n, 2); assert.deepEqual(s2.off, ['raj']); assert.equal(s2.tur, 'Guitar'); await o.ctx.close();
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'))).data.reports.length, 2);
   });
   await ctx.close();
 
   const b2 = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   const c2 = await b2.newContext({ ...devices['iPhone 14 Pro'] }); p = await c2.newPage(); p.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  await p.addInitScript(seed({ settings: { elevenKey: 'el-test', voice: 'eleven' } }));
-  let stt = false;
-  await p.route('https://api.elevenlabs.io/v1/speech-to-text', async route => { stt = route.request().headers()['xi-api-key'] === 'el-test'; await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ text: 'I failed my exam.' }) }); });
-  await p.goto(URL_); await p.waitForFunction(() => window.__artesh?.st);
-  await step('voice: recording transcribed by ElevenLabs', async () => {
-    await p.click('#nav .report'); await p.click('[data-act=mic]'); await p.waitForSelector('.mic.live'); await p.waitForTimeout(1300);
-    await p.click('[data-act=mic]'); await p.waitForFunction(() => document.querySelector('#rtext')?.value.includes('failed my exam'), null, { timeout: 8000 }); assert.ok(stt);
+  await login(p);
+  await step('voice: record → gpt-transcribe → send', async () => {
+    const before = (await st(p)).fronts.afg.losses;
+    await p.click('#nav .report'); await p.click('[data-act=mic]'); await p.waitForSelector('.mic.live'); await p.screenshot({ path: shots + '16-listening.png' }); await p.waitForTimeout(1300);
+    await p.click('[data-act=mic]'); await p.waitForFunction(() => document.querySelector('#rtext')?.value.includes('failed my exam'), null, { timeout: 8000 });
+    const sent = mock.seen.filter(x => x.path === '/v1/audio/transcriptions').at(-1); assert.match(sent.type, /multipart/); assert.ok(sent.raw.length > 2000);
+    await p.click('[data-act=send]'); await p.waitForTimeout(400); assert.equal((await st(p)).fronts.afg.losses, before + 1);
   });
   await b2.close();
 
   const c3 = await browser.newContext({ viewport: { width: 1440, height: 860 } }); p = await c3.newPage(); p.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  await p.addInitScript(seed()); await p.goto(URL_); await p.waitForFunction(() => window.__artesh?.st);
+  await login(p);
   await step('desktop: demo', async () => {
-    await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); await p.click('summary'); await p.click('[data-act=demo]'); await p.waitForTimeout(900);
+    await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); await p.click('summary'); p.once('dialog', d => d.accept()); await p.click('[data-act=demo]'); await p.waitForTimeout(900);
     const s = await st(p); assert.equal(s.log, 8); assert.ok(s.occ > 0 && s.lib > 0); await shot(p, '17-desktop');
     await p.click('#nav [data-sheet=fronts]'); await p.click('.front[data-arg=irq]'); await shot(p, '18-desktop-front');
   });
@@ -167,6 +179,6 @@ try {
     await p.evaluate(() => { const a = window.__artesh; const [x, y] = a.view.proj(50, 33); a.view.flyTo(x, y, a.view.minS, false); }); await shot(p, '20-empire');
   });
   await c3.close();
-} finally { await browser.close(); server.kill(); }
+} finally { await browser.close(); server.kill(); mock.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
 console.log(`\n${passed} passed, ${errors.length} problem(s)`);
 if (errors.length) { console.log(errors.join('\n')); process.exit(1); }

@@ -1,13 +1,7 @@
 // Turns a spoken/written life update into battle orders.
-// Uses the Claude API directly from the browser when a key is configured, else a local keyword classifier.
+// When the private server has an OpenAI key the report is judged there (the key never reaches the browser);
+// otherwise a local keyword classifier is used.
 import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf } from './engine.js';
-
-export const DEFAULT_MODEL = 'claude-opus-5-5';
-export const MODELS = [
-  ['claude-opus-5-5', 'Claude Opus 5.5 — best judgement'],
-  ['claude-sonnet-5-5', 'Claude Sonnet 5.5 — fast'],
-  ['claude-haiku-5-5', 'Claude Haiku 5.5 — cheapest'],
-];
 
 const schemaFor = (map, off = []) => ({
   type: 'object',
@@ -74,40 +68,16 @@ function sanitize(map, data, off = []) {
   return { summary: String(data.summary || '').slice(0, 600), items };
 }
 
-const callClaude = o => callClaudeImpl(o);
-export async function classifyLLM({ map, st, labels, notes = {}, off = [], text, apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
-  const body = {
-    model, max_tokens: 4000,
-    system: buildSystem(map, labels, notes, off),
-    messages: [{ role: 'user', content: buildUser(map, st, labels, text) }],
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: schemaFor(map, off) } },
-  };
-  return { ...sanitize(map, await callClaude({ apiKey, model, body, fetchImpl }), off), source: 'llm' };
+// One structured-output call through the private server (POST /api/llm → OpenAI Responses API).
+async function callJudge({ name, system, user, schema, fetchImpl = fetch }) {
+  const res = await fetchImpl('api/llm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, system, user, schema }) });
+  let data = null; try { data = await res.json(); } catch { /* ignore */ }
+  if (!res.ok) throw new Error(res.status === 401 ? 'Signed out — reload and log in again.' : data?.error || `Server error ${res.status}`);
+  return data.result;
 }
-async function callClaudeImpl({ apiKey, model, body, fetchImpl = fetch }) {
-  const call = async withFallback => {
-    const headers = { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
-    const b = { ...body };
-    // refusal fallback: if a safety classifier declines, the API re-runs the request on a fallback model
-    if (withFallback) { headers['anthropic-beta'] = 'server-side-fallback-2026-07-01'; b.fallbacks = 'default'; }
-    return fetchImpl('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(b) });
-  };
-  const useFallback = /opus-5|sonnet-5-5|fable/.test(model);
-  let res = await call(useFallback);
-  if (res.status === 400 && useFallback) res = await call(false);
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const e = await res.json(); if (e?.error?.message) msg = e.error.message; } catch { /* ignore */ }
-    if (res.status === 401) msg = 'API key rejected — check it in Settings.';
-    if (res.status === 429) msg = 'Rate limited — try again in a moment.';
-    throw new Error(msg);
-  }
-  const data = await res.json();
-  if (data.stop_reason === 'refusal') throw new Error('The model declined this report.');
-  if (data.stop_reason === 'max_tokens') throw new Error('The report was too long to classify in one go.');
-  const block = (data.content || []).find(b => b.type === 'text');
-  if (!block) throw new Error('Empty response from the model.');
-  return JSON.parse(block.text);
+export async function classifyLLM({ map, st, labels, notes = {}, off = [], text, fetchImpl = fetch }) {
+  const result = await callJudge({ name: 'battle_report', system: buildSystem(map, labels, notes, off), user: buildUser(map, st, labels, text), schema: schemaFor(map, off), fetchImpl });
+  return { ...sanitize(map, result, off), source: 'llm' };
 }
 
 // ---------- offline keyword classifier ----------
@@ -188,26 +158,20 @@ export function classifyLocal({ map, labels, text, off = [] }) {
 }
 
 export async function classify(opts) {
-  if (opts.apiKey) {
+  if (opts.remote) {
     try { return await classifyLLM(opts); }
-    catch (e) { const r = classifyLocal(opts); r.warning = `Claude unavailable (${e.message}). Used the offline classifier instead.`; return r; }
+    catch (e) { const r = classifyLocal(opts); r.warning = `Judge unavailable (${e.message}). Used the offline classifier instead.`; return r; }
   }
   return classifyLocal(opts);
 }
 export { WIN_ACTIONS, LOSS_ACTIONS };
 
 // ---------- staff assessment ----------
-export async function assessLLM({ map, st, labels, off = [], apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
+export async function assessLLM({ map, st, labels, off = [], fetchImpl = fetch }) {
   const active = map.fronts.filter(f => !off.includes(f.id));
   const sit = active.map(f => { const fr = st.fronts[f.id]; return `${f.id} — ${labels[f.id] || f.defaultLabel} (${f.name}): ${statusOf(fr.pos).text}, position ${Math.round(fr.pos)}, streak ${fr.streak}, record ${fr.wins}W/${fr.losses}L`; }).join('\n');
   const recent = st.log.filter(l => !l.kind).slice(-20).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${labels[i.front] || i.front} ${i.outcome} ${i.severity}] ${i.headline}`).join('; ')}`).join('\n');
-  const body = {
-    model, max_tokens: 4000,
-    system: `You are the chief of staff in a personal life tracker drawn as a 1936 war map of Iran. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`,
-    messages: [{ role: 'user', content: `Fronts (position −100 = all objectives taken, 0 = border, +100 = Tehran falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}` }],
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false } } },
-  };
-  const d = await callClaude({ apiKey, model, body, fetchImpl });
+  const d = await callJudge({ name: 'staff_assessment', system: `You are the chief of staff in a personal life tracker drawn as a 1936 war map of Iran. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`, user: `Fronts (position −100 = all objectives taken, 0 = border, +100 = Tehran falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}`, schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false }, fetchImpl });
   return { assessment: String(d.assessment || ''), orders: (d.orders || []).filter(o => active.some(f => f.id === o.front)).slice(0, 3), source: 'llm' };
 }
 export function assessLocal({ map, st, labels, off = [] }) {
@@ -229,6 +193,6 @@ export function assessLocal({ map, st, labels, off = [] }) {
   return { assessment: parts.join(' '), orders: orders.slice(0, 3), source: 'local' };
 }
 export async function assess(opts) {
-  if (opts.apiKey) { try { return await assessLLM(opts); } catch (e) { return { ...assessLocal(opts), warning: `Claude unavailable (${e.message}).` }; } }
+  if (opts.remote) { try { return await assessLLM(opts); } catch (e) { return { ...assessLocal(opts), warning: `Judge unavailable (${e.message}).` }; } }
   return assessLocal(opts);
 }

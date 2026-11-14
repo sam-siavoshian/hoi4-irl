@@ -28,28 +28,21 @@ test('custom labels route to their front', () => {
   const r = classifyLocal({ map, labels: { ...labels, tur: 'Guitar' }, text: 'Guitar practice went great.' });
   assert.equal(r.items[0].front, 'tur');
 });
-test('LLM path: request shape and sanitising', async () => {
+test('judge path: goes through the private server, result is sanitised', async () => {
   let seen;
-  const fetchImpl = async (url, init) => { seen = { url, init, body: JSON.parse(init.body) }; return { ok: true, status: 200, json: async () => ({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: JSON.stringify({ summary: 'S', items: [{ front: 'afg', outcome: 'loss', severity: 9, action: 'breakthrough', headline: 'H' }, { front: 'zzz', outcome: 'win', severity: 1, action: 'offensive', headline: 'x' }] }) }] }) }; };
-  const r = await classifyLLM({ map, st, labels, text: 'failed exam', apiKey: 'sk-test', fetchImpl });
-  assert.equal(seen.url, 'https://api.anthropic.com/v1/messages');
-  assert.equal(seen.init.headers['x-api-key'], 'sk-test');
-  assert.equal(seen.init.headers['anthropic-dangerous-direct-browser-access'], 'true');
-  assert.equal(seen.body.model, 'claude-opus-5-5');
-  assert.equal(seen.body.output_config.format.type, 'json_schema');
-  assert.ok(!('temperature' in seen.body) && !('thinking' in seen.body));
-  assert.match(seen.body.messages[0].content, /failed exam/);
+  const fetchImpl = async (url, init) => { seen = { url, init, body: JSON.parse(init.body) }; return { ok: true, status: 200, json: async () => ({ result: { summary: 'S', items: [{ front: 'afg', outcome: 'loss', severity: 9, action: 'breakthrough', headline: 'H', days_ago: 0 }, { front: 'zzz', outcome: 'win', severity: 1, action: 'offensive', headline: 'x', days_ago: 0 }] } }) }; };
+  const r = await classifyLLM({ map, st, labels, text: 'failed exam', fetchImpl });
+  assert.equal(seen.url, 'api/llm'); assert.ok(!JSON.stringify(seen.init.headers).match(/authorization|api-key/i), 'no key in the browser');
+  assert.match(seen.body.user, /failed exam/); assert.match(seen.body.system, /afg: Afghan Front .* = "School"/);
+  const sch = seen.body.schema; assert.equal(sch.additionalProperties, false); assert.deepEqual(sch.required, ['summary', 'items']);
+  const item = sch.properties.items.items; assert.equal(item.additionalProperties, false); assert.deepEqual(item.required.slice().sort(), Object.keys(item.properties).sort(), 'strict mode needs every field required');
   assert.deepEqual(r.items, [{ front: 'afg', outcome: 'loss', severity: 5, action: 'enemy_offensive', headline: 'H', days_ago: 0 }]);
-  assert.match(buildSystem(map, labels), /afg: Afghan Front .* = "School"/);
 });
-test('LLM failure falls back to offline with a warning; 400 retries without fallbacks', async () => {
-  const r = await classify({ map, st, labels, text: 'failed my exam', apiKey: 'k', fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({}) }) });
-  assert.equal(r.source, 'local'); assert.match(r.warning, /API key rejected/); assert.equal(r.items[0].front, 'afg');
-  let n = 0;
-  const r2 = await classifyLLM({ map, st, labels, text: 'x', apiKey: 'k', fetchImpl: async (u, init) => { n++; const b = JSON.parse(init.body); if (b.fallbacks) return { ok: false, status: 400, json: async () => ({}) }; return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: '{"summary":"ok","items":[]}' }] }) }; } });
-  assert.equal(n, 2); assert.equal(r2.summary, 'ok');
+test('judge failure falls back to offline with a warning', async () => {
+  const r = await classify({ map, st, labels, text: 'failed my exam', remote: true, fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({ error: 'OPENAI_API_KEY is not set on the server.' }) }) });
+  assert.equal(r.source, 'local'); assert.match(r.warning, /OPENAI_API_KEY/); assert.equal(r.items[0].front, 'afg');
+  assert.equal((await classify({ map, st, labels, text: 'failed my exam' })).source, 'local');
 });
-
 test('days ago, switched-off fronts, notes and the staff assessment', async () => {
   const r = classifyLocal({ map, labels, text: 'Yesterday I failed my exam. Today the gym went great.' });
   assert.equal(r.items.find(i => i.front === 'afg').days_ago, 1); assert.equal(r.items.find(i => i.front === 'raj').days_ago, 0);

@@ -33,42 +33,46 @@ Tap the flag at the top for the overview (how things are going, the staff's read
 Everything else runs by itself in the engine: objectives, repairs, new divisions, commanders, battle names, satrapies
 restored under their Old Persian names, decorations, railways.
 
-## Run it
+## Self-hosting (private)
 
-It is a static site with no build step.
+ARTESH runs as one small Node server (`server.mjs`, Node 20+, no dependencies to install). It
+
+- shows nothing but a password box until you log in (one password, remembered per device for a year),
+- keeps the OpenAI key on the host — the browser never receives it,
+- judges reports with `gpt-6-luna` and transcribes voice with `gpt-transcribe` (both changeable in `.env`),
+- stores the campaign in `private/state.json`, so the phone and the desktop show the same war,
+- tells search engines to stay away (`noindex`, `robots.txt`).
 
 ```bash
-npm run serve        # http://localhost:8080
+cp .env.example .env      # then fill in OPENAI_API_KEY and ARTESH_PASSWORD
+npm start                 # http://localhost:8080
 ```
 
-**Hosting:** push to `main` and enable *Settings › Pages › Source: GitHub Actions* (the workflow in
-`.github/workflows/pages.yml` publishes it), or drop the folder on any static host (Netlify, Vercel, Cloudflare Pages).
-It must be served over HTTPS for the microphone and offline mode to work.
+**On a Mac Mini**
 
-**iPhone:** open the URL in Safari → Share → *Add to Home Screen*. It opens full-screen and works offline.
+1. Clone the repo, create `.env` as above. `.env` and `private/` are git-ignored; keep them that way.
+2. Keep it running with `deploy/com.artesh.server.plist` (launchd; instructions inside the file).
+3. Put HTTPS in front of it. The iPhone microphone and "Add to Home Screen" offline mode only work over HTTPS.
+   The private option is a tailnet: `tailscale serve --bg 8080` gives an `https://<mac>.<tailnet>.ts.net` address that only
+   your own devices can open. With a tunnel or reverse proxy in front, set `HOST=127.0.0.1` in `.env`.
+   Do not port-forward it to the open internet unless you accept that the password is then the only lock.
+4. On the iPhone: open that address in Safari, log in, then Share → *Add to Home Screen*.
 
-## Judgement and voice
+**Back up** `private/state.json` (it is the whole campaign), or use Settings › More › Export backup.
 
-- **Claude (recommended):** paste a Claude API key in Settings. Reports are classified by Claude straight from
-  the browser (default model `claude-opus-5-5`, changeable). The key is stored only on the device.
-- **No key:** a simple offline keyword classifier is used. You can undo or edit any entry.
-- **Voice:** uses the browser's speech recognition where available. iOS home-screen apps sometimes refuse it — in that
-  case use the microphone key on the keyboard, or add an ElevenLabs key in Settings to record and transcribe with Scribe.
-
-## Data
-
-Everything is stored in `localStorage` on the device. Use **Settings › More › Export backup** regularly; a Safari tab and the
-home-screen app keep separate storage, so export/import to move between them.
+Without `OPENAI_API_KEY` the app still works with a simple offline keyword judge and the keyboard's dictation key.
+`npm run serve` is a plain static server with no login and no OpenAI, for development only.
 
 ## Development
 
 ```bash
 npm install
-npm test             # engine + classifier unit tests
+npm test             # engine, classifier and server tests (OpenAI is mocked)
 npm run test:e2e     # headless-browser tests at iPhone size (needs Playwright's Chromium)
 npm run build:map    # regenerate data/map.json from Natural Earth + tools/seeds.mjs
 ```
 
 - `js/engine.js` — deterministic war engine; the whole state is replayed from the list of reports, so deleting a report rewinds it.
-- `js/map.js` — canvas renderer. `js/classify.js` — Claude + offline classifier. `js/voice.js` — dictation.
+- `js/map.js` — canvas renderer. `js/classify.js` — prompts, schema and the offline classifier. `js/voice.js` — recording.
+- `server.mjs` — login, OpenAI proxy (`/api/llm`, `/api/transcribe`), storage (`/api/state`).
 - `tools/seeds.mjs` — cities, states, fronts, terrain, rivers, railways. Borders come from Natural Earth (public domain).

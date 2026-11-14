@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Keeps ARTESH running on a Mac. Replace /PATH/TO with real paths, then:
+     cp deploy/com.artesh.server.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.artesh.server.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.artesh.server</string>
+  <key>ProgramArguments</key>
+  <array><string>/PATH/TO/node</string><string>/PATH/TO/hoi4-irl/server.mjs</string></array>
+  <key>WorkingDirectory</key><string>/PATH/TO/hoi4-irl</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/PATH/TO/hoi4-irl/private/server.log</string>
+  <key>StandardErrorPath</key><string>/PATH/TO/hoi4-irl/private/server.log</string>
+</dict>
+</plist>

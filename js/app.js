@@ -2,7 +2,7 @@
 // Everything else (objectives, commanders, satrapies, decorations, repairs) is worked out by engine.js.
 import { simulate, sitrep, statusOf, objective, mapMeta, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, DAY } from './engine.js';
 import { MapView, FRONT_COLORS } from './map.js';
-import { classify, assess, MODELS } from './classify.js';
+import { classify, assess } from './classify.js';
 import { pickEngine, startDictation } from './voice.js';
 import * as store from './store.js';
 
@@ -28,12 +28,15 @@ const ACT_ICON = { arrow: 'arrowR', armor: 'tank', pocket: 'ring', air: 'plane',
 const actIcon = (a, outcome) => (ACTIONS[a].icon === 'arrow' && outcome === 'loss' ? 'arrowL' : ACT_ICON[ACTIONS[a].icon] || 'shield');
 
 let map, view, data, st, live;
+let cfg = { server: false, judge: null, transcribe: null }; // what the private server offers
 const ui = { sheet: null, arg: null, stack: [], report: null, dict: null, asOf: null, playing: null, assess: null, assessAt: 0, emblem: 0 };
 const MODES = [['political', 'Map', 'flag'], ['life', 'Life areas', 'user'], ['infra', 'Infrastructure', 'factory'], ['supply', 'Supply', 'box'], ['air', 'Air', 'plane'], ['terrain', 'Terrain', 'terrain']];
 
 async function boot() {
   map = await (await fetch('data/map.json')).json();
   data = store.load();
+  try { const r = await fetch('api/config'); if (r.ok) cfg = await r.json(); } catch { /* static hosting: offline judge only */ }
+  if (cfg.server) { try { const remote = await store.pull(); if (remote) { data = remote; store.save(data); } else if (data.reports.length) store.push(() => data); } catch { /* offline: use the local copy */ } }
   view = new MapView($('#base'), $('#over'), map);
   view.onTap = onMapTap;
   $('#nav').innerHTML = `<button data-act="open" data-sheet="fronts">${I('flag')}<span>Fronts</span></button><button class="report" data-act="open" data-sheet="report" aria-label="Report">${I('mic')}</button><button data-act="open" data-sheet="history">${I('book')}<span>History</span></button>`;
@@ -41,19 +44,23 @@ async function boot() {
   $('#sheet .x').innerHTML = I('x'); $('#sheet .back').innerHTML = I('back');
   document.addEventListener('click', onClick); document.addEventListener('input', onInput); document.addEventListener('change', onInput);
   window.addEventListener('resize', () => view.resize()); window.visualViewport?.addEventListener('resize', () => view.resize());
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  document.addEventListener('visibilitychange', async () => { if (!document.hidden) { await resync(); refresh(); } });
   setInterval(() => { if (!ui.playing) refresh(); }, 60000);
   view.setMode(data.mode || 'political');
   refresh();
   if (!data.onboarded) openSheet('welcome'); else greet();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__artesh = { get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
+  window.__artesh = { get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
 }
 
 const labels = () => Object.fromEntries(map.fronts.map(f => [f.id, data.labels[f.id] || f.defaultLabel]));
 const front = id => map.fronts.find(f => f.id === id);
 const activeFronts = () => map.fronts.filter(f => !data.off.includes(f.id));
-function persist() { if (!store.save(data)) toast('Storage is full. Export a backup in Settings.'); }
+function persist() {
+  if (!store.save(data)) toast('Storage is full. Export a backup in Settings.');
+  if (cfg.server) store.push(() => data, newer => { if (newer) { data = newer; store.save(data); refresh(); toast('Updated from another device.'); } });
+}
+async function resync() { if (!cfg.server || document.activeElement?.matches?.('input,textarea')) return; try { const remote = await store.pull(); if (remote && JSON.stringify(remote.reports) + JSON.stringify(remote.labels) + remote.off !== JSON.stringify(data.reports) + JSON.stringify(data.labels) + data.off) { data = remote; store.save(data); } } catch { /* offline */ } }
 
 function refresh() {
   live = simulate(map, data.reports, Date.now(), { off: data.off });
@@ -239,7 +246,7 @@ function sHistory() {
 // ---------- report ----------
 const newReport = () => ({ text: '', busy: false, note: '', pick: false });
 function sReport() {
-  const r = ui.report; const eng = pickEngine(data.settings); const L = labels();
+  const r = ui.report; const eng = pickEngine(cfg); const L = labels();
   const hint = ui.dict ? (ui.dict.state === 'transcribing' ? 'Transcribing…' : 'Listening. Tap to stop.') : r.note || (r.text ? '' : eng === 'keyboard' ? 'Type, or use the keyboard microphone' : 'Tap the microphone and talk');
   return ['What happened?', `
     <div class="composer"><textarea id="rtext" data-bind="report.text" placeholder="Failed a quiz. Hit a PR at the gym. Great call with mom…">${esc(r.text)}</textarea>
@@ -264,7 +271,7 @@ function sEdit() {
 function autoAssess() {
   if (ui.assess && Date.now() - ui.assessAt < 6 * 3600000 && ui.assessN === data.reports.length) return;
   const n = data.reports.length;
-  assess({ map, st: live, labels: labels(), off: data.off, apiKey: data.settings.apiKey, model: data.settings.model }).then(x => { ui.assess = x; ui.assessAt = Date.now(); ui.assessN = n; if (ui.sheet === 'overview') renderSheet(); }).catch(() => {});
+  assess({ map, st: live, labels: labels(), off: data.off, remote: !!cfg.judge }).then(x => { ui.assess = x; ui.assessAt = Date.now(); ui.assessN = n; if (ui.sheet === 'overview') renderSheet(); }).catch(() => {});
 }
 function sOverview() {
   const n = st.nation; const L = labels(); const a = ui.assess; const earned = MEDALS.filter(([id]) => live.ach[id]);
@@ -281,15 +288,10 @@ function sSettings() {
   return ['Settings', `
     <h3>Your fronts</h3>
     ${map.fronts.map(f => `<div class="frow" style="--c:${FRONT_COLORS[f.id]}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"><button class="switch ${data.off.includes(f.id) ? '' : 'on'}" data-act="togglefront" data-id="${f.id}" aria-label="Active"></button></div>`).join('')}
-    <h3>Claude API key</h3>
-    <input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…" data-bind="set.apiKey" value="${esc(s.apiKey)}">
-    <p class="faint small" style="margin-top:8px">Lets Claude judge your reports. Stays on this device.</p>
+    <h3>Staff</h3>
+    <div class="rows">${row({ icon: cfg.judge ? 'check' : 'info', t: cfg.judge ? `Judged by ${esc(cfg.judge)}` : 'Offline keyword judge', d: cfg.judge ? `Voice transcribed by ${esc(cfg.transcribe)}` : cfg.server ? 'Add OPENAI_API_KEY to .env on the server' : 'Run the private server to use OpenAI' })}</div>
     <details><summary>More</summary>
-      <label class="f"><span>Model</span><select data-bind="set.model">${MODELS.map(([id, n]) => `<option value="${id}" ${s.model === id ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label class="f"><span>Dictation</span><select data-bind="set.voice">${[['auto', 'Automatic'], ['browser', 'Browser'], ['eleven', 'ElevenLabs'], ['keyboard', 'Keyboard only']].map(([v, n]) => `<option value="${v}" ${s.voice === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label class="f"><span>Dictation language</span><select data-bind="set.lang">${[['', 'Device language'], ['en-US', 'English'], ['fa-IR', 'Persian'], ['fr-FR', 'French'], ['de-DE', 'German'], ['es-ES', 'Spanish'], ['tr-TR', 'Turkish'], ['ar-SA', 'Arabic']].map(([v, n]) => `<option value="${v}" ${s.lang === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label class="f"><span>ElevenLabs API key</span><input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" data-bind="set.elevenKey" value="${esc(s.elevenKey)}"></label>
-      <div class="rows">${row({ icon: 'down', t: 'Export backup', act: 'export' })}${row({ icon: 'up', t: 'Import backup', act: 'import' })}${row({ icon: 'play', t: 'Load demo', act: 'demo' })}${row({ icon: 'trash', t: '<span class="bad">Reset everything</span>', act: 'reset' })}</div>
+      <div class="rows">${row({ icon: 'down', t: 'Export backup', act: 'export' })}${row({ icon: 'up', t: 'Import backup', act: 'import' })}${row({ icon: 'play', t: 'Load demo', act: 'demo' })}${row({ icon: 'trash', t: '<span class="bad">Reset everything</span>', act: 'reset' })}${cfg.login ? row({ icon: 'x', t: 'Log out', act: 'logout' }) : ''}</div>
       <input type="file" id="importfile" accept="application/json,.json" hidden>
     </details>`, true];
 }
@@ -326,12 +328,12 @@ function stopDictation() { ui.dict?.ctl.stop(); ui.dict = null; }
 function toggleMic() {
   const r = ui.report;
   if (ui.dict) { ui.dict.ctl.stop(); if (ui.dict?.state !== 'transcribing') { ui.dict = null; renderSheet(); } return; }
-  const engine = pickEngine(data.settings);
+  const engine = pickEngine(cfg);
   if (engine === 'keyboard') { r.note = 'Use the microphone key on your keyboard.'; renderSheet(); $('#rtext')?.focus(); return; }
   const base = r.text ? r.text.replace(/\s+$/, '') + ' ' : ''; r.note = '';
   const d = { state: 'starting', ctl: null }; ui.dict = d;
   d.ctl = startDictation({
-    engine, settings: data.settings,
+    engine,
     onText: t => { r.text = (base + t).trimStart(); const el = $('#rtext'); if (el) { el.value = r.text; el.scrollTop = el.scrollHeight; } },
     onState: s => { if (ui.dict !== d) return; if (s === 'idle') ui.dict = null; else d.state = s; if (ui.sheet === 'report') renderSheet(); },
     onError: (msg, o) => { r.note = msg; if (ui.dict === d) ui.dict = null; if (ui.sheet === 'report') { renderSheet(); if (o?.fallback) $('#rtext')?.focus(); } },
@@ -345,7 +347,7 @@ async function send() {
   if (r.text.length < 3) { toast('Say or type what happened first.'); return; }
   r.busy = true; r.pick = false; renderSheet();
   let res;
-  try { res = await classify({ map, st: live, labels: labels(), notes: data.notes, off: data.off, text: r.text, apiKey: data.settings.apiKey, model: data.settings.model }); }
+  try { res = await classify({ map, st: live, labels: labels(), notes: data.notes, off: data.off, text: r.text, remote: !!cfg.judge }); }
   catch (e) { r.busy = false; toast(e.message); renderSheet(); return; }
   r.busy = false;
   if (!res.items.length) { r.pick = true; if (ui.sheet === 'report') renderSheet(); return; }
@@ -411,19 +413,19 @@ function onClick(e) {
     case 'togglefront': { const id = b.dataset.id; if (data.off.includes(id)) data.off = data.off.filter(x => x !== id); else if (activeFronts().length > 1) data.off.push(id); else { toast('Keep at least one front.'); break; } persist(); refresh(); renderSheet(); break; }
     case 'export': { const blob = new Blob([store.exportData(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); break; }
     case 'import': $('#importfile').click(); break;
+    case 'logout': fetch('api/logout', { method: 'POST' }).finally(() => { caches?.keys().then(ks => ks.forEach(k => caches.delete(k))); location.reload(); }); break;
     case 'reset': if (confirm('Erase everything you have reported? This cannot be undone.')) { data.reports = []; ui.assess = null; persist(); refresh(); toast('Reset. The borders are quiet.'); } break;
     case 'demo': if (!data.reports.length || confirm('Replace what you have with demo data?')) { data.reports = demoReports(); ui.assess = null; persist(); closeSheet(); refresh(); view.home(); toast('Demo loaded.'); } break;
   }
 }
 function onInput(e) {
   const el = e.target; const bind = el.dataset?.bind;
-  if (el.id === 'importfile') { const file = el.files[0]; if (!file) return; file.text().then(t => { data = store.importData(t, data); persist(); refresh(); toast(`Imported ${data.reports.length} entries.`); }).catch(err => toast(err.message)); el.value = ''; return; }
+  if (el.id === 'importfile') { const file = el.files[0]; if (!file) return; file.text().then(t => { data = store.importData(t); persist(); refresh(); toast(`Imported ${data.reports.length} entries.`); }).catch(err => toast(err.message)); el.value = ''; return; }
   if (!bind) return;
   if (bind === 'replay') { clearInterval(ui.playing); ui.playing = null; const a = firstTs(), b = Date.now(); ui.asOf = Math.min(b - 1, a + (Number(el.value) / 1000) * (b - a)); refresh(); }
   else if (bind === 'report.text') { ui.report.text = el.value; const h = $('#micnote'); if (h && !ui.dict) h.textContent = ''; }
   else if (bind.startsWith('item.')) { const it = ui.edit.items[el.dataset.i]; it[bind.slice(5)] = el.value; if (bind === 'item.front' && e.type === 'change') renderSheet(); }
   else if (bind === 'label') { const v = el.value.trim(); if (v) data.labels[el.dataset.id] = v; else delete data.labels[el.dataset.id]; persist(); view.setState(st, labels()); }
-  else if (bind.startsWith('set.')) { data.settings[bind.slice(4)] = el.value.trim(); persist(); }
 }
 async function shareMap() {
   const text = sitrep(map, st, labels());
