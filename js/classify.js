@@ -1,7 +1,7 @@
 // Turns a spoken/written life update into battle orders.
 // When the private server has an OpenAI key the report is judged there (the key never reaches the browser);
 // otherwise a local keyword classifier is used.
-import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf } from './engine.js';
+import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf, frontCaps } from './engine.js';
 
 const schemaFor = (map, off = []) => ({
   type: 'object',
@@ -30,18 +30,22 @@ const schemaFor = (map, off = []) => ({
 
 export function buildSystem(map, labels, notes = {}, off = []) {
   const fronts = map.fronts.filter(f => !off.includes(f.id)).map(f => `- ${f.id}: ${f.name} (vs ${f.enemyName}) = "${labels[f.id] || f.defaultLabel}"${notes[f.id] ? ` — the user describes this area as: ${notes[f.id]}` : ''}`).join('\n');
+  const act = map.fronts.filter(f => !off.includes(f.id)); const ports = act.filter(f => frontCaps(map, f.id).port).map(f => f.id), fleets = act.filter(f => frontCaps(map, f.id).sea).map(f => f.id);
+  const geo = `Geography: only these fronts have a port: ${ports.join(', ') || 'none'}. Only these have a fleet: ${fleets.join(', ') || 'none'}. Every other front is land — never use port_strike, naval_victory or naval_defeat there.`;
   return `You are the chief of the general staff for a personal life tracker drawn as a 1936 grand-strategy war map of Iran. Each border front stands for one area of the user's real life. The user tells you, in plain speech, what happened; you convert it into battle results. It is a metaphor for their life, not a game and not real warfare.
 
 Fronts and the life area each one represents:
 ${fronts}
+
+${geo}
 
 For every distinct real-life event in the report, emit one item:
 - front: the front whose life area the event belongs to. If an event fits no area, use the closest one; general mood, habits, sleep, money and discipline go to the front whose label is closest to personal life.
 - outcome: "win" if it went well for the user, "loss" if it went badly, "neutral" only if it is genuinely neither.
 - severity 1–5: 1 = minor (small task done, mild annoyance); 2 = ordinary good/bad day; 3 = significant (a good grade, a real argument, a missed week of gym); 4 = major (big milestone, serious fight, failed an exam); 5 = decisive, rare (got into the dream school, funding closed, breakup, a death). Do not inflate: most daily events are 1–3.
 - action: the kind of battle that best matches what happened.
-  Wins: offensive (ordinary progress), breakthrough (a sudden big leap forward), encirclement (decisively resolved a long-running problem), air_superiority (gained the upper hand / confidence / momentum), cas_strike (got decisive help or support from someone), naval_victory (only for the Persian Gulf, Caucasus or Turkestan fronts), infrastructure (built a habit, system, routine, long-term foundation), fortify (held the line, set boundaries, avoided a relapse, damage control), reinforce (rest, recovery, new resources, new people joining).
-  Losses: enemy_offensive (ordinary setback), enemy_breakthrough (things collapsed quickly, "tank attack"), encircled (trapped, overwhelmed, no way out), enemy_cas (blindsided, criticised or attacked by someone), strategic_bombing (damage to long-term foundations: habits, health, finances), port_strike (lost an opportunity, a channel or a connection closed), supply_hub_bombed (burnout, exhaustion, sleep, energy or money ran out), naval_defeat (same fronts as naval_victory), attrition (slow grind, procrastination, neglect).
+  Wins: offensive (ordinary progress), breakthrough (a sudden big leap forward), counterattack (bounced back after a setback), encirclement (decisively resolved a long-running problem), airborne (a bold, risky move that paid off), air_superiority (gained the upper hand, confidence, momentum), cas_strike (got decisive help or support from someone), uprising (unexpected help, luck, or something turned in the user's favour without their effort), intelligence (an insight, realisation, or learning something important), lend_lease (received resources: money, a gift, a favour, an introduction), treaty (made peace, apologised or was apologised to, de-escalated), infrastructure (built a habit, system, routine or long-term foundation), fortify (held the line, set boundaries, avoided a relapse, damage control), reinforce (rest, recovery, new people joining), naval_victory (a win at sea — only on fronts listed as having a fleet).
+  Losses: enemy_offensive (ordinary setback), enemy_breakthrough (things collapsed quickly, "tank attack"), encircled (trapped, overwhelmed, no way out), enemy_cas (blindsided, criticised or attacked by someone), strategic_bombing (damage to long-term foundations: habits, health, finances), sabotage (self-sabotage, a relapse, undermining your own work), supply_hub_bombed (burnout, exhaustion; sleep, energy or money ran out), rail_cut (lost an opportunity, a connection or a channel closed), port_strike (same meaning as rail_cut, but only on fronts listed as having a port), desertion (lost motivation, gave up, quit halfway), winter (bad luck or circumstances outside anyone's control: illness, weather, delays), attrition (slow grind, procrastination, neglect), naval_defeat (only on fronts with a fleet).
   Neutral: skirmish.
 - days_ago: 0 for today; if the user places an event in the past ("yesterday", "on Monday", "two days ago"), the number of days back, at most 7.
 - headline: a short dispatch that names the real event in military language, e.g. "Chemistry midterm failed — enemy armour breaks the line at Zabol".
@@ -96,7 +100,8 @@ const POS = ['good', 'great', 'amazing', 'awesome', 'excellent', 'aced', 'passed
 const NEG = ['bad', 'horrible', 'terrible', 'awful', 'failed', 'failing', 'fail', 'lost', 'lose', 'fight', 'fought', 'argument', 'argued', 'yelled', 'screamed', 'missed', 'skipped', 'late', 'behind', 'worse', 'worst', 'sad', 'angry', 'mad', 'upset', 'stressed', 'stress', 'broke up', 'breakup', 'dumped', 'rejected', 'bug', 'crash', 'crashed', 'churned', 'sick', 'injured', 'tired', 'exhausted', 'burnout', 'burned out', 'procrastinated', 'wasted', 'ignored', 'ghosted', 'disappointed', 'struggling', 'struggle', 'overwhelmed', 'attack', 'attacked', 'bombed', 'retreat', 'retreating', 'collapsed', 'collapse', 'disaster', 'mess', 'rough', 'hard time', 'not good', "didn't", 'couldnt', "couldn't", 'cant', "can't", 'forgot', 'cried', 'lonely', 'anxious', 'depressed', 'unmotivated', 'lazy', 'cheated', 'lied', 'grounded', 'in trouble', 'cancelled', 'canceled', 'down'];
 const STRONG = ['very', 'really', 'extremely', 'huge', 'massive', 'heavy', 'horrible', 'terrible', 'awful', 'amazing', 'incredible', 'worst', 'best', 'completely', 'totally', 'major', 'serious', 'big', 'disaster', 'devastating', 'crushed', 'so'];
 const WEAK = ['little', 'slightly', 'kinda', 'kind of', 'bit', 'small', 'minor', 'somewhat', 'okay', 'ok', 'fine'];
-const has = (s, w) => new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(s);
+// short words must match whole (so "mad" does not fire on "made"); longer ones may be stems ("procrastinat")
+const has = (s, w) => new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${w.length <= 4 ? '(?![a-z])' : ''}`, 'i').test(s);
 
 export function classifyLocal({ map, labels, text, off = [] }) {
   const areaFront = {};
@@ -124,6 +129,12 @@ export function classifyLocal({ map, labels, text, off = [] }) {
     let action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish';
     if (outcome === 'win') {
       if (/break ?through|broke through|aced|crushed|nailed|huge|massive/i.test(lc)) action = 'breakthrough';
+      else if (/bounced back|came back|recovered from|turned it around|caught up/i.test(lc)) action = 'counterattack';
+      else if (/apologi[sz]ed|made peace|forgave|talked it out/i.test(lc)) action = 'treaty';
+      else if (/gift|gave me|lent me|helped me|got paid|bonus|scholarship/i.test(lc)) action = 'lend_lease';
+      else if (/reali[sz]ed|learned|figured out|understood/i.test(lc)) action = 'intelligence';
+      else if (/took a risk|risky|bold|dared/i.test(lc)) action = 'airborne';
+      else if (/lucky|out of nowhere|unexpected/i.test(lc)) action = 'uprising';
       else if (/habit|routine|system|consistent|built|foundation|saved/i.test(lc)) action = 'infrastructure';
       else if (/rest|recover|slept well|vacation|break/i.test(lc)) action = 'reinforce';
       else if (/held|boundar|avoided|resisted|stayed/i.test(lc)) action = 'fortify';
@@ -132,8 +143,11 @@ export function classifyLocal({ map, labels, text, off = [] }) {
       if (/tank|collapse|disaster|failed|failing|broke up|dumped/i.test(lc)) action = 'enemy_breakthrough';
       else if (/burn ?out|exhausted|tired|no energy|sleep|broke\b|supply/i.test(lc)) action = 'supply_hub_bombed';
       else if (/air|close ?air|cas\b|yelled|screamed|criticis|criticiz|blindsided|fight|fought|argu/i.test(lc)) action = 'enemy_cas';
-      else if (/bomb|habit|health|sick|injur/i.test(lc)) action = 'strategic_bombing';
-      else if (/port|missed|opportunit|rejected|cancel/i.test(lc)) action = 'port_strike';
+      else if (/relapse|self.?sabotage|my own fault|shot myself/i.test(lc)) action = 'sabotage';
+      else if (/sick|ill\b|flu|cold\b|weather|rain|snow|delayed|bad luck|unlucky/i.test(lc)) action = 'winter';
+      else if (/gave up|quit|unmotivated|no motivation|couldn'?t be bothered/i.test(lc)) action = 'desertion';
+      else if (/bomb|habit|health|injur/i.test(lc)) action = 'strategic_bombing';
+      else if (/port|missed|opportunit|rejected|cancel/i.test(lc)) action = 'rail_cut';
       else if (/overwhelmed|trapped|stuck|encircl/i.test(lc)) action = 'encircled';
       else if (/procrastinat|wasted|lazy|skipped|neglect|behind/i.test(lc)) action = 'attrition';
     }

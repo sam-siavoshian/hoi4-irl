@@ -15,6 +15,12 @@ export const ACTIONS = {
   infrastructure:   { side: 'win',  adv: 0.15, label: 'Construction',          icon: 'build' },
   fortify:          { side: 'win',  adv: 0.1,  label: 'Fortification',         icon: 'fort' },
   reinforce:        { side: 'win',  adv: 0.2,  label: 'Reinforcement',         icon: 'unit' },
+  counterattack:    { side: 'win',  adv: 1.0,  label: 'Counter-attack',        icon: 'arrow' },
+  airborne:         { side: 'win',  adv: 0.9,  label: 'Airborne Assault',      icon: 'air' },
+  uprising:         { side: 'win',  adv: 0.4,  label: 'Uprising Behind Enemy Lines', icon: 'unit' },
+  intelligence:     { side: 'win',  adv: 0.15, label: 'Intelligence Coup',     icon: 'unit' },
+  lend_lease:       { side: 'win',  adv: 0.15, label: 'Allied Aid Arrives',    icon: 'build' },
+  treaty:           { side: 'win',  adv: 0.3,  label: 'Armistice Talks',       icon: 'fort' },
   // losses
   enemy_offensive:    { side: 'loss', adv: 1.0,  label: 'Enemy Offensive',       icon: 'arrow' },
   enemy_breakthrough: { side: 'loss', adv: 1.6,  label: 'Enemy Tank Breakthrough', icon: 'armor' },
@@ -25,6 +31,10 @@ export const ACTIONS = {
   supply_hub_bombed:  { side: 'loss', adv: 0.3,  label: 'Supply Hub Bombed',     icon: 'bomb' },
   naval_defeat:       { side: 'loss', adv: 0.5,  label: 'Naval Defeat',          icon: 'naval' },
   attrition:          { side: 'loss', adv: 0.25, label: 'Attrition',             icon: 'unit' },
+  rail_cut:           { side: 'loss', adv: 0.3,  label: 'Railway Cut',           icon: 'bomb' },
+  sabotage:           { side: 'loss', adv: 0.15, label: 'Sabotage',              icon: 'bomb' },
+  desertion:          { side: 'loss', adv: 0.3,  label: 'Desertions',            icon: 'unit' },
+  winter:             { side: 'loss', adv: 0.2,  label: 'Harsh Conditions',      icon: 'unit' },
   // neutral
   skirmish:           { side: 'neutral', adv: 0, label: 'Skirmish',              icon: 'unit' },
 };
@@ -81,6 +91,17 @@ export const MEDALS = [
   ['defender', 'Defender of Tehran', 'Drive the enemy back after he came within 250 km of the capital'], ['satrap', 'Satrap', 'Restore your first satrapy'],
   ['comeback', 'Arash the Archer', 'Win after three defeats in a row on the same front'], ['thirty', 'Iron Chronicle', 'File thirty dispatches'], ['empire', 'Shahanshah', 'Restore the Achaemenid Empire'],
 ];
+const OUR_OPS = ['Simorgh', 'Derafsh', 'Kaveh', 'Arash', 'Tondar', 'Alborz', 'Sepand', 'Homa', 'Zolfaghar', 'Mehr', 'Anahita', 'Tishtar', 'Damavand', 'Rakhsh', 'Fereydun', 'Azar'];
+const ENEMY_OPS = ['Iron Gate', 'Red Star', 'Hammer', 'Steppe Wind', 'Black Tulip', 'Khyber', 'Crescent', 'Trident', 'Grey Wolf', 'Avalanche', 'Monsoon', 'Anvil'];
+const NICKS = ['Lions', 'Falcons', 'Wolves', 'Leopards', 'Eagles', 'Stallions', 'Tigers', 'Hawks'];
+// Mountain fronts freeze in winter; the southern fronts bake in summer.
+const WEATHER = { cau: 'snow', tur: 'snow', afg: 'snow', glf: 'heat', raj: 'heat' };
+export function weatherOf(fid, t) {
+  const m = new Date(t).getMonth(); const kind = WEATHER[fid];
+  if (kind === 'snow' && (m === 11 || m <= 1)) return { kind: 'snow', text: 'Snow in the passes', slow: 0.85 };
+  if (kind === 'heat' && m >= 5 && m <= 7) return { kind: 'heat', text: 'Summer heat and dust', slow: 0.9 };
+  return null;
+}
 const ENEMY_NAMES = { AFG: 'Afghan', SOV: 'Soviet', IRQ: 'Iraqi', RAJ: 'British Indian', TUR: 'Turkish', GBR: 'British' };
 
 // Iranian states: starting infrastructure (0-5), civilian factories, military factories, dockyards
@@ -123,9 +144,12 @@ export function mapMeta(map) {
     const cities = [...f.iranOrder, ...f.enemyOrder].map(([id]) => P[id]).filter(p => p.city);
     const regions = new Map();
     for (const [id] of f.enemyOrder) { const k = P[id].s; if (!regions.has(k)) regions.set(k, []); regions.get(k).push(id); }
-    frontMeta[f.id] = { dIr, dEn, home, ports: near('port'), hubs: near('hub'), airbases: near('airbase'), forts: near('fort'), cities, regions };
+    const nearPort = near('port')[0]; const hasPort = !!nearPort && dIr.has(nearPort.prov) && dIr.get(nearPort.prov) <= 280;
+    const caps = { port: !!f.naval || hasPort, sea: !!f.naval || ((f.id === 'cau' || f.id === 'tks') && hasPort) };
+    frontMeta[f.id] = { caps, dIr, dEn, home, ports: near('port'), hubs: near('hub'), airbases: near('airbase'), forts: near('fort'), cities, regions };
   }
-  m = { stateName, iranStates, buildings, frontMeta, byName: Object.fromEntries(P.map(p => [p.n, p])) };
+  const capital = {}; for (const p of P) if (p.t === 'IRN' && p.city) { const sn = stateName(p.s); if (capital[sn] == null || p.vp > P[capital[sn]].vp) capital[sn] = p.id; }
+  m = { capital, stateName, iranStates, buildings, frontMeta, byName: Object.fromEntries(P.map(p => [p.n, p])) };
   metaCache.set(map, m);
   return m;
 }
@@ -135,7 +159,7 @@ function initialState(map, t0) {
   const st = {
     t: t0, fronts: {}, divisions: [], wings: [], fleets: [], states: {}, bld: {}, log: [], history: [],
     divSeq: 0, infraPoints: 0, railStage: 0, navalMerit: 0, shipSeq: 0, tehranFallen: false, empire: false,
-    totals: { wins: 0, losses: 0, neutral: 0, reports: 0 }, recent: [], focus: null, ach: {}, battles: {}, satrapies: [], days: new Set(), threatened: false,
+    totals: { wins: 0, losses: 0, neutral: 0, reports: 0 }, recent: [], focus: null, opSeq: 0, eopSeq: 0, nickSeq: 0, ach: {}, battles: {}, satrapies: [], days: new Set(), threatened: false,
   };
   for (const s of meta.iranStates) { const [infra, civ, mil, dock] = STATE_START[s] || [1, 0, 0, 0]; st.states[s] = { infra, civ, mil, dock, dmg: 0, infraDmg: 0, bp: 0 }; }
   for (const b of meta.buildings) st.bld[b.id] = { lvl: b.kind === 'fort' ? 1 : b.kind === 'port' || b.kind === 'naval' ? 2 : 1, dmg: 0 };
@@ -252,7 +276,8 @@ function advanceTime(map, st, t) {
     const cap = 100 - hubs.reduce((a, h) => a + st.bld[h.id].dmg * 20, 0);
     fr.supply = fr.supply < cap ? Math.min(cap, fr.supply + days * 4) : cap;
     fr.entrench = Math.min(Math.max(fr.entrench, 5), fr.entrench + days * 0.3);
-    fr.enemyStr += (100 - fr.enemyStr) * (1 - Math.pow(0.97, days));
+    const quiet = fr.lastT != null && t - fr.lastT > 10 * DAY; // a front you stop reporting on gets harder
+    fr.enemyStr += ((quiet ? 125 : 100) - fr.enemyStr) * (1 - Math.pow(0.97, days));
     fr.enemyArmor = Math.max(0, fr.enemyArmor - days * 0.1);
   }
   for (const d of st.divisions) {
@@ -265,13 +290,14 @@ function advanceTime(map, st, t) {
   st.t = t;
 }
 
-function normalizeAction(f, item) {
+function normalizeAction(f, item, caps) {
   let a = item.action;
   const side = item.outcome;
   if (side === 'neutral') return 'skirmish';
   if (!ACTIONS[a] || ACTIONS[a].side !== side) a = side === 'win' ? 'offensive' : 'enemy_offensive';
-  const hasSea = f.naval || f.id === 'cau' || f.id === 'tks';
-  if (!hasSea) { if (a === 'naval_victory') a = 'offensive'; if (a === 'naval_defeat') a = 'enemy_offensive'; if (a === 'port_strike') a = 'supply_hub_bombed'; }
+  // geography: no ports or fleets where there is no water
+  if (!caps.sea) { if (a === 'naval_victory') a = 'offensive'; if (a === 'naval_defeat') a = 'enemy_offensive'; }
+  if (!caps.port && a === 'port_strike') a = 'rail_cut';
   return a;
 }
 
@@ -282,7 +308,9 @@ function applyItem(map, st, item, rnd, fx) {
   const fr = st.fronts[f.id];
   const fm = meta.frontMeta[f.id];
   const sev = clamp(Math.round(item.severity || 1), 1, 5);
-  const action = normalizeAction(f, item);
+  const action = normalizeAction(f, item, fm.caps);
+  let site = null; // where on the map this happened, when it is not simply the front line
+  const wx = weatherOf(f.id, st.t);
   const A = ACTIONS[action];
   const divs = st.divisions.filter(d => d.front === f.id);
   const avg = k => (divs.length ? divs.reduce((a, d) => a + d[k], 0) / divs.length : 50);
@@ -303,6 +331,9 @@ function applyItem(map, st, item, rnd, fx) {
     mod = clamp(mod, 0.5, 1.7) * (1 + 0.1 * Math.min(5, fr.streak - 1));
     mod *= fr.pos > 0 ? 1.25 : 1 - 0.55 * (-fr.pos / 100);
     if (st.focus) mod *= st.focus === f.id ? 1.25 : 0.95;
+    if (wx) mod *= wx.slow;
+    if (fr.intel) { mod *= 1 + 0.12 * Math.min(4, fr.intel); if (A.adv >= 0.5) fr.intel = 0; }
+    if (action === 'counterattack' && fr.pos > 0) mod *= 1.5;
     if (wasStreak <= -3) st.ach.comeback ??= st.t;
     fr.pos = clamp(fr.pos - BASE[sev] * A.adv * mod, -100, 100);
     for (const d of divs) { d.xp += sev * 3; d.org = clamp(d.org - sev * 3 * rnd(), 5, 100); d.str = clamp(d.str - sev * 1.2 * rnd(), 5, 100); }
@@ -335,6 +366,7 @@ function applyItem(map, st, item, rnd, fx) {
         const target = cands.slice().sort((a, b) => st.states[a].infra - st.states[b].infra)[0] || 'Tehran';
         const S = st.states[target];
         const was = Math.floor(S.infra); S.infra = Math.min(5, S.infra + sev * 0.25); S.bp += sev; st.infraPoints += sev;
+        site = meta.capital[target] ?? null;
         if (Math.floor(S.infra) > was) note(`Infrastructure in ${target} upgraded to level ${Math.floor(S.infra)}`);
         while (S.bp >= 6) { S.bp -= 6; if ((S.civ + S.mil) % 3 === 2) { S.mil++; note(`Military factory completed in ${target}`); } else { S.civ++; note(`Civilian factory completed in ${target}`); } }
         for (const s of cands) { st.states[s].dmg = Math.max(0, st.states[s].dmg - sev * 0.2); st.states[s].infraDmg = Math.max(0, st.states[s].infraDmg - sev * 0.3); }
@@ -351,6 +383,11 @@ function applyItem(map, st, item, rnd, fx) {
         note(`Entrenchment raised to ${Math.round(fr.entrench)}`);
         break;
       }
+      case 'airborne': fr.enemyStr = clamp(fr.enemyStr - sev * 2, 50, 160); fr.air = clamp(fr.air + sev * 2, -100, 100); note('Paratroopers seize a crossing behind the enemy line'); break;
+      case 'uprising': fr.enemyStr = clamp(fr.enemyStr - sev * 5, 50, 160); note('Partisans tie down enemy divisions in the rear'); break;
+      case 'intelligence': fr.intel = (fr.intel || 0) + sev; note('Enemy plans captured — the next attack will hit harder'); break;
+      case 'lend_lease': { fr.supply = Math.min(100, fr.supply + sev * 8); for (const d of divs) d.str = clamp(d.str + sev * 4, 0, 100); const w = st.wings[0]; w.planes = Math.min(w.max, w.planes + sev); site = fm.hubs[0]?.prov ?? null; note(`A supply convoy reaches ${fm.hubs[0]?.name || 'the front'}`); break; }
+      case 'treaty': fr.enemyStr = clamp(fr.enemyStr - sev * 6, 50, 160); fr.entrench = Math.min(10, fr.entrench + 1); for (const d of divs) d.org = clamp(d.org + sev * 6, 0, 100); note('A local ceasefire holds; the enemy thins his line'); break;
       case 'reinforce': {
         if (sev >= 3 && divs.length < 10) { const d = raise(st, f.id, GROWTH[(fr.honor - START_OOB[f.id].length + 20) % GROWTH.length], 10); note(`${d.name} raised`); }
         for (const d of divs) { d.str = clamp(d.str + sev * 6, 0, 100); d.org = clamp(d.org + sev * 6, 0, 100); }
@@ -369,6 +406,7 @@ function applyItem(map, st, item, rnd, fx) {
     mod = clamp(mod, 0.5, 1.6) * (1 + 0.1 * Math.min(5, -fr.streak - 1));
     mod *= fr.pos < 0 ? 1.25 : 1 - 0.5 * (fr.pos / 100);
     if (st.focus === f.id) mod *= 0.85;
+    if (wx) mod *= wx.slow;
     fr.pos = clamp(fr.pos + BASE[sev] * A.adv * mod, -100, 100);
     for (const d of divs) { d.xp += sev; d.org = clamp(d.org - sev * (6 + 6 * rnd()), 0, 100); d.str = clamp(d.str - sev * (2 + 5 * rnd()) * (A.adv > 0.5 ? 1 : 0.5), 0, 100); }
     fr.enemyStr = clamp(fr.enemyStr + sev * 2, 50, 160);
@@ -393,12 +431,12 @@ function applyItem(map, st, item, rnd, fx) {
         const target = cands.slice().sort((a, b) => (st.states[b].civ + st.states[b].mil) - (st.states[a].civ + st.states[a].mil))[0] || 'Tehran';
         const S = st.states[target]; S.dmg = Math.min(1, S.dmg + sev * 0.18); S.infraDmg = Math.min(S.infra, S.infraDmg + sev * 0.35);
         fr.air = clamp(fr.air - sev * 3, -100, 100);
-        note(`Factories and railways in ${target} bombed (${Math.round(S.dmg * 100)}% damaged)`);
+        site = meta.capital[target] ?? null; note(`Factories and railways in ${target} bombed (${Math.round(S.dmg * 100)}% damaged)`);
         break;
       }
       case 'port_strike': {
         const port = fm.ports[0];
-        if (port) { const b = st.bld[port.id]; b.dmg = Math.min(1, b.dmg + sev * 0.22); note(`Port of ${port.name} bombed (${Math.round(b.dmg * 100)}% damaged)`); }
+        if (port) { const b = st.bld[port.id]; b.dmg = Math.min(1, b.dmg + sev * 0.22); site = port.prov; note(`Port of ${port.name} bombed (${Math.round(b.dmg * 100)}% damaged)`); }
         const ships = fleet.ships.filter(s => s.hp > 0);
         const s = ships[Math.floor(rnd() * ships.length)];
         if (s) { s.hp = Math.max(0, s.hp - sev * (12 + 10 * rnd())); if (s.hp <= 0 && fleet.ships.length > 2) { fleet.ships.splice(fleet.ships.indexOf(s), 1); note(`${s.cls} ${s.name} sunk at anchor`); } else note(`${s.cls} ${s.name} damaged`); }
@@ -407,7 +445,7 @@ function applyItem(map, st, item, rnd, fx) {
       }
       case 'supply_hub_bombed': {
         const hub = fm.hubs[0];
-        if (hub) { const b = st.bld[hub.id]; b.dmg = Math.min(1, b.dmg + sev * 0.22); note(`Supply hub at ${hub.name} bombed (${Math.round(b.dmg * 100)}% damaged)`); }
+        if (hub) { const b = st.bld[hub.id]; b.dmg = Math.min(1, b.dmg + sev * 0.22); site = hub.prov; note(`Supply hub at ${hub.name} bombed (${Math.round(b.dmg * 100)}% damaged)`); }
         fr.supply = Math.max(0, fr.supply - sev * 10); note(`Front supply down to ${Math.round(fr.supply)}%`);
         break;
       }
@@ -418,6 +456,10 @@ function applyItem(map, st, item, rnd, fx) {
         note(`Sea control ${fr.sea >= 0 ? '+' : ''}${Math.round(fr.sea)}%`);
         break;
       }
+      case 'rail_cut': { const hub = fm.hubs[0]; if (hub) { st.bld[hub.id].dmg = Math.min(1, st.bld[hub.id].dmg + sev * 0.12); site = hub.prov; } fr.supply = Math.max(0, fr.supply - sev * 7); note(`The railway to the front is cut near ${hub?.name || 'the rear'} — supply ${Math.round(fr.supply)}%`); break; }
+      case 'sabotage': { const target = fm.home.find(x => st.states[x]) || 'Tehran'; const S = st.states[target]; S.dmg = Math.min(1, S.dmg + sev * 0.12); fr.supply = Math.max(0, fr.supply - sev * 4); site = meta.capital[target] ?? null; note(`Saboteurs strike the depots in ${target}`); break; }
+      case 'desertion': { for (const d of divs) d.org = clamp(d.org - sev * 8, 0, 100); const weak = divs.slice().sort((a, b) => a.str - b.str)[0]; if (weak) { weak.str = clamp(weak.str - sev * 5, 0, 100); note(`Men slip away from the ${weak.name}`); } break; }
+      case 'winter': { for (const d of divs) d.str = clamp(d.str - sev * 3, 0, 100); fr.supply = Math.max(0, fr.supply - sev * 5); const m = new Date(st.t).getMonth(); note(m === 11 || m <= 1 ? 'A blizzard closes the roads' : m >= 5 && m <= 7 ? 'Heat and dust wear the columns down' : 'Rain turns the roads to mud'); break; }
       case 'attrition': for (const d of divs) d.str = clamp(d.str - sev * 2, 0, 100); fr.supply = Math.max(0, fr.supply - sev * 3); break;
     }
     // destroyed divisions
@@ -429,7 +471,12 @@ function applyItem(map, st, item, rnd, fx) {
   }
   for (const [key, acts, need, name] of TRAITS) if (!fr.cmd.traits.includes(key) && acts.reduce((a, k) => a + (fr.acts[k] || 0), 0) >= need) { fr.cmd.traits.push(key); note(`${fr.cmd.name} earns the trait “${name}”`); }
   const lvl = Math.min(9, 1 + Math.floor(fr.merit / 10)); if (lvl > fr.cmd.level) { fr.cmd.level = lvl; note(`${fr.cmd.name} promoted — skill ${lvl}`); }
-  fr.last = { action, sev, t: st.t, side: A.side, delta: fr.pos - before };
+  if (fr.streak === 3) { fr.op = OUR_OPS[st.opSeq++ % OUR_OPS.length]; fx.push({ front: f.id, text: `Operation ${fr.op} is launched`, tone: 'gold' }); }
+  else if (fr.streak === -3) { fr.op = null; fr.enemyOp = ENEMY_OPS[st.eopSeq++ % ENEMY_OPS.length]; fx.push({ front: f.id, text: `The enemy opens Operation ${fr.enemyOp}`, tone: 'bad' }); }
+  if (fr.streak < 0) fr.op = null; if (fr.streak > 0) fr.enemyOp = null;
+  for (const d of st.divisions) if (d.front === f.id && !d.nick && d.xp >= 180) { d.nick = `${NICKS[st.nickSeq++ % NICKS.length]} of ${d.name.split(' ')[1]}`; fx.push({ front: f.id, text: `${d.name} earns the name “${d.nick}”`, tone: 'gold' }); }
+  if (site != null) item.at = site;
+  fr.last = { action, sev, t: st.t, side: A.side, delta: fr.pos - before, at: site };
   fr.lastT = st.t;
   item.delta = Math.round((fr.pos - before) * 10) / 10;
 }
@@ -591,3 +638,16 @@ export function objective(map, st, fid) {
   for (const [id] of f.enemyOrder) { const p = P[id]; if (p.city && p.vp >= 3 && !t.lib.has(id)) return { prov: id, text: `Capture ${p.n}`, kind: 'capture' }; }
   return { prov: null, text: `${f.satrapy} restored`, kind: 'done' };
 }
+
+// One line of intelligence about a front, for the front screen.
+export function frontNote(map, st, fid) {
+  const fr = st.fronts[fid]; const wx = weatherOf(fid, st.now);
+  if (fr.op && fr.streak >= 3) return { text: `Operation ${fr.op} under way — ${fr.streak} victories running`, tone: 'gold' };
+  if (fr.enemyOp && fr.streak <= -3) return { text: `Enemy Operation ${fr.enemyOp} — ${-fr.streak} defeats running`, tone: 'bad' };
+  if (fr.lastT != null && st.now - fr.lastT > 10 * DAY) return { text: `Quiet for ${Math.floor((st.now - fr.lastT) / DAY)} days — the enemy is massing`, tone: 'warn' };
+  if (fr.intel) return { text: 'Enemy plans in hand — the next attack hits harder', tone: 'good' };
+  if (fr.supply < 60) return { text: `Supply is short (${Math.round(fr.supply)}%)`, tone: 'warn' };
+  if (wx) return { text: wx.text, tone: 'neutral' };
+  return null;
+}
+export const frontCaps = (map, fid) => mapMeta(map).frontMeta[fid].caps;

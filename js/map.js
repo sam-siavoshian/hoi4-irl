@@ -208,6 +208,9 @@ export class MapView {
     // provinces
     const visible = m.provinces.filter(vis);
     for (const p of visible) { ctx.fillStyle = this.provFill(p); ctx.fill(p.path); }
+    // snow on the mountains in winter
+    const mon = new Date(st.now).getMonth();
+    if ((mon === 11 || mon <= 1) && this.mode === 'political') { ctx.fillStyle = 'rgba(235,242,248,0.16)'; for (const p of visible) if (p.tr === 'mountain' && p.ll[1] > 31) ctx.fill(p.path); ctx.fillStyle = 'rgba(235,242,248,0.07)'; for (const p of visible) if (p.tr === 'hills' && p.ll[1] > 34) ctx.fill(p.path); }
     // seam filler + province borders
     const ba = Math.max(0, Math.min(0.5, (v.s - 0.22) * 1.2));
     ctx.lineJoin = 'round'; ctx.lineWidth = Math.min(1.1 * px, 1.6); ctx.strokeStyle = `rgba(12,16,20,${0.12 + ba})`;
@@ -409,7 +412,8 @@ export class MapView {
       if (best) { o = P[best.a].c; e = P[best.b].c; }
       const from = win ? o : e, to = win ? e : o; let dx = to[0] - from[0], dy = to[1] - from[1]; const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
       const col = win ? [110, 235, 200] : [255, 80, 60];
-      if (A.adv >= 0.5) {
+      const siteP = fr.last.at != null ? P[fr.last.at] : null; const site = siteP ? siteP.city || siteP.c : null;
+      if (A.adv >= 0.5 && !site) {
         const Lg = Math.max(46 * px, 34 + fr.last.sev * 12), wd = (5 + fr.last.sev * 1.6) * Math.max(px, 0.8);
         const sx = from[0] - dx * Lg * 0.35, sy = from[1] - dy * Lg * 0.35; const ph = (t * 0.6) % 1; const grow = 0.75 + 0.25 * Math.sin(t * 2.2);
         const ex = sx + dx * Lg * grow, ey = sy + dy * Lg * grow; const nx = -dy, ny = dx;
@@ -419,7 +423,17 @@ export class MapView {
         ctx.fillStyle = gr; ctx.fill(); ctx.strokeStyle = 'rgba(10,12,14,0.8)'; ctx.lineWidth = 1.2 * px; ctx.stroke();
       }
       // battle marker
-      const bx = (o[0] + e[0]) / 2, by = (o[1] + e[1]) / 2; const r = 10.5 * px; const pulse = (t * 0.9) % 1;
+      const bx = site ? site[0] : (o[0] + e[0]) / 2, by = site ? site[1] - 16 * px : (o[1] + e[1]) / 2;
+      // aircraft over the target for air raids and bombing
+      if (A.icon === 'air' || A.icon === 'bomb') {
+        const src = win ? o : e; let ax = bx - src[0], ay = by - src[1]; const al = Math.hypot(ax, ay) || 1; ax /= al; ay /= al; const reach = Math.max(al, 120 * px);
+        for (let k = 0; k < 3; k++) {
+          const ph = ((t * 0.22 + k * 0.33) % 1); const d = (ph - 0.75) * reach * 1.3; const x = bx + ax * d - ay * (k - 1) * 9 * px, y = by + ay * d + ax * (k - 1) * 9 * px; const al2 = Math.sin(ph * Math.PI);
+          ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(ay, ax) + Math.PI / 2); ctx.scale(px * 0.9, px * 0.9); ctx.globalAlpha = al2;
+          ctx.fillStyle = win ? '#bff3e3' : '#ffb3a6'; ctx.strokeStyle = 'rgba(8,10,12,0.8)'; ctx.lineWidth = 1; ctx.beginPath();
+          ctx.moveTo(0, -7); ctx.lineTo(1.6, -2); ctx.lineTo(8, 2); ctx.lineTo(8, 3.4); ctx.lineTo(1.4, 2); ctx.lineTo(1, 5.5); ctx.lineTo(3, 7); ctx.lineTo(-3, 7); ctx.lineTo(-1, 5.5); ctx.lineTo(-1.4, 2); ctx.lineTo(-8, 3.4); ctx.lineTo(-8, 2); ctx.lineTo(-1.6, -2); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+        }
+      } const r = 10.5 * px; const pulse = (t * 0.9) % 1;
       ctx.beginPath(); ctx.arc(bx, by, r + pulse * 14 * px, 0, 7); ctx.strokeStyle = rgb(col, 0.6 * (1 - pulse)); ctx.lineWidth = 2 * px; ctx.stroke();
       ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fillStyle = win ? '#2f9e6a' : '#c23b2b'; ctx.fill(); ctx.strokeStyle = '#0c1014'; ctx.lineWidth = 1.6 * px; ctx.stroke();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * px; ctx.lineCap = 'round'; ctx.beginPath();

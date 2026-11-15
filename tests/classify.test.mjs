@@ -52,3 +52,10 @@ test('days ago, switched-off fronts, notes and the staff assessment', async () =
   const st2 = simulate(map, [{ id: 'a', ts: Date.now() - 1000, items: [{ front: 'afg', outcome: 'loss', severity: 4, action: 'enemy_offensive', headline: 'x' }] }], Date.now());
   const b = await assess({ map, st: st2, labels }); assert.match(b.assessment, /School is the weakest/); assert.equal(b.orders[0].front, 'afg');
 });
+
+test('the judge is told which fronts have water; new event types are offered', () => {
+  const sys = buildSystem(map, labels); assert.match(sys, /only these fronts have a port: cau, tks, irq, raj, glf/); assert.match(sys, /Only these have a fleet: cau, tks, glf/);
+  for (const a of ['counterattack', 'airborne', 'uprising', 'intelligence', 'lend_lease', 'treaty', 'rail_cut', 'sabotage', 'desertion', 'winter']) assert.match(sys, new RegExp(a));
+  const r = classifyLocal({ map, labels, text: 'I was sick all week and missed school. My mom and I talked it out and made peace, great.' });
+  assert.equal(r.items.find(i => i.front === 'afg').action, 'winter'); assert.equal(r.items.find(i => i.front === 'cau').action, 'treaty');
+});

@@ -125,6 +125,7 @@ try {
     const s = await st(p); assert.ok(s.fronts.irq.pos < -6); assert.ok(s.lib > 0); assert.ok(s.fronts.glf.pos > 0); assert.ok(s.ach.decisive);
     await p.waitForTimeout(1300); await shot(p, '14-breakthrough');
     await p.click('[data-act=emblem]'); await p.waitForFunction(() => /bleeding/.test(document.querySelector('#sheet-body').textContent));
+    assert.equal(await p.evaluate(() => { const a = window.__artesh; const i = a.live.log.at(-1).items.find(x => x.action === 'port_strike'); return a.map.provinces[i.at].f.includes('P'); }), true, 'the port strike landed on a real port');
     assert.match(await body(p), /Two hours on the problem set/); assert.match(await body(p), /Order of Zolfaghar/); await shot(p, '15-overview');
   });
 

@@ -1,6 +1,6 @@
 // The interface is deliberately thin: a map, one report button, a list of fronts and a history.
 // Everything else (objectives, commanders, satrapies, decorations, repairs) is worked out by engine.js.
-import { simulate, sitrep, statusOf, objective, mapMeta, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, DAY } from './engine.js';
+import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, DAY } from './engine.js';
 import { MapView, FRONT_COLORS } from './map.js';
 import { classify, assess } from './classify.js';
 import { pickEngine, startDictation } from './voice.js';
@@ -121,7 +121,7 @@ function setMode(m) {
 }
 let toastT;
 function toast(msg, ms = 3200, action = null) { const t = $('#toast'); t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button data-act="${action.act}">${esc(action.label)}</button>` : ''}`; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), ms); }
-function banner(title, sub, tone) { if (ui.sheet) return; const b = $('#banner'); b.className = 'glass ' + tone; b.innerHTML = `<b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`; b.hidden = true; void b.offsetWidth; b.hidden = false; clearTimeout(banner.t); banner.t = setTimeout(() => (b.hidden = true), 3900); }
+function banner(title, sub, tone, extra = '') { if (ui.sheet) return; const b = $('#banner'); b.className = 'glass ' + tone; b.innerHTML = `<b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}${extra ? `<i>${esc(extra)}</i>` : ''}`; b.hidden = true; void b.offsetWidth; b.hidden = false; clearTimeout(banner.t); banner.t = setTimeout(() => (b.hidden = true), 3900); }
 
 // ---------- replay ----------
 const firstTs = () => (data.reports.length ? Math.min(...data.reports.map(r => r.ts)) - 3600000 : Date.now());
@@ -198,16 +198,17 @@ function sFronts() {
 }
 function evRow(i, ts) {
   const L = labels();
-  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action, i.outcome))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle || ACTIONS[i.action].label)}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
+  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action, i.outcome))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle || ACTIONS[i.action].label)}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
 }
 const unitGrid = (list, color) => `<div class="units">${list.map(d => `<div class="unit" title="${esc(d.name)}"><img src="${unitIcon(d.type, color, d.str)}" alt=""><span>${esc((UNIT_TYPES[d.type] || { short: '' }).short)}</span></div>`).join('')}</div>`;
 function sFront() {
   const f = front(ui.arg), fr = st.fronts[f.id], s = statusOf(fr.pos), L = labels(); const off = data.off.includes(f.id);
   const divs = st.divisions.filter(d => d.front === f.id); const obj = objective(map, st, f.id);
-  const disp = st.log.slice().reverse().flatMap(l => l.items.filter(i => i.front === f.id).map(i => [i, l.ts])).slice(0, 5);
+  const disp = st.log.slice().reverse().flatMap(l => l.items.filter(i => i.front === f.id).map(i => [i, l.ts])).slice(0, 5); const note = off ? null : frontNote(map, st, f.id);
   return [L[f.id], `
     <div class="front" style="--c:${FRONT_COLORS[f.id]};padding:0"><div class="hd"><span class="nm">${esc(f.name)}</span><span class="st ${off ? 'neutral' : s.tone}">${off ? 'Paused' : s.text}</span></div>
     ${frontBar(fr)}<div class="fends"><span>Tehran</span><span>${esc(f.satrapy)}</span></div></div>
+    ${note ? `<p class="small ${note.tone}" style="margin:12px 0 0">${esc(note.text)}</p>` : ''}
     <div class="rows" style="margin-top:14px">${row({ icon: 'target', t: esc(obj.text), d: 'Next objective', act: 'flyfront', attrs: `data-id="${f.id}"`, end: I('chev', 's') })}</div>
     <div class="btns"><button class="btn win" data-act="quick" data-id="${f.id}" data-o="win" ${off ? 'disabled' : ''}>${I('arrowR', 's')}Win</button><button class="btn loss" data-act="quick" data-id="${f.id}" data-o="loss" ${off ? 'disabled' : ''}>${I('arrowL', 's')}Loss</button></div>
     <h3>Divisions</h3><button class="plain" data-act="open" data-sheet="units" data-arg="${f.id}">${unitGrid(divs, '#2c6557')}</button>
@@ -374,7 +375,8 @@ export function commitReports(reps, { quiet = false, warning = '' } = {}) {
   const pick = fx.find(x => x.tone === 'gold') || fx.find(x => x.city != null) || null;
   const main = items.slice().sort((a, b) => b.severity - a.severity)[0];
   const wins = items.filter(i => i.outcome === 'win').length, losses = items.filter(i => i.outcome === 'loss').length;
-  if (main) { banner(pick ? pick.text : main.headline, `${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}`, pick?.tone || (wins > losses ? 'good' : losses > wins ? 'bad' : 'gold')); setTimeout(() => view.flyToFront(main.front), 250); }
+  const extra = fx.filter(x => x !== pick && x.front === main?.front).map(x => x.text).slice(0, 2).join(' · ');
+  if (main) { banner(pick ? pick.text : main.headline, `${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}${main.at != null ? ` at ${map.provinces[main.at].n}` : ''}`, pick?.tone || (wins > losses ? 'good' : losses > wins ? 'bad' : 'gold'), extra); setTimeout(() => view.flyToFront(main.front), 250); }
   if (before.nation.name !== live.nation.name) setTimeout(() => banner(`Long live the ${live.nation.name}`, 'Every satrapy is restored', 'gold'), 4200);
   else if (medal) setTimeout(() => banner(medal[1], medal[2], 'gold'), 4200);
   const tally = [wins ? `${wins} win${wins > 1 ? 's' : ''}` : '', losses ? `${losses} loss${losses > 1 ? 'es' : ''}` : ''].filter(Boolean).join(', ') || 'noted';

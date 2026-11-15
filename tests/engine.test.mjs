@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective } from '../js/engine.js';
+import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective, frontCaps, frontNote, weatherOf, mapMeta } from '../js/engine.js';
 
 const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
 const T0 = Date.UTC(2026, 10, 1);
@@ -107,4 +107,38 @@ test('the staff picks the next objective by itself', () => {
   assert.match(objective(map, simulate(map, [], T0), 'afg').text, /^Capture /);
   const lost = simulate(map, Array.from({ length: 12 }, (_, i) => rep(i, [it('afg', 'loss', 5, 'enemy_breakthrough')])), T0 + 13 * DAY);
   assert.match(objective(map, lost, 'afg').text, /^Liberate /);
+});
+
+test('geography: no port strikes or naval battles where there is no water', () => {
+  const caps = Object.fromEntries(map.fronts.map(f => [f.id, frontCaps(map, f.id)]));
+  assert.equal(caps.afg.port, false); assert.equal(caps.tur.port, false); assert.equal(caps.afg.sea, false); assert.equal(caps.glf.sea, true); assert.equal(caps.irq.sea, false);
+  const land = simulate(map, [rep(1, [it('afg', 'loss', 3, 'port_strike'), it('tur', 'win', 3, 'naval_victory'), it('afg', 'loss', 2, 'naval_defeat')])], T0 + 2 * DAY);
+  assert.deepEqual(land.log[0].items.map(i => i.action), ['rail_cut', 'offensive', 'enemy_offensive']);
+  assert.ok(!land.log[0].fx.some(x => /Port of/.test(x.text)));
+  // where a port strike is allowed it lands on a real port close to that front, never on the land line
+  const P = map.provinces; const meta = mapMeta(map);
+  for (const f of map.fronts.filter(f => caps[f.id].port)) {
+    const st = simulate(map, [rep(1, [it(f.id, 'loss', 3, 'port_strike')])], T0 + 2 * DAY); const i = st.log[0].items[0];
+    assert.equal(i.action, 'port_strike', f.id); assert.ok(P[i.at].f.includes('P'), `${f.id} strike at ${P[i.at].n}`); assert.equal(st.fronts[f.id].last.at, i.at);
+    if (!f.naval) assert.ok(meta.frontMeta[f.id].dIr.get(i.at) <= 280, `${P[i.at].n} is near the ${f.id} front`);
+  }
+  if (caps.tks.port) assert.equal(P[simulate(map, [rep(1, [it('tks', 'loss', 3, 'port_strike')])], T0 + 2 * DAY).log[0].items[0].at].n, 'Bandar Shah');
+});
+test('new events, operations, nicknames, weather and quiet fronts', () => {
+  const base = simulate(map, [rep(1, [it('irq', 'win', 3, 'offensive')])], T0 + 2 * DAY);
+  const intel = simulate(map, [rep(0, [it('irq', 'win', 3, 'intelligence')], 0.5), rep(1, [it('irq', 'win', 3, 'offensive')])], T0 + 2 * DAY);
+  assert.ok(intel.fronts.irq.pos < base.fronts.irq.pos - 1, 'captured plans make the next attack go further'); assert.ok(!intel.fronts.irq.intel);
+  const hit = [rep(1, [it('afg', 'loss', 5, 'supply_hub_bombed')])];
+  assert.ok(simulate(map, [...hit, rep(2, [it('afg', 'win', 4, 'lend_lease')])], T0 + 2.01 * DAY).fronts.afg.supply > simulate(map, hit, T0 + 2.01 * DAY).fronts.afg.supply + 20);
+  const ops = simulate(map, [1, 2, 3].map(i => rep(i, [it('raj', 'win', 2, 'offensive')])), T0 + 3.1 * DAY);
+  assert.ok(ops.log[2].fx.some(x => /^Operation \w+ is launched/.test(x.text))); assert.match(frontNote(map, ops, 'raj').text, /Operation \w+ under way/);
+  const bad = simulate(map, [1, 2, 3].map(i => rep(i, [it('raj', 'loss', 2, 'desertion')])), T0 + 3.1 * DAY);
+  assert.ok(bad.log[2].fx.some(x => /The enemy opens Operation/.test(x.text)));
+  const vets = simulate(map, Array.from({ length: 30 }, (_, i) => rep(i, [it('cau', 'win', 3, 'offensive')])), T0 + 31 * DAY);
+  assert.ok(vets.divisions.some(d => d.nick)); assert.ok(vets.log.some(l => l.fx.some(x => /earns the name/.test(x.text))));
+  assert.equal(weatherOf('cau', Date.UTC(2026, 0, 10)).kind, 'snow'); assert.equal(weatherOf('glf', Date.UTC(2026, 6, 10)).kind, 'heat'); assert.equal(weatherOf('irq', Date.UTC(2026, 0, 10)), null);
+  const one = t => simulate(map, [{ id: 'w', ts: t, items: [it('cau', 'win', 4, 'offensive')] }], t + 1000).fronts.cau.pos;
+  assert.ok(one(Date.UTC(2027, 0, 10)) > one(Date.UTC(2027, 4, 10)), 'snow slows the advance');
+  const quiet = simulate(map, [rep(1, [it('tur', 'win', 2, 'offensive')])], T0 + 40 * DAY);
+  assert.ok(quiet.fronts.tur.enemyStr > 110); assert.match(frontNote(map, quiet, 'tur').text, /enemy is massing/);
 });

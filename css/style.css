@@ -216,3 +216,5 @@ img.tok { width: 35px; height: 40px; flex: none; }
 .pick .pk { display: flex; align-items: center; gap: 8px; padding: 6px 0; } .pick .pk span { flex: 1; display: flex; align-items: center; gap: 8px; font-weight: 550; } .pick .btn { min-width: 64px; }
 details { margin-top: 24px; } summary { list-style: none; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding: 8px 0 14px; } summary::-webkit-details-marker { display: none; } summary::after { content: " +"; } details[open] summary::after { content: " –"; }
 .front .hd .st { margin-left: auto; }
+
+#banner i { display: block; font-style: normal; font-size: 12px; color: var(--text-3); margin-top: 6px; line-height: 1.35; }

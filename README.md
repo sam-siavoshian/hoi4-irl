@@ -30,6 +30,10 @@ Three places, one button.
 
 Tap the flag at the top for the overview (how things are going, the staff's read, what you have earned, share, settings).
 
+Events respect the map: a port can only be struck where there is a port, fleets only fight where there is sea, and every
+strike is shown at the place it hit. Weather follows the real calendar (snow in the mountain passes in winter, heat in the
+south in summer), three wins in a row launch a named operation, and a front you stop reporting on lets the enemy mass.
+
 Everything else runs by itself in the engine: objectives, repairs, new divisions, commanders, battle names, satrapies
 restored under their Old Persian names, decorations, railways.
 
