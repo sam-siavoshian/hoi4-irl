@@ -1,6 +1,6 @@
 // The interface is deliberately thin: a map, one report button, a list of fronts and a history.
 // Everything else (objectives, commanders, satrapies, decorations, repairs) is worked out by engine.js.
-import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, DAY } from './engine.js';
+import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, shortName, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, rankIndex, DAY } from './engine.js';
 import { MapView, FRONT_COLORS } from './map.js';
 import { classify, assess } from './classify.js';
 import { pickEngine, startDictation } from './voice.js';
@@ -143,20 +143,22 @@ function exitReplay() { clearInterval(ui.playing); ui.playing = null; ui.asOf = 
 
 // ---------- division icons ----------
 const iconCache = new Map();
-function unitIcon(type, color, str = 100) {
-  const key = [type, color, Math.round(str / 10)].join();
+function unitIcon(type, color, str = 100, o = {}) {
+  const key = [type, color, Math.round(str / 10), o.num | 0, o.rank | 0, !!o.brigade].join();
   if (iconCache.has(key)) return iconCache.get(key);
-  const c = document.createElement('canvas'); c.width = 84; c.height = 96; const x = c.getContext('2d');
-  const saved = view.dpr; view.dpr = 1; view.token(x, 42, 40, 3, { type, color, str }); view.dpr = saved;
+  const c = document.createElement('canvas'); c.width = 96; c.height = 108; const x = c.getContext('2d');
+  const saved = view.dpr; view.dpr = 1; view.token(x, 48, 45, 3, { type, color, str, num: o.num, rank: o.rank, brigade: o.brigade }); view.dpr = saved;
   const url = c.toDataURL(); iconCache.set(key, url); return url;
 }
+const divIcon = d => unitIcon(d.type, d.front ? '#2c6557' : '#8a6a2a', d.str, { num: d.n, rank: rankIndex(d.xp), brigade: /Brigade/.test(d.name) });
 
 // ---------- sheets ----------
 const ROOTS = ['fronts', 'history', 'report', 'welcome', 'province', 'overview'];
+const fromMap = new Set(['division']);
 function openSheet(name, arg = null, push = true) {
   if (ui.dict) stopDictation();
   if (name === 'report' && ui.asOf) exitReplay();
-  if (ROOTS.includes(name)) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
+  if (ROOTS.includes(name) || (fromMap.has(name) && !ui.sheet)) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
   ui.sheet = name; ui.arg = arg;
   if (name === 'report' && !ui.report) ui.report = newReport();
   if (name === 'overview') autoAssess();
@@ -174,7 +176,7 @@ function closeSheet() {
 }
 function back() { const p = ui.stack.pop(); if (p) openSheet(p[0], p[1], false); else closeSheet(); }
 function renderSheet() {
-  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, settings: sSettings, units: sUnits }[ui.sheet];
+  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, settings: sSettings, units: sUnits, division: sDivision }[ui.sheet];
   if (!R) return;
   const [title, html, tall] = R();
   $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html; $('#sheet').classList.toggle('tall', !!tall);
@@ -198,9 +200,9 @@ function sFronts() {
 }
 function evRow(i, ts) {
   const L = labels();
-  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action, i.outcome))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle || ACTIONS[i.action].label)}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
+  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action, i.outcome))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label)}${i.unit ? ` · ${esc(i.unit.replace(/ (Division|Brigade).*$/, ''))}` : ''}${i.reason ? ` (${esc(i.reason)})` : ''}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
 }
-const unitGrid = (list, color) => `<div class="units">${list.map(d => `<div class="unit" title="${esc(d.name)}"><img src="${unitIcon(d.type, color, d.str)}" alt=""><span>${esc((UNIT_TYPES[d.type] || { short: '' }).short)}</span></div>`).join('')}</div>`;
+const unitGrid = list => `<div class="units">${list.map(d => `<button class="unit" data-act="open" data-sheet="division" data-arg="${d.id}" aria-label="${esc(d.name)}"><img src="${divIcon(d)}" alt=""><span>${esc(d.home)}</span></button>`).join('')}</div>`;
 function sFront() {
   const f = front(ui.arg), fr = st.fronts[f.id], s = statusOf(fr.pos), L = labels(); const off = data.off.includes(f.id);
   const divs = st.divisions.filter(d => d.front === f.id); const obj = objective(map, st, f.id);
@@ -211,7 +213,7 @@ function sFront() {
     ${note ? `<p class="small ${note.tone}" style="margin:12px 0 0">${esc(note.text)}</p>` : ''}
     <div class="rows" style="margin-top:14px">${row({ icon: 'target', t: esc(obj.text), d: 'Next objective', act: 'flyfront', attrs: `data-id="${f.id}"`, end: I('chev', 's') })}</div>
     <div class="btns"><button class="btn win" data-act="quick" data-id="${f.id}" data-o="win" ${off ? 'disabled' : ''}>${I('arrowR', 's')}Win</button><button class="btn loss" data-act="quick" data-id="${f.id}" data-o="loss" ${off ? 'disabled' : ''}>${I('arrowL', 's')}Loss</button></div>
-    <h3>Divisions</h3><button class="plain" data-act="open" data-sheet="units" data-arg="${f.id}">${unitGrid(divs, '#2c6557')}</button>
+    <h3>Divisions</h3>${unitGrid(divs)}
     <h3>Latest</h3>${disp.length ? disp.map(([i, ts]) => evRow(i, ts)).join('') : '<p class="faint small">Nothing reported here yet.</p>'}`, true];
 }
 function sUnits() {
@@ -220,7 +222,18 @@ function sUnits() {
   if (ui.arg === 'air') return ['Air force', `<div class="rows">${st.wings.map(w => urow('air', '#4a5f8a', (w.planes / w.max) * 100, w.name, `${w.model} · ${w.base} · ${Math.round(w.planes)} aircraft`)).join('')}</div>`, true];
   if (ui.arg === 'navy') return ['Navy', st.fleets.map(fl => `<h3>${esc(fl.name)}</h3><div class="rows">${fl.ships.map(s => urow('ship', '#28587a', s.hp, s.name, s.cls)).join('')}</div>`).join(''), true];
   const list = st.divisions.filter(d => (ui.arg === 'guard' ? !d.front : d.front === ui.arg));
-  return [ui.arg === 'guard' ? 'Tehran garrison' : `${L[ui.arg]} · divisions`, `<div class="rows">${list.map(d => urow(d.type, d.front ? '#2c6557' : '#8a6a2a', d.str, d.name, `${UNIT_TYPES[d.type].name} · ${rankOf(d.xp)}`)).join('')}</div>`, true];
+  return [ui.arg === 'guard' ? 'Tehran garrison' : `${L[ui.arg]} · divisions`, `<div class="rows">${list.map(d => row({ lead: `<img class="tok" src="${divIcon(d)}" alt="">`, t: esc(d.name), d: `${UNIT_TYPES[d.type].name} · ${rankOf(d.xp)}`, end: I('chev', 's'), act: 'open', attrs: `data-sheet="division" data-arg="${d.id}"` })).join('')}</div>`, true];
+}
+function sDivision() {
+  const d = st.divisions.find(x => x.id === ui.arg); const L = labels();
+  if (!d) return ['Division', `<div class="empty">${I('shield')}<b>Struck from the order of battle</b>This division was destroyed.</div>`];
+  const f = d.front ? front(d.front) : null; const refit = d.str < 30;
+  const state = refit ? ['Pulled out of the line to refit', 'warn'] : d.led && st.now - d.led < 3 * DAY ? ['In action in the last few days', 'gold'] : [f ? `In the line on the ${f.name}` : 'Guarding the capital', 'dim'];
+  return [shortName(d), `
+    <div class="dhead"><img src="${divIcon(d)}" alt=""><div><b>${esc(d.name)}</b>${d.nick ? `<span class="gold">“${esc(d.nick)}”</span>` : ''}<span>${esc(d.co)} · raised at ${esc(d.home)}</span><span class="${state[1]}">${state[0]}</span></div></div>
+    <div class="grid">${kpi('Strength', Math.round(d.str) + '%', d.str < 30 ? 'bad' : d.str < 66 ? 'warn' : '')}${kpi('Organisation', Math.round(d.org) + '%')}${kpi('Experience', rankOf(d.xp))}${kpi('Led to victory', d.w, d.w ? 'good' : '')}${kpi('Took the blow', d.l, d.l ? 'bad' : '')}${f ? kpi('Front', `<span style="color:${FRONT_COLORS[f.id]}">${esc(L[f.id])}</span>`) : kpi('Station', 'Tehran')}</div>
+    <h3>Battle honours</h3>${d.honours.length ? d.honours.slice().reverse().map(h => `<div class="ev ${h.win ? 'win' : 'loss'}">${I(h.win ? 'medal' : 'arrowL')}<div><div class="h">${esc(h.text)}</div><div class="m">${esc(h.headline || '')} · ${fmtDate(h.t, { day: 'numeric', month: 'short' })}</div></div></div>`).join('') : '<p class="faint small">None yet. Honours are earned in significant engagements this division leads.</p>'}
+    ${f ? `<div class="btns"><button class="btn sm" data-act="flyfront" data-id="${f.id}">${I('locate', 's')}Show on the map</button></div>` : ''}`, true];
 }
 
 // ---------- history ----------
@@ -258,7 +271,7 @@ function sReport() {
 }
 function sEdit() {
   const res = ui.edit; const L = labels();
-  const opt = (list, cur) => list.map(a => `<option value="${a}" ${a === cur ? 'selected' : ''}>${ACTIONS[a].label}</option>`).join('');
+  const opt = (list, cur) => list.map(a => `<option value="${a}" ${a === cur ? 'selected' : ''}>${ACTIONS[a].label} — ${esc(ACTIONS[a].means)}</option>`).join('');
   return ['Edit', `${res.items.map((it, i) => `<div class="item" style="--c:${FRONT_COLORS[it.front]}">
       <div class="top"><select data-bind="item.front" data-i="${i}">${map.fronts.map(f => `<option value="${f.id}" ${f.id === it.front ? 'selected' : ''}>${esc(L[f.id])}</option>`).join('')}</select><button data-act="rmitem" data-i="${i}" aria-label="Remove">${I('x', 's')}</button></div>
       <input class="hl" type="text" data-bind="item.headline" data-i="${i}" value="${esc(it.headline)}" placeholder="What happened">
@@ -321,6 +334,7 @@ function onMapTap(d) {
   if (['report', 'welcome', 'settings', 'edit'].includes(ui.sheet)) return;
   if (d.kind === 'province') { view.select(d.id); openSheet('province', d.id); }
   else if (d.kind === 'front') openSheet('front', d.id);
+  else if (d.kind === 'division') openSheet('division', d.id);
   else if (d.kind === 'fleet') openSheet('units', 'navy');
   else if (d.kind === 'wing') openSheet('units', 'air');
   else if (ui.sheet === 'province') closeSheet();
@@ -406,7 +420,7 @@ function onClick(e) {
     case 'outcome': { const it = ui.edit.items[b.dataset.i]; it.outcome = b.dataset.o; it.action = it.outcome === 'win' ? 'offensive' : 'enemy_offensive'; renderSheet(); break; }
     case 'sev': ui.edit.items[b.dataset.i].severity = Number(b.dataset.n); renderSheet(); break;
     case 'rmitem': ui.edit.items.splice(b.dataset.i, 1); renderSheet(); break;
-    case 'saveedit': { const old = data.reports.find(x => x.id === ui.edit.id); if (old) old.items = ui.edit.items.map(i => ({ front: i.front, outcome: i.outcome, severity: i.severity, action: i.action, headline: i.headline.trim() || ACTIONS[i.action].label })); persist(); refresh(); back(); toast('Updated.'); break; }
+    case 'saveedit': { const old = data.reports.find(x => x.id === ui.edit.id); if (old) old.items = ui.edit.items.map(i => ({ front: i.front, outcome: i.outcome, severity: i.severity, action: i.action, headline: i.headline.trim() || ACTIONS[i.action].label, ...(i.reason && old.items.some(o => o.action === i.action && o.reason === i.reason) ? { reason: i.reason } : {}) })); persist(); refresh(); back(); toast('Updated.'); break; }
     case 'delreport': if (confirm('Delete this entry and rewind its effects?')) { data.reports = data.reports.filter(x => x.id !== b.dataset.id); persist(); refresh(); } break;
     case 'replay': if (!data.reports.length) break; closeSheet(); ui.asOf = firstTs(); view.home(); refresh(); playReplay(); break;
     case 'replay-play': playReplay(); break;

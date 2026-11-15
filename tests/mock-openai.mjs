@@ -10,7 +10,7 @@ export function mockOpenAI(port) {
       if (req.url === '/v1/responses') {
         rec.body = JSON.parse(raw.toString()); seen.push(rec);
         const sys = rec.body.input[0].content, user = rec.body.input[1].content;
-        const it = (front, outcome, severity, action, headline, days_ago = 0) => ({ front, outcome, severity, action, headline, days_ago });
+        const it = (front, outcome, severity, action, headline, days_ago = 0) => ({ front, outcome, severity, reason: 'because of what was said', action, headline, days_ago });
         const out = /chief of staff in/.test(sys) ? { assessment: 'School is bleeding; the startup carries the war.', orders: [{ front: 'afg', order: 'Two hours on the problem set tonight.' }] }
           : /REFUSE/.test(user) ? null
           : /failing this class/.test(user) ? { summary: 'A hard day in the east.', items: [it('afg', 'loss', 4, 'enemy_breakthrough', 'Failing the class', 1), it('cau', 'loss', 2, 'enemy_cas', 'Fight with mother'), it('tur', 'win', 2, 'offensive', 'Guitar practice went great')] }

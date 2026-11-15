@@ -34,6 +34,14 @@ Events respect the map: a port can only be struck where there is a port, fleets 
 strike is shown at the place it hit. Weather follows the real calendar (snow in the mountain passes in winter, heat in the
 south in summer), three wins in a row launch a named operation, and a front you stop reporting on lets the enemy mass.
 
+The battle type always follows from what happened: the judge first states the reason in your terms ("was ill all week,
+nobody's fault") and only then picks the matching type, falling back to a plain offensive when nothing specific fits. The
+reason is saved with the entry and shown in History.
+
+Divisions do the fighting. Each battle is led by a named division of the right arm (armour breaks through, cavalry
+counter-attacks, artillery holds the line), which gains experience and battle honours or takes the losses. Tap any division
+on the map or on a front to see its commander, record and honours.
+
 Everything else runs by itself in the engine: objectives, repairs, new divisions, commanders, battle names, satrapies
 restored under their Old Persian names, decorations, railways.
 

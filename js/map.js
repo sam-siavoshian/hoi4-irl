@@ -329,22 +329,29 @@ export class MapView {
     }
   }
 
-  // One token per division: a rounded tile with a plain pictogram and a strength bar.
-  token(ctx, x, y, s, { type, color, str = 100, enemy = false, tag = null, star = false }) {
-    const R = 11; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  // One token per division: a tile with the arm-of-service silhouette, the division number, veterancy and a strength bar.
+  token(ctx, x, y, s, { type, color, str = 100, enemy = false, tag = null, star = false, num = 0, rank = 0, led = false, brigade = false }) {
+    const R = 13; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    if (str < 30 && !enemy) ctx.globalAlpha = 0.6; // pulled out of the line to refit
+    if (led) { ctx.strokeStyle = '#f2cf6b'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.roundRect(-R - 2.4, -R - 2.4, R * 2 + 4.8, R * 2 + 4.8, 7.5); ctx.stroke(); }
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 3 * s * this.dpr; ctx.shadowOffsetY = 1 * s * this.dpr;
-    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-R, -R, R * 2, R * 2, 5); ctx.fill(); ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = 'rgba(8,10,12,0.9)'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.strokeStyle = ctx.fillStyle = '#f5f2ea'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    glyph(ctx, type);
-    // strength bar
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(-R, -R, R * 2, R * 2, 5.5); ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.save(); ctx.clip(); ctx.fillStyle = 'rgba(255,255,255,0.09)'; ctx.fillRect(-R, -R, R * 2, R * 0.9); ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(-R, R - 5, R * 2, 5); ctx.restore();
+    ctx.strokeStyle = 'rgba(8,10,12,0.9)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.roundRect(-R, -R, R * 2, R * 2, 5.5); ctx.stroke();
+    ctx.save(); ctx.translate(0, type === 'air' ? 0 : 0.5); ctx.scale(1.08, 1.08); ctx.strokeStyle = ctx.fillStyle = '#f5f2ea'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; glyph(ctx, type); ctx.restore();
+    if (!enemy && type !== 'ship' && type !== 'air') { // echelon marks: xx division, x brigade
+      ctx.strokeStyle = 'rgba(245,242,234,0.75)'; ctx.lineWidth = 0.9; ctx.beginPath();
+      for (const cx of brigade ? [0] : [-2.2, 2.2]) { ctx.moveTo(cx - 1.4, -R + 2); ctx.lineTo(cx + 1.4, -R + 4.8); ctx.moveTo(cx + 1.4, -R + 2); ctx.lineTo(cx - 1.4, -R + 4.8); } ctx.stroke();
+    }
+    if (num) { ctx.font = '700 6.5px -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif'; ctx.fillStyle = 'rgba(245,242,234,0.9)'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic'; ctx.fillText(String(num), R - 2.5, R - 2.5); }
+    if (rank > 1) { ctx.strokeStyle = '#f2cf6b'; ctx.lineWidth = 1.2; ctx.beginPath(); for (let i = 0; i < Math.min(3, rank - 1); i++) { const yy = R - 3.2 - i * 2.6; ctx.moveTo(-R + 2.5, yy - 1.4); ctx.lineTo(-R + 5, yy); ctx.lineTo(-R + 7.5, yy - 1.4); } ctx.stroke(); }
     const w = R * 2 - 4, v = Math.max(0, Math.min(1, str / 100));
     ctx.fillStyle = 'rgba(8,10,12,0.9)'; ctx.beginPath(); ctx.roundRect(-w / 2 - 1, R + 2, w + 2, 4.5, 2); ctx.fill();
     ctx.fillStyle = v > 0.66 ? '#5bbf8a' : v > 0.33 ? '#dba24a' : '#e5604d'; ctx.beginPath(); ctx.roundRect(-w / 2, R + 3, Math.max(1.5, w * v), 2.5, 1.2); ctx.fill();
     if (tag) {
-      ctx.font = '650 8.5px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif'; const text = tag.text + (star ? ' ★' : ''); const tw = ctx.measureText(text).width + 10;
-      ctx.fillStyle = 'rgba(12,15,18,0.9)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -R - 16, tw, 12.5, 6); ctx.fill();
-      ctx.fillStyle = tag.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 0, -R - 9.5);
+      ctx.globalAlpha = 1; ctx.font = '650 8.5px -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif'; const text = tag.text + (star ? ' ★' : ''); const tw = ctx.measureText(text).width + 10;
+      ctx.fillStyle = 'rgba(12,15,18,0.9)'; ctx.beginPath(); ctx.roundRect(-tw / 2, -R - 17, tw, 12.5, 6); ctx.fill();
+      ctx.fillStyle = tag.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 0, -R - 10.5);
     }
     ctx.restore();
   }
@@ -362,11 +369,11 @@ export class MapView {
 
   _units(px) {
     const { ctx, map: m, st, view: v } = this; const P = m.provinces;
-    const far = v.s < 0.42; const cs = px * Math.max(0.68, Math.min(1.3, 0.56 + v.s * 0.6)); const step = 25 * cs;
+    const far = v.s < 0.42; const cs = px * Math.max(0.68, Math.min(1.3, 0.56 + v.s * 0.6)); const step = 30 * cs;
     const place = (x, y, opts, data) => {
       this.token(ctx, x, y, cs, opts);
-      const [sx, sy] = this.toScreen(x, y); const w = Math.max(30, 26 * cs * v.s);
-      this.hits.push({ x: sx - w / 2, y: sy - w / 2, w, h: w + 6, data });
+      const [sx, sy] = this.toScreen(x, y); const w = Math.max(30, 30 * cs * v.s);
+      this.hits.push({ x: sx - w / 2, y: sy - w / 2, w, h: w + 6, data: opts.data || data });
     };
     // lay a list of tokens along a set of frontline provinces, side by side where they share one
     const deploy = (ids, list, data, pull) => {
@@ -386,10 +393,10 @@ export class MapView {
       deploy(L.theirs, Array.from({ length: eN }, (_, i) => ({ type: (far ? fr.enemyArmor > 0.5 : i < arm) ? 'arm' : f.naval && i % 2 ? 'ship' : i === eN - 1 && eN > 3 ? 'art' : 'inf', color: ecol, str: Math.min(100, fr.enemyStr * 0.8), enemy: true })), data);
       const divs = st.divisions.filter(d => d.front === f.id);
       const label = (this.labels[f.id] || f.defaultLabel).toUpperCase(); const mid = Math.floor((divs.length - 1) / 2);
-      deploy(L.ours, divs.map((d, i) => ({ type: d.type, color: '#2c6557', str: d.str, tag: i === mid ? { text: label, color: FRONT_COLORS[f.id] } : null, star: st.focus === f.id })), data);
+      deploy(L.ours, divs.map((d, i) => ({ type: d.type, color: '#2c6557', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name), led: !!d.led && st.now - d.led < 3 * DAY, data: { kind: 'division', id: d.id }, tag: i === mid ? { text: label, color: FRONT_COLORS[f.id] } : null, star: st.focus === f.id })), data);
     }
     const t = P[m.tehran].city;
-    if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k) => place(t[0] + (k - 0.5) * step, t[1] - 24 * px, { type: d.type, color: '#8a6a2a', str: d.str }, { kind: 'province', id: m.tehran }));
+    if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k) => place(t[0] + (k - 0.5) * step, t[1] - 28 * px, { type: d.type, color: '#8a6a2a', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name) }, { kind: 'division', id: d.id }));
     const seaPos = { south: this.proj(50.6, 28.1), north: this.proj(50.8, 38.4) };
     for (const fl of st.fleets) { const [x, y] = seaPos[fl.id]; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
     if (!this.off.includes('glf')) { const es = this.proj(57.2, 25.5); place(es[0], es[1], { type: 'ship', color: rgb(shade(m.countries.GBR.rgb, -0.3)), str: 90, enemy: true }, { kind: 'front', id: 'glf' }); }
@@ -473,31 +480,53 @@ MapView.prototype.snapshot = function (lines = []) {
   lines.forEach((l, i) => { x.font = `${i ? 500 : 700} ${(i ? 13 : 15) * d}px -apple-system,system-ui,sans-serif`; x.fillStyle = i ? '#9aa0a5' : '#e8e6e1'; x.fillText(l, 16 * d, this.base.height + (14 + i * 19) * d); });
   return c;
 };
-// Pictograms, drawn in a 22×22 box centred on 0,0
+// Arm-of-service silhouettes, drawn in a ~20×18 box centred on 0,0. Light fill; `ink` for cut-in detail.
 function glyph(ctx, type) {
+  const ink = 'rgba(8,10,12,0.8)'; const light = ctx.fillStyle;
+  const dot = (x, y, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.fillStyle = light; };
   ctx.beginPath();
   switch (type) {
-    case 'inf': // helmet
-      ctx.moveTo(-6, 2); ctx.bezierCurveTo(-6, -8, 6, -8, 6, 2); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(-8, 3.5); ctx.lineTo(8, 3.5); ctx.stroke(); break;
+    case 'inf': // steel helmet over crossed rifles
+      ctx.lineWidth = 1.3; ctx.moveTo(-8, 7.5); ctx.lineTo(8, -1); ctx.moveTo(8, 7.5); ctx.lineTo(-8, -1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6.2, 1.5); ctx.bezierCurveTo(-6.2, -8.5, 6.2, -8.5, 6.2, 1.5); ctx.closePath(); ctx.fill();
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-8, 2.2); ctx.lineTo(8, 2.2); ctx.stroke();
+      ctx.strokeStyle = ink; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-5.4, -0.4); ctx.lineTo(5.4, -0.4); ctx.stroke(); break;
     case 'grd': // crown
-      ctx.moveTo(-7, 5); ctx.lineTo(-7.5, -4); ctx.lineTo(-3.5, 0); ctx.lineTo(0, -6); ctx.lineTo(3.5, 0); ctx.lineTo(7.5, -4); ctx.lineTo(7, 5); ctx.closePath(); ctx.fill(); break;
-    case 'arm': // tank
-      ctx.roundRect(-8, 0, 16, 6, 3); ctx.fill(); ctx.beginPath(); ctx.roundRect(-4, -5, 7, 5, 1.5); ctx.fill(); ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(9, -3); ctx.stroke(); break;
-    case 'mot': // truck
-      ctx.rect(-8, -4, 9, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(1, -1); ctx.lineTo(5, -1); ctx.lineTo(8, 1.5); ctx.lineTo(8, 3); ctx.lineTo(1, 3); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(-4.5, 4.5, 2, 0, 7); ctx.arc(4.5, 4.5, 2, 0, 7); ctx.fill(); break;
+      ctx.moveTo(-7.5, 3); ctx.lineTo(-8, -5); ctx.lineTo(-4, -1); ctx.lineTo(0, -7); ctx.lineTo(4, -1); ctx.lineTo(8, -5); ctx.lineTo(7.5, 3); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-7.5, 4.2, 15, 2.6, 1); ctx.fill(); dot(0, 0.6, 1.2, ink); dot(-4.4, 1.6, 0.9, ink); dot(4.4, 1.6, 0.9, ink); break;
+    case 'arm': // tank, side on
+      ctx.roundRect(-9, 1.6, 18, 5.6, 2.8); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-7.5, 1.8); ctx.lineTo(-5.5, -1.6); ctx.lineTo(6, -1.6); ctx.lineTo(8, 1.8); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-3.5, -5.8, 7.5, 4.4, 1.6); ctx.fill();
+      ctx.lineWidth = 1.9; ctx.beginPath(); ctx.moveTo(3.5, -3.8); ctx.lineTo(10, -3.8); ctx.stroke();
+      for (const x of [-6, -2, 2, 6]) dot(x, 4.4, 1.25, ink); break;
+    case 'mot': // lorry with canvas tilt
+      ctx.moveTo(-9, 3); ctx.lineTo(-9, -3.5); ctx.quadraticCurveTo(-9, -5.5, -7, -5.5); ctx.lineTo(-1, -5.5); ctx.quadraticCurveTo(1, -5.5, 1, -3.5); ctx.lineTo(1, 3); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(2, 3); ctx.lineTo(2, -2.5); ctx.lineTo(5.5, -2.5); ctx.lineTo(8.5, 0.5); ctx.lineTo(8.5, 3); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = 0.8; ctx.beginPath(); for (const x of [-6.5, -4, -1.5]) { ctx.moveTo(x, -4.6); ctx.lineTo(x, 2.2); } ctx.stroke();
+      dot(-5, 4.2, 2.3, light); dot(-5, 4.2, 0.9, ink); dot(5, 4.2, 2.3, light); dot(5, 4.2, 0.9, ink); break;
     case 'art': // field gun
-      ctx.lineWidth = 2.6; ctx.moveTo(-6, 2); ctx.lineTo(7, -5); ctx.stroke(); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(-2, 3, 3.6, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(-2, 3, 0.9, 0, 7); ctx.fill(); break;
-    case 'cav': // horseshoe
-      ctx.lineWidth = 2.6; ctx.arc(0, -0.5, 5.5, Math.PI * 0.82, Math.PI * 0.18, false); ctx.stroke(); break;
-    case 'mtn': // peaks
-      ctx.moveTo(-8.5, 6); ctx.lineTo(-2.5, -5); ctx.lineTo(1, 1); ctx.lineTo(3.5, -2.5); ctx.lineTo(8.5, 6); ctx.closePath(); ctx.fill(); break;
+      ctx.lineWidth = 1.3; ctx.moveTo(-2, 3); ctx.lineTo(-9, 7); ctx.stroke();
+      ctx.lineWidth = 2.8; ctx.beginPath(); ctx.moveTo(-3.5, 1.2); ctx.lineTo(8.5, -5.5); ctx.stroke();
+      ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-0.6, -4); ctx.lineTo(2.6, 1.6); ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(-2, 3.2, 3.9, 0, 7); ctx.stroke();
+      ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-5.9, 3.2); ctx.lineTo(1.9, 3.2); ctx.moveTo(-2, -0.7); ctx.lineTo(-2, 7.1); ctx.stroke(); break;
+    case 'cav': // horse head
+      ctx.moveTo(-3, 8); ctx.lineTo(-5, 2); ctx.lineTo(-3.4, -3); ctx.lineTo(-0.2, -6.4); ctx.lineTo(0.6, -8.6); ctx.lineTo(2.6, -6.6); ctx.lineTo(5.6, -3); ctx.lineTo(8.4, 2); ctx.lineTo(6.8, 4.2); ctx.lineTo(3, 2.2); ctx.lineTo(2.4, 4.6); ctx.lineTo(4.6, 8); ctx.closePath(); ctx.fill();
+      dot(2.3, -2.9, 0.9, ink); ctx.strokeStyle = ink; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-3.6, -1.5); ctx.lineTo(-1.2, 3.5); ctx.stroke(); break;
+    case 'mtn': // snow-capped peaks
+      ctx.moveTo(-9.5, 7); ctx.lineTo(-3, -6.5); ctx.lineTo(1, 1); ctx.lineTo(4, -3); ctx.lineTo(9.5, 7); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-5.6, -1.2); ctx.lineTo(-3.8, 0.6); ctx.lineTo(-2.6, -1.4); ctx.lineTo(-0.9, 0); ctx.moveTo(2.4, -0.9); ctx.lineTo(4.2, 0.5); ctx.lineTo(5.6, -0.6); ctx.stroke(); break;
     case 'mar': // anchor
-      ctx.arc(0, -5, 1.8, 0, 7); ctx.moveTo(0, -3.2); ctx.lineTo(0, 6.5); ctx.moveTo(-3.5, -0.8); ctx.lineTo(3.5, -0.8); ctx.moveTo(-6, 2); ctx.quadraticCurveTo(-5, 6.5, 0, 6.5); ctx.quadraticCurveTo(5, 6.5, 6, 2); ctx.stroke(); break;
-    case 'ship':
-      ctx.moveTo(-8.5, 1); ctx.lineTo(8.5, 1); ctx.lineTo(5.5, 6); ctx.lineTo(-5.5, 6); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.rect(-3, -3, 5, 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(0, -7); ctx.stroke(); break;
+      ctx.lineWidth = 1.7; ctx.arc(0, -5.6, 1.9, 0, 7); ctx.moveTo(0, -3.7); ctx.lineTo(0, 7); ctx.moveTo(-3.8, -1.2); ctx.lineTo(3.8, -1.2); ctx.moveTo(-6.8, 1.6); ctx.quadraticCurveTo(-5.6, 7, 0, 7); ctx.quadraticCurveTo(5.6, 7, 6.8, 1.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8.2, 2.6); ctx.lineTo(-6.6, 0.2); ctx.lineTo(-5.2, 2.8); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(8.2, 2.6); ctx.lineTo(6.6, 0.2); ctx.lineTo(5.2, 2.8); ctx.closePath(); ctx.fill(); break;
+    case 'ship': // warship, side on
+      ctx.moveTo(-10, 2); ctx.lineTo(10, 2); ctx.lineTo(7.5, 6.5); ctx.lineTo(-8.5, 6.5); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.rect(-3.5, -1.6, 6.5, 3.6); ctx.rect(-0.2, -5, 2.4, 3.4); ctx.fill();
+      ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-8.5, 0.4); ctx.lineTo(-4.5, 0.4); ctx.moveTo(4.5, 0.4); ctx.lineTo(8.8, 0.4); ctx.stroke();
+      ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-2, -1.6); ctx.lineTo(-2, -7.5); ctx.stroke(); break;
     case 'air':
-      ctx.moveTo(0, -7.5); ctx.lineTo(1.6, -2); ctx.lineTo(8.5, 2); ctx.lineTo(8.5, 3.5); ctx.lineTo(1.4, 2); ctx.lineTo(1, 5.5); ctx.lineTo(3.2, 7.2); ctx.lineTo(-3.2, 7.2); ctx.lineTo(-1, 5.5); ctx.lineTo(-1.4, 2); ctx.lineTo(-8.5, 3.5); ctx.lineTo(-8.5, 2); ctx.lineTo(-1.6, -2); ctx.closePath(); ctx.fill(); break;
+      ctx.moveTo(0, -8.5); ctx.lineTo(1.7, -2.4); ctx.lineTo(9.5, 1.8); ctx.lineTo(9.5, 3.6); ctx.lineTo(1.5, 2); ctx.lineTo(1.1, 5.8); ctx.lineTo(3.6, 7.6); ctx.lineTo(3.6, 8.4); ctx.lineTo(-3.6, 8.4); ctx.lineTo(-3.6, 7.6); ctx.lineTo(-1.1, 5.8); ctx.lineTo(-1.5, 2); ctx.lineTo(-9.5, 3.6); ctx.lineTo(-9.5, 1.8); ctx.lineTo(-1.7, -2.4); ctx.closePath(); ctx.fill(); break;
     default: ctx.arc(0, 0, 4, 0, 7); ctx.fill();
   }
 }

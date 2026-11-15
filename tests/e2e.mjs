@@ -54,8 +54,8 @@ try {
   await shot(p, '01-map');
 
   await step('every division has its own icon on the map', async () => {
-    const n = await p.evaluate(() => window.__artesh.view.hits.filter(h => h.data.kind === 'front').length);
-    const s = await st(p); assert.ok(n >= s.divs - 2 + 7, `tokens drawn: ${n}`);
+    const n = await p.evaluate(() => window.__artesh.view.hits.filter(h => h.data.kind === 'division').length);
+    const s = await st(p); assert.equal(n, s.divs, `one token per division: ${n}`);
   });
 
   await step('say it, send it: fronts move with no extra steps', async () => {
@@ -87,8 +87,9 @@ try {
     assert.equal(await p.locator('.units .unit img').count(), 4); await shot(p, '06-front');
     await p.click('[data-act=quick][data-o=loss]'); await p.waitForTimeout(200);
     assert.equal((await st(p)).fronts.afg.losses, 1);
-    await p.click('#nav [data-sheet=fronts]'); await p.click('.front[data-arg=afg]'); await p.click('button.plain');
-    assert.match(await p.textContent('#sheet-title'), /divisions/); assert.equal(await p.locator('img.tok').count(), 4); await shot(p, '07-divisions');
+    await p.click('#nav [data-sheet=fronts]'); await p.click('.front[data-arg=afg]'); await p.click('.units .unit >> nth=0');
+    assert.match(await p.textContent('#sheet-title'), /Khorasan Infantry|Mashhad Infantry/); assert.match(await body(p), /Brig\. Gen\./); assert.match(await body(p), /Battle honours/); await shot(p, '07-division');
+    assert.match(await p.evaluate(() => window.__artesh.live.log.at(-1).fx[0].text), /gives ground/);
   });
 
   await step('history: calendar, edit, delete, replay', async () => {
@@ -109,8 +110,10 @@ try {
     const pt = await p.evaluate(() => { const a = window.__artesh; const q = a.map.provinces.find(x => x.n === 'Qom'); const [x, y] = a.view.toScreen(q.c[0], q.c[1]); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + x, r.top + y]; });
     await p.mouse.click(pt[0], pt[1]); await p.waitForSelector('#sheet:not([hidden])'); assert.equal(await p.textContent('#sheet-title'), 'Qom'); await p.click('#sheet .x');
     await p.click('[data-act=home]'); await p.waitForTimeout(800);
-    const h = await p.evaluate(() => { const a = window.__artesh; const h = a.view.hits.find(h => h.data.kind === 'front' && h.data.id === 'irq'); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + h.x + h.w / 2, r.top + h.y + h.h / 2]; });
+    const h = await p.evaluate(() => { const a = window.__artesh; const h = a.view.hits.filter(h => h.data.kind === 'front' && h.data.id === 'irq').at(-1); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + h.x + h.w / 2, r.top + h.y + h.h / 2]; });
     await p.mouse.click(h[0], h[1]); await p.waitForSelector('#sheet:not([hidden])'); assert.equal(await p.textContent('#sheet-title'), 'Startup'); await p.click('#sheet .x');
+    const dv = await p.evaluate(() => { const a = window.__artesh; const h = a.view.hits.find(h => h.data.kind === 'division'); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + h.x + h.w / 2, r.top + h.y + h.h / 2]; });
+    await p.mouse.click(dv[0], dv[1]); await p.waitForSelector('#sheet:not([hidden])'); assert.match(await body(p), /Battle honours/); await p.click('#sheet .x');
     for (const m of ['life', 'infra', 'political']) { await p.click('[data-act=modes]'); if (m === 'life') await shot(p, '11-layers'); await p.click(`[data-mode=${m}]`); if (m === 'life') await shot(p, '12-life'); }
   });
 

@@ -15,11 +15,12 @@ const schemaFor = (map, off = []) => ({
           front: { type: 'string', enum: map.fronts.map(f => f.id).filter(id => !off.includes(id)) },
           outcome: { type: 'string', enum: ['win', 'loss', 'neutral'] },
           severity: { type: 'integer', enum: [1, 2, 3, 4, 5] },
+          reason: { type: 'string', description: 'In the user\'s own terms, the specific thing about this event that decides the battle type, e.g. "was ill all week, nobody\'s fault". Max 12 words.' },
           action: { type: 'string', enum: Object.keys(ACTIONS) },
           headline: { type: 'string', description: 'Short battle-report headline (max ~12 words) that names what really happened.' },
           days_ago: { type: 'integer', enum: [0, 1, 2, 3, 4, 5, 6, 7], description: 'How many days before the report the event happened. 0 unless the user says otherwise (yesterday = 1).' },
         },
-        required: ['front', 'outcome', 'severity', 'action', 'headline', 'days_ago'],
+        required: ['front', 'outcome', 'severity', 'reason', 'action', 'headline', 'days_ago'],
         additionalProperties: false,
       },
     },
@@ -31,6 +32,7 @@ const schemaFor = (map, off = []) => ({
 export function buildSystem(map, labels, notes = {}, off = []) {
   const fronts = map.fronts.filter(f => !off.includes(f.id)).map(f => `- ${f.id}: ${f.name} (vs ${f.enemyName}) = "${labels[f.id] || f.defaultLabel}"${notes[f.id] ? ` — the user describes this area as: ${notes[f.id]}` : ''}`).join('\n');
   const act = map.fronts.filter(f => !off.includes(f.id)); const ports = act.filter(f => frontCaps(map, f.id).port).map(f => f.id), fleets = act.filter(f => frontCaps(map, f.id).sea).map(f => f.id);
+  const list = side => Object.entries(ACTIONS).filter(([, a]) => a.side === side).map(([k, a]) => `  - ${k}: ${a.means}`).join('\n');
   const geo = `Geography: only these fronts have a port: ${ports.join(', ') || 'none'}. Only these have a fleet: ${fleets.join(', ') || 'none'}. Every other front is land — never use port_strike, naval_victory or naval_defeat there.`;
   return `You are the chief of the general staff for a personal life tracker drawn as a 1936 grand-strategy war map of Iran. Each border front stands for one area of the user's real life. The user tells you, in plain speech, what happened; you convert it into battle results. It is a metaphor for their life, not a game and not real warfare.
 
@@ -43,12 +45,16 @@ For every distinct real-life event in the report, emit one item:
 - front: the front whose life area the event belongs to. If an event fits no area, use the closest one; general mood, habits, sleep, money and discipline go to the front whose label is closest to personal life.
 - outcome: "win" if it went well for the user, "loss" if it went badly, "neutral" only if it is genuinely neither.
 - severity 1–5: 1 = minor (small task done, mild annoyance); 2 = ordinary good/bad day; 3 = significant (a good grade, a real argument, a missed week of gym); 4 = major (big milestone, serious fight, failed an exam); 5 = decisive, rare (got into the dream school, funding closed, breakup, a death). Do not inflate: most daily events are 1–3.
-- action: the kind of battle that best matches what happened.
-  Wins: offensive (ordinary progress), breakthrough (a sudden big leap forward), counterattack (bounced back after a setback), encirclement (decisively resolved a long-running problem), airborne (a bold, risky move that paid off), air_superiority (gained the upper hand, confidence, momentum), cas_strike (got decisive help or support from someone), uprising (unexpected help, luck, or something turned in the user's favour without their effort), intelligence (an insight, realisation, or learning something important), lend_lease (received resources: money, a gift, a favour, an introduction), treaty (made peace, apologised or was apologised to, de-escalated), infrastructure (built a habit, system, routine or long-term foundation), fortify (held the line, set boundaries, avoided a relapse, damage control), reinforce (rest, recovery, new people joining), naval_victory (a win at sea — only on fronts listed as having a fleet).
-  Losses: enemy_offensive (ordinary setback), enemy_breakthrough (things collapsed quickly, "tank attack"), encircled (trapped, overwhelmed, no way out), enemy_cas (blindsided, criticised or attacked by someone), strategic_bombing (damage to long-term foundations: habits, health, finances), sabotage (self-sabotage, a relapse, undermining your own work), supply_hub_bombed (burnout, exhaustion; sleep, energy or money ran out), rail_cut (lost an opportunity, a connection or a channel closed), port_strike (same meaning as rail_cut, but only on fronts listed as having a port), desertion (lost motivation, gave up, quit halfway), winter (bad luck or circumstances outside anyone's control: illness, weather, delays), attrition (slow grind, procrastination, neglect), naval_defeat (only on fronts with a fleet).
+- reason: first say, in a few plain words, what it is about this event that matters: its cause or nature (was it the user's own doing? another person? bad luck? exhaustion? a bold move? help from someone?).
+- action: then pick the battle type whose meaning matches that reason. The type must follow from what actually happened; it is never chosen for variety or colour. If no specific type clearly fits, use the plain one: offensive for a win, enemy_offensive for a loss. Each type and the real-life situation it stands for:
+  Wins:
+${list('win')}
+  Losses:
+${list('loss')}
   Neutral: skirmish.
+  Examples: "I had the flu and missed three classes" → winter (illness, nobody's fault). "I stayed up scrolling and slept through my exam" → sabotage (own doing). "My co-founder tore my work apart in front of everyone" → enemy_cas (attacked by a person). "I just stopped going to the gym, can't be bothered" → desertion (lost motivation). "Bad day at school" → enemy_offensive (nothing more specific). "A friend introduced me to an investor" → lend_lease (received a resource). "I finally understood recursion" → intelligence (an insight). "I apologised to my mom and we're fine" → treaty (made peace). "Good day at the gym" → offensive.
 - days_ago: 0 for today; if the user places an event in the past ("yesterday", "on Monday", "two days ago"), the number of days back, at most 7.
-- headline: a short dispatch that names the real event in military language, e.g. "Chemistry midterm failed — enemy armour breaks the line at Zabol".
+- headline: a short dispatch that names the real event first and then the matching battle image, e.g. "Flu for a week — blizzard closes the passes" (winter) or "Chemistry midterm failed — enemy armour breaks the line" (enemy_breakthrough). The image must be the one that belongs to the chosen action.
 
 Then write "summary": a 1–3 sentence communiqué covering the whole report in the same voice, honest about how things are going. If the user explicitly uses war language ("heavy tank attack", "they bombed our supply hub", "we broke through"), honour it when choosing action and severity. If the report contains nothing to classify, return an empty items list and say so in the summary.`;
 }
@@ -67,7 +73,7 @@ function sanitize(map, data, off = []) {
     const outcome = ['win', 'loss', 'neutral'].includes(i.outcome) ? i.outcome : 'neutral';
     let action = i.action;
     if (!ACTIONS[action] || ACTIONS[action].side !== outcome) action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish';
-    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160), days_ago: Math.max(0, Math.min(7, Math.round(Number(i.days_ago) || 0))) });
+    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160), ...(i.reason && action === i.action ? { reason: String(i.reason).slice(0, 120) } : {}), days_ago: Math.max(0, Math.min(7, Math.round(Number(i.days_ago) || 0))) });
   }
   return { summary: String(data.summary || '').slice(0, 600), items };
 }
@@ -85,6 +91,32 @@ export async function classifyLLM({ map, st, labels, notes = {}, off = [], text,
 }
 
 // ---------- offline keyword classifier ----------
+const GENERIC = new Set(['offensive', 'enemy_offensive', 'skirmish']); // a specific cause is never replaced by a plain one
+const WIN_RULES = [
+  [/\b(apologi[sz]ed|made peace|forgave|forgiven|talked it out|made up|reconciled)\b/, 'treaty'],
+  [/\b(bounced back|came back from|turned it around|caught up|recovered from)\b/, 'counterattack'],
+  [/\b(gift|gave me|lent me|helped me|got paid|bonus|scholarship|introduced me)\b/, 'lend_lease'],
+  [/\b(reali[sz]ed|learned|figured out|finally understood|understood)\b/, 'intelligence'],
+  [/\b(took a risk|risky|bold move|dared|asked (her|him) out)\b/, 'airborne'],
+  [/\b(lucky|luck|out of nowhere|unexpectedly)\b/, 'uprising'],
+  [/\b(habit|routine|system|consistent|streak|foundation|saved up)\b/, 'infrastructure'],
+  [/\b(rested|recovered|slept well|day off|vacation)\b/, 'reinforce'],
+  [/\b(held firm|boundar(y|ies)|resisted|didn'?t give in|stayed calm|avoided)\b/, 'fortify'],
+  [/\b(finally (fixed|solved|resolved)|resolved|sorted out)\b/, 'encirclement'],
+  [/\b(break ?through|broke through|aced|crushed it|nailed|huge|massive)\b/, 'breakthrough'],
+];
+const LOSS_RULES = [
+  [/\b(sick|ill|flu|a cold|fever|migraine|weather|rain(ed)?|snow(ed)?|delayed|bad luck|unlucky)\b/, 'winter'],
+  [/\b(relapsed?|self.?sabotage|my own fault|my fault|overslept|slept through|forgot)\b/, 'sabotage'],
+  [/\b(gave up|quit|unmotivated|no motivation|can'?t be bothered|couldn'?t be bothered|stopped going)\b/, 'desertion'],
+  [/\b(burn(ed|t)? ?out|exhausted|no energy|drained|no sleep|barely slept|ran out of money|broke)\b/, 'supply_hub_bombed'],
+  [/\b(yelled|screamed|shouted|critici[sz]ed|blindsided|insulted|a fight|fight with|fought|argued|argument)\b/, 'enemy_cas'],
+  [/\b(overwhelmed|trapped|stuck|no way out|drowning)\b/, 'encircled'],
+  [/\b(missed (the|an|my) (chance|opportunity|deadline)|rejected|turned down|cancel(l)?ed|fell through)\b/, 'rail_cut'],
+  [/\b(procrastinat\w*|wasted|lazy|skipped|neglected|behind)\b/, 'attrition'],
+  [/\b(injur\w*|debt|broke the habit|lost the streak)\b/, 'strategic_bombing'],
+  [/\b(tank attack|collaps\w*|disaster|failed|failing|broke up|dumped)\b/, 'enemy_breakthrough'],
+];
 const AREA_WORDS = {
   school: ['school', 'class', 'classes', 'exam', 'exams', 'test', 'quiz', 'midterm', 'final', 'finals', 'homework', 'assignment', 'grade', 'grades', 'teacher', 'professor', 'lecture', 'study', 'studying', 'studied', 'essay', 'gpa', 'college', 'university', 'course', 'sat', 'ap', 'paper', 'lab', 'tutor'],
   family: ['family', 'mom', 'mother', 'dad', 'father', 'parents', 'parent', 'brother', 'sister', 'sibling', 'grandma', 'grandpa', 'grandmother', 'grandfather', 'uncle', 'aunt', 'cousin', 'home'],
@@ -119,6 +151,8 @@ export function classifyLocal({ map, labels, text, off = [] }) {
     let p = POS.filter(w => has(lc, w)).length, n = NEG.filter(w => has(lc, w)).length;
     if (/\b(not|never|no|didn'?t|wasn'?t|isn'?t)\s+(\w+\s+)?(good|great|well|happy|fun|productive|better)/i.test(lc)) { n += 2; p = Math.max(0, p - 1); }
     if (/\b(not|no longer|isn'?t|wasn'?t)\s+(\w+\s+)?(bad|sick|behind|stressed|failing)/i.test(lc)) { p += 2; n = Math.max(0, n - 1); }
+    // a specific cause is itself evidence of how it went ("I apologised to my mom" has no mood word)
+    if (!p && !n) { if (WIN_RULES.some(([re]) => re.test(lc))) p = 1; else if (LOSS_RULES.some(([re]) => re.test(lc))) n = 1; }
     if (!p && !n) continue;
     if (!front) front = lastFront || fallback;
     lastFront = front;
@@ -126,38 +160,16 @@ export function classifyLocal({ map, labels, text, off = [] }) {
     let sev = 2 + (STRONG.some(w => has(lc, w)) ? 1 : 0) - (WEAK.some(w => has(lc, w)) ? 1 : 0) + (Math.abs(p - n) >= 3 ? 1 : 0);
     if (/broke up|breakup|dumped|expelled|fired|died|death|funding closed|accepted into|got into/i.test(lc)) sev = 5;
     sev = Math.max(1, Math.min(5, sev));
-    let action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish';
-    if (outcome === 'win') {
-      if (/break ?through|broke through|aced|crushed|nailed|huge|massive/i.test(lc)) action = 'breakthrough';
-      else if (/bounced back|came back|recovered from|turned it around|caught up/i.test(lc)) action = 'counterattack';
-      else if (/apologi[sz]ed|made peace|forgave|talked it out/i.test(lc)) action = 'treaty';
-      else if (/gift|gave me|lent me|helped me|got paid|bonus|scholarship/i.test(lc)) action = 'lend_lease';
-      else if (/reali[sz]ed|learned|figured out|understood/i.test(lc)) action = 'intelligence';
-      else if (/took a risk|risky|bold|dared/i.test(lc)) action = 'airborne';
-      else if (/lucky|out of nowhere|unexpected/i.test(lc)) action = 'uprising';
-      else if (/habit|routine|system|consistent|built|foundation|saved/i.test(lc)) action = 'infrastructure';
-      else if (/rest|recover|slept well|vacation|break/i.test(lc)) action = 'reinforce';
-      else if (/held|boundar|avoided|resisted|stayed/i.test(lc)) action = 'fortify';
-      else if (/made up|reconcil|resolved|fixed|solved/i.test(lc)) action = 'encirclement';
-    } else if (outcome === 'loss') {
-      if (/tank|collapse|disaster|failed|failing|broke up|dumped/i.test(lc)) action = 'enemy_breakthrough';
-      else if (/burn ?out|exhausted|tired|no energy|sleep|broke\b|supply/i.test(lc)) action = 'supply_hub_bombed';
-      else if (/air|close ?air|cas\b|yelled|screamed|criticis|criticiz|blindsided|fight|fought|argu/i.test(lc)) action = 'enemy_cas';
-      else if (/relapse|self.?sabotage|my own fault|shot myself/i.test(lc)) action = 'sabotage';
-      else if (/sick|ill\b|flu|cold\b|weather|rain|snow|delayed|bad luck|unlucky/i.test(lc)) action = 'winter';
-      else if (/gave up|quit|unmotivated|no motivation|couldn'?t be bothered/i.test(lc)) action = 'desertion';
-      else if (/bomb|habit|health|injur/i.test(lc)) action = 'strategic_bombing';
-      else if (/port|missed|opportunit|rejected|cancel/i.test(lc)) action = 'rail_cut';
-      else if (/overwhelmed|trapped|stuck|encircl/i.test(lc)) action = 'encircled';
-      else if (/procrastinat|wasted|lazy|skipped|neglect|behind/i.test(lc)) action = 'attrition';
-    }
+    // specific causes first, generic size last; anything unmatched stays a plain offensive / enemy offensive
+    let action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish'; let reason = '';
+    for (const [re, act] of outcome === 'win' ? WIN_RULES : outcome === 'loss' ? LOSS_RULES : []) { const m = lc.match(re); if (m) { action = act; reason = m[0].trim(); break; } }
     const f = map.fronts.find(x => x.id === front);
     if (!(f.naval || f.id === 'cau' || f.id === 'tks') && action === 'port_strike') action = 'supply_hub_bombed';
     const head = c.length > 90 ? c.slice(0, 87) + '…' : c;
     const days_ago = /day before yesterday|two days ago|2 days ago/i.test(lc) ? 2 : /three days ago|3 days ago/i.test(lc) ? 3 : /yesterday/i.test(lc) ? 1 : 0;
     const dup = items.find(i => i.front === front && i.outcome === outcome && i.days_ago === days_ago);
-    if (dup) { dup.severity = Math.min(5, Math.max(dup.severity, sev) + (dup.severity === sev ? 1 : 0)); if (ACTIONS[action].adv > ACTIONS[dup.action].adv) dup.action = action; dup.headline = `${dup.headline}; ${head}`.slice(0, 160); continue; }
-    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1), days_ago });
+    if (dup) { dup.severity = Math.min(5, Math.max(dup.severity, sev) + (dup.severity === sev ? 1 : 0)); if (GENERIC.has(dup.action) && !GENERIC.has(action)) { dup.action = action; if (reason) dup.reason = reason; } dup.headline = `${dup.headline}; ${head}`.slice(0, 160); continue; }
+    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1), ...(reason ? { reason } : {}), days_ago });
   }
   const w = items.filter(i => i.outcome === 'win').length, l = items.filter(i => i.outcome === 'loss').length;
   const names = ids => [...new Set(ids)].map(id => map.fronts.find(f => f.id === id).name).join(', ');

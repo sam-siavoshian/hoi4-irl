@@ -37,6 +37,7 @@ test('judge path: goes through the private server, result is sanitised', async (
   const sch = seen.body.schema; assert.equal(sch.additionalProperties, false); assert.deepEqual(sch.required, ['summary', 'items']);
   const item = sch.properties.items.items; assert.equal(item.additionalProperties, false); assert.deepEqual(item.required.slice().sort(), Object.keys(item.properties).sort(), 'strict mode needs every field required');
   assert.deepEqual(r.items, [{ front: 'afg', outcome: 'loss', severity: 5, action: 'enemy_offensive', headline: 'H', days_ago: 0 }]);
+  assert.deepEqual(item.required.slice(0, 5), ['front', 'outcome', 'severity', 'reason', 'action'], 'the judge states the reason before choosing the battle type');
 });
 test('judge failure falls back to offline with a warning', async () => {
   const r = await classify({ map, st, labels, text: 'failed my exam', remote: true, fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({ error: 'OPENAI_API_KEY is not set on the server.' }) }) });
@@ -58,4 +59,23 @@ test('the judge is told which fronts have water; new event types are offered', (
   for (const a of ['counterattack', 'airborne', 'uprising', 'intelligence', 'lend_lease', 'treaty', 'rail_cut', 'sabotage', 'desertion', 'winter']) assert.match(sys, new RegExp(a));
   const r = classifyLocal({ map, labels, text: 'I was sick all week and missed school. My mom and I talked it out and made peace, great.' });
   assert.equal(r.items.find(i => i.front === 'afg').action, 'winter'); assert.equal(r.items.find(i => i.front === 'cau').action, 'treaty');
+});
+
+test('the battle type follows from what happened, not from chance', async () => {
+  const sys = buildSystem(map, labels);
+  assert.match(sys, /never chosen for variety/); assert.match(sys, /- winter: nobody's fault: illness, weather, delays, bad luck/); assert.match(sys, /- sabotage: the user's own doing/);
+  const pick = t => classifyLocal({ map, labels, text: t }).items[0];
+  const cases = [
+    ['I had the flu and missed school all week, terrible.', 'winter', 'flu'], ['I overslept and missed my exam, awful.', 'sabotage', 'overslept'], ['I gave up on my essay, bad day at school.', 'desertion', 'gave up'],
+    ['My teacher yelled at me in class, horrible.', 'enemy_cas', 'yelled'], ['I am exhausted and behind in school.', 'supply_hub_bombed', 'exhausted'], ['School was bad today.', 'enemy_offensive', undefined],
+    ['The gym was good today.', 'offensive', undefined], ['I finally understood calculus in class, great.', 'intelligence', 'finally understood'], ['I apologized to my mom, we are good.', 'treaty', 'apologized'],
+    ['A friend helped me with my startup pitch, great.', 'lend_lease', 'helped me'], ['Sat in my chair at school, fair day, it was good.', 'offensive', undefined],
+  ];
+  for (const [text, action, reason] of cases) { const i = pick(text); assert.equal(i.action, action, text); assert.equal(i.reason, reason, text); }
+  // the judge's stated reason travels with the entry; a reason that no longer matches the action is dropped
+  const mk = items => async () => ({ ok: true, status: 200, json: async () => ({ result: { summary: '', items } }) });
+  const ok = await classifyLLM({ map, st, labels, text: 'x', fetchImpl: mk([{ front: 'afg', outcome: 'loss', severity: 3, reason: 'was ill all week', action: 'winter', headline: 'Flu', days_ago: 0 }]) });
+  assert.equal(ok.items[0].reason, 'was ill all week'); assert.equal(ok.items[0].action, 'winter');
+  const bad = await classifyLLM({ map, st, labels, text: 'x', fetchImpl: mk([{ front: 'afg', outcome: 'loss', severity: 3, reason: 'a great insight', action: 'intelligence', headline: 'x', days_ago: 0 }]) });
+  assert.equal(bad.items[0].action, 'enemy_offensive'); assert.equal(bad.items[0].reason, undefined);
 });

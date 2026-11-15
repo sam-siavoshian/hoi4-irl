@@ -218,3 +218,8 @@ details { margin-top: 24px; } summary { list-style: none; cursor: pointer; font-
 .front .hd .st { margin-left: auto; }
 
 #banner i { display: block; font-style: normal; font-size: 12px; color: var(--text-3); margin-top: 6px; line-height: 1.35; }
+
+.units .unit { width: 58px; } .unit img { width: 48px; height: 54px; } .unit span { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58px; }
+button.unit:active { opacity: .7; }
+img.tok { width: 40px; height: 45px; }
+.dhead { display: flex; gap: 14px; align-items: center; margin: 4px 0 8px; } .dhead img { width: 72px; height: 81px; flex: none; } .dhead b { display: block; font-weight: 650; line-height: 1.3; } .dhead span { display: block; font-size: 13px; color: var(--text-2); line-height: 1.45; } .dhead span.gold { color: var(--accent); } .dhead span.warn { color: var(--warn); }

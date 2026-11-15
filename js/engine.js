@@ -6,37 +6,37 @@ export const BASE = [0, 1.2, 2.5, 4, 6.5, 10]; // front movement (points of 100)
 
 export const ACTIONS = {
   // wins
-  offensive:        { side: 'win',  adv: 1.0,  label: 'Ground Offensive',     icon: 'arrow' },
-  breakthrough:     { side: 'win',  adv: 1.6,  label: 'Armoured Breakthrough', icon: 'armor' },
-  encirclement:     { side: 'win',  adv: 1.2,  label: 'Encirclement',          icon: 'pocket' },
-  air_superiority:  { side: 'win',  adv: 0.3,  label: 'Air Superiority',       icon: 'air' },
-  cas_strike:       { side: 'win',  adv: 0.6,  label: 'Close Air Support',     icon: 'air' },
-  naval_victory:    { side: 'win',  adv: 0.6,  label: 'Naval Victory',         icon: 'naval' },
-  infrastructure:   { side: 'win',  adv: 0.15, label: 'Construction',          icon: 'build' },
-  fortify:          { side: 'win',  adv: 0.1,  label: 'Fortification',         icon: 'fort' },
-  reinforce:        { side: 'win',  adv: 0.2,  label: 'Reinforcement',         icon: 'unit' },
-  counterattack:    { side: 'win',  adv: 1.0,  label: 'Counter-attack',        icon: 'arrow' },
-  airborne:         { side: 'win',  adv: 0.9,  label: 'Airborne Assault',      icon: 'air' },
-  uprising:         { side: 'win',  adv: 0.4,  label: 'Uprising Behind Enemy Lines', icon: 'unit' },
-  intelligence:     { side: 'win',  adv: 0.15, label: 'Intelligence Coup',     icon: 'unit' },
-  lend_lease:       { side: 'win',  adv: 0.15, label: 'Allied Aid Arrives',    icon: 'build' },
-  treaty:           { side: 'win',  adv: 0.3,  label: 'Armistice Talks',       icon: 'fort' },
+  offensive:        { side: 'win',  adv: 1.0,  label: 'Ground Offensive',     icon: 'arrow', means: 'ordinary progress, a normal good day' },
+  breakthrough:     { side: 'win',  adv: 1.6,  label: 'Armoured Breakthrough', icon: 'armor', means: 'a sudden big leap forward, a major milestone' },
+  encirclement:     { side: 'win',  adv: 1.2,  label: 'Encirclement',          icon: 'pocket', means: 'a long-running problem decisively resolved' },
+  air_superiority:  { side: 'win',  adv: 0.3,  label: 'Air Superiority',       icon: 'air', means: 'gained the upper hand, confidence or momentum' },
+  cas_strike:       { side: 'win',  adv: 0.6,  label: 'Close Air Support',     icon: 'air', means: 'someone gave decisive help or support' },
+  naval_victory:    { side: 'win',  adv: 0.6,  label: 'Naval Victory',         icon: 'naval', means: 'a clear win, only on a front with a fleet' },
+  infrastructure:   { side: 'win',  adv: 0.15, label: 'Construction',          icon: 'build', means: 'built a habit, routine, system or long-term foundation' },
+  fortify:          { side: 'win',  adv: 0.1,  label: 'Fortification',         icon: 'fort', means: 'held the line: set a boundary, resisted a temptation, limited the damage' },
+  reinforce:        { side: 'win',  adv: 0.2,  label: 'Reinforcement',         icon: 'unit', means: 'rest, recovery, or new people joining' },
+  counterattack:    { side: 'win',  adv: 1.0,  label: 'Counter-attack',        icon: 'arrow', means: 'bounced back after a setback' },
+  airborne:         { side: 'win',  adv: 0.9,  label: 'Airborne Assault',      icon: 'air', means: 'a bold, risky move that paid off' },
+  uprising:         { side: 'win',  adv: 0.4,  label: 'Uprising Behind Enemy Lines', icon: 'unit', means: 'luck, or help that arrived without the user working for it' },
+  intelligence:     { side: 'win',  adv: 0.15, label: 'Intelligence Coup',     icon: 'unit', means: 'an insight, a realisation, learning something important' },
+  lend_lease:       { side: 'win',  adv: 0.15, label: 'Allied Aid Arrives',    icon: 'build', means: 'received resources: money, a gift, a favour, an introduction' },
+  treaty:           { side: 'win',  adv: 0.3,  label: 'Armistice Talks',       icon: 'fort', means: 'made peace, apologised or was apologised to, de-escalated' },
   // losses
-  enemy_offensive:    { side: 'loss', adv: 1.0,  label: 'Enemy Offensive',       icon: 'arrow' },
-  enemy_breakthrough: { side: 'loss', adv: 1.6,  label: 'Enemy Tank Breakthrough', icon: 'armor' },
-  encircled:          { side: 'loss', adv: 1.1,  label: 'Divisions Encircled',   icon: 'pocket' },
-  enemy_cas:          { side: 'loss', adv: 0.6,  label: 'Enemy Close Air Support', icon: 'air' },
-  strategic_bombing:  { side: 'loss', adv: 0.2,  label: 'Strategic Bombing',     icon: 'bomb' },
-  port_strike:        { side: 'loss', adv: 0.2,  label: 'Port Strike',           icon: 'naval' },
-  supply_hub_bombed:  { side: 'loss', adv: 0.3,  label: 'Supply Hub Bombed',     icon: 'bomb' },
-  naval_defeat:       { side: 'loss', adv: 0.5,  label: 'Naval Defeat',          icon: 'naval' },
-  attrition:          { side: 'loss', adv: 0.25, label: 'Attrition',             icon: 'unit' },
-  rail_cut:           { side: 'loss', adv: 0.3,  label: 'Railway Cut',           icon: 'bomb' },
-  sabotage:           { side: 'loss', adv: 0.15, label: 'Sabotage',              icon: 'bomb' },
-  desertion:          { side: 'loss', adv: 0.3,  label: 'Desertions',            icon: 'unit' },
-  winter:             { side: 'loss', adv: 0.2,  label: 'Harsh Conditions',      icon: 'unit' },
+  enemy_offensive:    { side: 'loss', adv: 1.0,  label: 'Enemy Offensive',       icon: 'arrow', means: 'an ordinary setback, a normal bad day' },
+  enemy_breakthrough: { side: 'loss', adv: 1.6,  label: 'Enemy Tank Breakthrough', icon: 'armor', means: 'things collapsed quickly, a major failure' },
+  encircled:          { side: 'loss', adv: 1.1,  label: 'Divisions Encircled',   icon: 'pocket', means: 'trapped, overwhelmed, no way out' },
+  enemy_cas:          { side: 'loss', adv: 0.6,  label: 'Enemy Close Air Support', icon: 'air', means: 'attacked, criticised or blindsided by another person' },
+  strategic_bombing:  { side: 'loss', adv: 0.2,  label: 'Strategic Bombing',     icon: 'bomb', means: 'damage to long-term foundations: health, finances, a habit broken' },
+  port_strike:        { side: 'loss', adv: 0.2,  label: 'Port Strike',           icon: 'naval', means: 'a lost opportunity or closed channel, only on a front with a port' },
+  supply_hub_bombed:  { side: 'loss', adv: 0.3,  label: 'Supply Hub Bombed',     icon: 'bomb', means: 'ran out of energy, sleep or money; burnout' },
+  naval_defeat:       { side: 'loss', adv: 0.5,  label: 'Naval Defeat',          icon: 'naval', means: 'a clear loss, only on a front with a fleet' },
+  attrition:          { side: 'loss', adv: 0.25, label: 'Attrition',             icon: 'unit', means: 'slow grind: procrastination, neglect, falling behind' },
+  rail_cut:           { side: 'loss', adv: 0.3,  label: 'Railway Cut',           icon: 'bomb', means: 'a lost opportunity, a connection or a channel closed' },
+  sabotage:           { side: 'loss', adv: 0.15, label: 'Sabotage',              icon: 'bomb', means: 'the user\'s own doing: self-sabotage, a relapse, a careless mistake' },
+  desertion:          { side: 'loss', adv: 0.3,  label: 'Desertions',            icon: 'unit', means: 'lost motivation, gave up, quit halfway' },
+  winter:             { side: 'loss', adv: 0.2,  label: 'Harsh Conditions',      icon: 'unit', means: 'nobody\'s fault: illness, weather, delays, bad luck' },
   // neutral
-  skirmish:           { side: 'neutral', adv: 0, label: 'Skirmish',              icon: 'unit' },
+  skirmish:           { side: 'neutral', adv: 0, label: 'Skirmish',              icon: 'unit', means: 'neither good nor bad' },
 };
 export const WIN_ACTIONS = Object.keys(ACTIONS).filter(k => ACTIONS[k].side === 'win');
 export const LOSS_ACTIONS = Object.keys(ACTIONS).filter(k => ACTIONS[k].side === 'loss');
@@ -102,6 +102,17 @@ export function weatherOf(fid, t) {
   if (kind === 'heat' && m >= 5 && m <= 7) return { kind: 'heat', text: 'Summer heat and dust', slow: 0.9 };
   return null;
 }
+// Which arm of service leads each kind of battle, and what it is said to have done.
+const LEADS = {
+  offensive: [['inf', 'mtn', 'grd'], 'pushes forward'], breakthrough: [['arm', 'mot'], 'breaks through the enemy line'], counterattack: [['cav', 'arm', 'mot'], 'leads the counter-attack'],
+  encirclement: [['mot', 'cav', 'arm'], 'closes the pocket'], airborne: [['inf', 'mtn'], 'is dropped behind the enemy line'], fortify: [['art', 'inf'], 'digs in and holds'],
+  infrastructure: [['inf', 'mot'], 'lends its engineers to the work'], intelligence: [['cav', 'mot'], 'brings back the enemy\'s plans'], reinforce: [[], 'takes in replacements'], treaty: [[], 'stands down under the ceasefire'],
+  enemy_offensive: [['inf', 'mtn'], 'gives ground'], enemy_breakthrough: [['inf', 'cav'], 'is overrun by enemy armour'], enemy_cas: [[], 'is caught in the open by enemy aircraft'],
+  attrition: [[], 'is worn down in the line'], winter: [[], 'suffers badly from the conditions'], desertion: [[], 'loses men to desertion'], encircled: [[], 'is cut off'],
+};
+const CO_FIRST = ['Bahram', 'Kourosh', 'Jamshid', 'Parviz', 'Hormoz', 'Ardeshir', 'Manuchehr', 'Esfandiar', 'Khosrow', 'Bijan', 'Fereydoun', 'Siamak', 'Houshang', 'Shapour', 'Iraj', 'Touraj'];
+const CO_LAST = ['Shahbazi', 'Daryani', 'Kohestani', 'Alborzi', 'Sepahbod', 'Rostami', 'Golzar', 'Tavakoli', 'Niknam', 'Farahmand', 'Zandieh', 'Karimkhani', 'Mirfendereski', 'Bakhtiar', 'Qaragozlu', 'Sardari'];
+export const shortName = d => d.name.replace(/ (Division|Brigade)( “.*”)?$/, '');
 const ENEMY_NAMES = { AFG: 'Afghan', SOV: 'Soviet', IRQ: 'Iraqi', RAJ: 'British Indian', TUR: 'Turkish', GBR: 'British' };
 
 // Iranian states: starting infrastructure (0-5), civilian factories, military factories, dockyards
@@ -163,7 +174,7 @@ function initialState(map, t0) {
   };
   for (const s of meta.iranStates) { const [infra, civ, mil, dock] = STATE_START[s] || [1, 0, 0, 0]; st.states[s] = { infra, civ, mil, dock, dmg: 0, infraDmg: 0, bp: 0 }; }
   for (const b of meta.buildings) st.bld[b.id] = { lvl: b.kind === 'fort' ? 1 : b.kind === 'port' || b.kind === 'naval' ? 2 : 1, dmg: 0 };
-  const guard = (type, name) => st.divisions.push({ id: `d${++st.divSeq}`, n: st.divSeq, name, type, front: null, str: 100, org: 100, xp: 60 });
+  const guard = (type, name) => st.divisions.push({ id: `d${++st.divSeq}`, n: st.divSeq, name, type, front: null, str: 100, org: 100, xp: 60, home: 'Tehran', raised: t0, co: `Maj. Gen. ${CO_FIRST[st.divSeq]} ${CO_LAST[st.divSeq + 4]}`, w: 0, l: 0, honours: [], led: 0 });
   guard('grd', '1st Imperial Guard Division “Javidan”'); guard('arm', '2nd Guard Armoured Brigade');
   for (const f of map.fronts) {
     st.fronts[f.id] = { id: f.id, pos: 0, air: 0, sea: 0, supply: 100, entrench: 1, enemyStr: 100, streak: 0, merit: 0, wins: 0, losses: 0, last: null, lastT: null, honor: 0, enemyArmor: 0, acts: {}, cmd: { name: COMMANDERS[f.id], level: 1, traits: [] } };
@@ -188,7 +199,8 @@ function raise(st, fid, type, xp = 0, silent = false) {
   const n = ++st.divSeq;
   const honor = HONOR[fid][fr.honor++ % HONOR[fid].length];
   const tn = UNIT_TYPES[type].name;
-  const d = { id: `d${n}`, n, name: `${ord(n)} ${honor} ${tn} ${type === 'art' ? 'Brigade' : 'Division'}`, type, front: fid, str: silent ? 100 : 70, org: silent ? 100 : 60, xp };
+  const d = { id: `d${n}`, n, name: `${ord(n)} ${honor} ${tn} ${type === 'art' ? 'Brigade' : 'Division'}`, type, front: fid, str: silent ? 100 : 70, org: silent ? 100 : 60, xp, home: honor, raised: st.t,
+    co: `${type === 'art' ? 'Col.' : 'Brig. Gen.'} ${CO_FIRST[(n * 7) % CO_FIRST.length]} ${CO_LAST[(n * 11 + 3) % CO_LAST.length]}`, w: 0, l: 0, honours: [], led: 0 };
   st.divisions.push(d);
   return d;
 }
@@ -321,6 +333,16 @@ function applyItem(map, st, item, rnd, fx) {
   fr.acts[action] = (fr.acts[action] || 0) + 1;
   const wasStreak = fr.streak;
 
+  // the division that carries this action: the right arm of service if the front has one, otherwise whoever is fittest
+  const L = LEADS[action]; let lead = null, fit = 1;
+  if (L && divs.length) {
+    const ready = divs.filter(d => d.str >= 30); const pool = ready.length ? ready : divs; const score = d => d.str + d.org * 0.5 + rnd() * 20;
+    const pref = pool.filter(d => L[0].includes(d.type));
+    if (A.side === 'win') { lead = (pref.length ? pref : pool).slice().sort((a, b) => score(b) - score(a))[0]; fit = pref.length ? 1.1 : L[0].length && action !== 'offensive' ? 0.85 : 1; }
+    else lead = action === 'enemy_cas' || action === 'attrition' ? pool[Math.floor(rnd() * pool.length)] : (pref.length ? pref : pool).slice().sort((a, b) => a.str + a.org - b.str - b.org)[0];
+    if (action === 'winter') { const soft = pool.filter(d => d.type !== 'mtn'); lead = (soft.length ? soft : pool).slice().sort((a, b) => a.str - b.str)[0]; if (divs.some(d => d.type === 'mtn')) fit = 0.9; }
+    if (action === 'enemy_breakthrough' && divs.some(d => d.type === 'art' && d.str >= 30)) fit = 0.92; // guns blunt the tanks
+  }
   if (A.side === 'neutral') { fr.last = { action, sev, t: st.t, side: 'neutral' }; fr.lastT = st.t; st.totals.neutral++; for (const d of divs) d.xp += 1; return; }
 
   if (A.side === 'win') {
@@ -332,6 +354,7 @@ function applyItem(map, st, item, rnd, fx) {
     mod *= fr.pos > 0 ? 1.25 : 1 - 0.55 * (-fr.pos / 100);
     if (st.focus) mod *= st.focus === f.id ? 1.25 : 0.95;
     if (wx) mod *= wx.slow;
+    mod *= fit; if (fit < 1 && action === 'breakthrough') note('No armour on this front — the attack goes in on foot');
     if (fr.intel) { mod *= 1 + 0.12 * Math.min(4, fr.intel); if (A.adv >= 0.5) fr.intel = 0; }
     if (action === 'counterattack' && fr.pos > 0) mod *= 1.5;
     if (wasStreak <= -3) st.ach.comeback ??= st.t;
@@ -407,6 +430,7 @@ function applyItem(map, st, item, rnd, fx) {
     mod *= fr.pos < 0 ? 1.25 : 1 - 0.5 * (fr.pos / 100);
     if (st.focus === f.id) mod *= 0.85;
     if (wx) mod *= wx.slow;
+    mod *= fit; if (fit < 1 && action === 'enemy_breakthrough') note('The artillery brigade knocks out the leading tanks');
     fr.pos = clamp(fr.pos + BASE[sev] * A.adv * mod, -100, 100);
     for (const d of divs) { d.xp += sev; d.org = clamp(d.org - sev * (6 + 6 * rnd()), 0, 100); d.str = clamp(d.str - sev * (2 + 5 * rnd()) * (A.adv > 0.5 ? 1 : 0.5), 0, 100); }
     fr.enemyStr = clamp(fr.enemyStr + sev * 2, 50, 160);
@@ -416,7 +440,7 @@ function applyItem(map, st, item, rnd, fx) {
       case 'encircled': {
         const pool = divs.slice().sort((a, b) => a.str - b.str);
         const victim = pool[Math.floor(rnd() * Math.min(2, pool.length))];
-        if (victim) { victim.str = sev >= 4 ? 0 : clamp(victim.str - 45, 0, 100); victim.org = 0; note(sev >= 4 ? `${victim.name} encircled` : `${victim.name} cut off and badly mauled`); }
+        if (victim) { victim.l++; victim.led = st.t; item.unit = victim.name; item.unitId = victim.id; victim.str = sev >= 4 ? 0 : clamp(victim.str - 45, 0, 100); victim.org = 0; note(sev >= 4 ? `${victim.name} encircled` : `${victim.name} cut off and badly mauled`); }
         break;
       }
       case 'enemy_cas': {
@@ -458,7 +482,7 @@ function applyItem(map, st, item, rnd, fx) {
       }
       case 'rail_cut': { const hub = fm.hubs[0]; if (hub) { st.bld[hub.id].dmg = Math.min(1, st.bld[hub.id].dmg + sev * 0.12); site = hub.prov; } fr.supply = Math.max(0, fr.supply - sev * 7); note(`The railway to the front is cut near ${hub?.name || 'the rear'} — supply ${Math.round(fr.supply)}%`); break; }
       case 'sabotage': { const target = fm.home.find(x => st.states[x]) || 'Tehran'; const S = st.states[target]; S.dmg = Math.min(1, S.dmg + sev * 0.12); fr.supply = Math.max(0, fr.supply - sev * 4); site = meta.capital[target] ?? null; note(`Saboteurs strike the depots in ${target}`); break; }
-      case 'desertion': { for (const d of divs) d.org = clamp(d.org - sev * 8, 0, 100); const weak = divs.slice().sort((a, b) => a.str - b.str)[0]; if (weak) { weak.str = clamp(weak.str - sev * 5, 0, 100); note(`Men slip away from the ${weak.name}`); } break; }
+      case 'desertion': { for (const d of divs) d.org = clamp(d.org - sev * 8, 0, 100); const weak = divs.slice().sort((a, b) => a.str - b.str)[0]; if (weak) { weak.l++; weak.led = st.t; item.unit = weak.name; item.unitId = weak.id; weak.str = clamp(weak.str - sev * 5, 0, 100); note(`Men slip away from the ${weak.name}`); } break; }
       case 'winter': { for (const d of divs) d.str = clamp(d.str - sev * 3, 0, 100); fr.supply = Math.max(0, fr.supply - sev * 5); const m = new Date(st.t).getMonth(); note(m === 11 || m <= 1 ? 'A blizzard closes the roads' : m >= 5 && m <= 7 ? 'Heat and dust wear the columns down' : 'Rain turns the roads to mud'); break; }
       case 'attrition': for (const d of divs) d.str = clamp(d.str - sev * 2, 0, 100); fr.supply = Math.max(0, fr.supply - sev * 3); break;
     }
@@ -471,6 +495,10 @@ function applyItem(map, st, item, rnd, fx) {
   }
   for (const [key, acts, need, name] of TRAITS) if (!fr.cmd.traits.includes(key) && acts.reduce((a, k) => a + (fr.acts[k] || 0), 0) >= need) { fr.cmd.traits.push(key); note(`${fr.cmd.name} earns the trait “${name}”`); }
   const lvl = Math.min(9, 1 + Math.floor(fr.merit / 10)); if (lvl > fr.cmd.level) { fr.cmd.level = lvl; note(`${fr.cmd.name} promoted — skill ${lvl}`); }
+  if (lead && st.divisions.includes(lead) && action !== 'encircled' && action !== 'desertion') {
+    lead.led = st.t; lead.xp += sev * 3; if (A.side === 'win') lead.w++; else { lead.l++; lead.str = clamp(lead.str - sev * 3, 6, 100); lead.org = clamp(lead.org - sev * 4, 0, 100); }
+    item.unit = lead.name; item.unitId = lead.id; fx.unshift({ front: f.id, text: `${shortName(lead)} ${L[1]}`, unit: lead.id });
+  }
   if (fr.streak === 3) { fr.op = OUR_OPS[st.opSeq++ % OUR_OPS.length]; fx.push({ front: f.id, text: `Operation ${fr.op} is launched`, tone: 'gold' }); }
   else if (fr.streak === -3) { fr.op = null; fr.enemyOp = ENEMY_OPS[st.eopSeq++ % ENEMY_OPS.length]; fx.push({ front: f.id, text: `The enemy opens Operation ${fr.enemyOp}`, tone: 'bad' }); }
   if (fr.streak < 0) fr.op = null; if (fr.streak > 0) fr.enemyOp = null;
@@ -528,6 +556,7 @@ export function simulate(map, reports, now = Date.now(), opts = {}) {
         let best = null, bd = 1e9; for (const p of meta.frontMeta[f.id].cities) { const d = havKm(at.ll, p.ll); if (d < bd) { bd = d; best = p; } }
         if (best) { const n = (st.battles[best.n] = (st.battles[best.n] || 0) + 1); it.battle = `${['', '', 'Second ', 'Third ', 'Fourth ', 'Fifth '][n] ?? `${ord(n)} `}Battle of ${best.n}`; }
       }
+      { const d = it.unitId && st.divisions.find(x => x.id === it.unitId); if (d && it.outcome !== 'neutral' && (it.severity >= 3 || it.battle)) { d.honours.push({ t: rep.ts, win: it.outcome === 'win', text: it.battle || ACTIONS[it.action].label, headline: it.headline }); if (d.honours.length > 20) d.honours.shift(); } }
       if (it.outcome === 'win') { st.ach.first ??= rep.ts; if (it.severity >= 5) st.ach.decisive ??= rep.ts; (winDays[it.front] ||= []).push(rep.ts); }
     }
     const t2 = territory(map, st);

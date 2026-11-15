@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective, frontCaps, frontNote, weatherOf, mapMeta } from '../js/engine.js';
+import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective, frontCaps, frontNote, weatherOf, mapMeta, shortName } from '../js/engine.js';
 
 const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
 const T0 = Date.UTC(2026, 10, 1);
@@ -141,4 +141,19 @@ test('new events, operations, nicknames, weather and quiet fronts', () => {
   assert.ok(one(Date.UTC(2027, 0, 10)) > one(Date.UTC(2027, 4, 10)), 'snow slows the advance');
   const quiet = simulate(map, [rep(1, [it('tur', 'win', 2, 'offensive')])], T0 + 40 * DAY);
   assert.ok(quiet.fronts.tur.enemyStr > 110); assert.match(frontNote(map, quiet, 'tur').text, /enemy is massing/);
+});
+
+test('divisions do the fighting: the right arm leads, earns honours, and pays for defeats', () => {
+  const st = simulate(map, [rep(1, [it('cau', 'win', 4, 'breakthrough')]), rep(2, [it('cau', 'win', 2, 'fortify')]), rep(3, [it('cau', 'loss', 4, 'enemy_breakthrough')])], T0 + 3.01 * DAY);
+  const [a, b, c] = st.log.map(l => l.items[0]); const by = id => st.divisions.find(d => d.id === id);
+  assert.equal(by(a.unitId).type, 'arm', 'the armoured division leads the breakthrough'); assert.match(st.log[0].fx[0].text, /Armoured breaks through the enemy line/);
+  assert.equal(by(a.unitId).w, 1); assert.match(by(a.unitId).honours[0].text, /^Battle of /); assert.ok(by(a.unitId).co && by(a.unitId).home);
+  assert.equal(by(b.unitId).type, 'inf'); assert.match(st.log[1].fx[0].text, /digs in and holds/);
+  assert.ok(['inf', 'cav'].includes(by(c.unitId).type)); assert.equal(by(c.unitId).l, 1); assert.ok(by(c.unitId).str < 90, 'the overrun division takes the losses');
+  for (const l of st.log) assert.ok(l.items[0].unit.includes(shortName(by(l.items[0].unitId))));
+  // no armour on the Afghan front: a breakthrough goes in on foot and gets less far than with tanks
+  const foot = simulate(map, [rep(1, [it('afg', 'win', 4, 'breakthrough')])], T0 + 1.01 * DAY); assert.ok(foot.log[0].fx.some(x => /on foot/.test(x.text)));
+  assert.ok(foot.fronts.afg.pos > simulate(map, [rep(1, [it('cau', 'win', 4, 'breakthrough')])], T0 + 1.01 * DAY).fronts.cau.pos);
+  // strikes on ports and depots are not pinned on a division
+  assert.equal(simulate(map, [rep(1, [it('glf', 'loss', 3, 'port_strike')])], T0 + 1.01 * DAY).log[0].items[0].unit, undefined);
 });
