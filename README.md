@@ -88,3 +88,10 @@ npm run build:map    # regenerate data/map.json from Natural Earth + tools/seeds
 - `js/map.js` — canvas renderer. `js/classify.js` — prompts, schema and the offline classifier. `js/voice.js` — recording.
 - `server.mjs` — login, OpenAI proxy (`/api/llm`, `/api/transcribe`), storage (`/api/state`).
 - `tools/seeds.mjs` — cities, states, fronts, terrain, rivers, railways. Borders come from Natural Earth (public domain).
+
+## Credits
+
+- Unit silhouettes: [Game-icons.net](https://game-icons.net) by Lorc, Delapouite and contributors, CC BY 3.0.
+- Interface icons: [Lucide](https://lucide.dev), ISC licence.
+- Borders: Natural Earth, public domain.
+- Regenerate `js/icons.js` with `node tools/build-icons-js.mjs`.

@@ -5,6 +5,7 @@ import { MapView, FRONT_COLORS } from './map.js';
 import { classify, assess } from './classify.js';
 import { pickEngine, startDictation } from './voice.js';
 import * as store from './store.js';
+import { UI_ICONS, FILLED_ICONS } from './icons.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,20 +13,13 @@ const fmtDate = (ts, o = { weekday: 'short', day: 'numeric', month: 'short' }) =
 const persian = (ts, o = { day: 'numeric', month: 'long', year: 'numeric' }) => { try { return new Intl.DateTimeFormat('en-u-ca-persian', o).format(ts).replace(/\s*AP$/, ''); } catch { return ''; } };
 const dayKey = ts => Math.floor((ts - new Date(ts).getTimezoneOffset() * 60000) / DAY);
 
-const IC = {
-  flag: 'M5 21V4m0 1h12l-2.5 4 2.5 4H5', book: 'M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h11M9 8h6', mic: 'M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3zM5.5 11a6.5 6.5 0 0013 0M12 17.5V21',
-  layers: 'M12 4l9 5-9 5-9-5zM3 14l9 5 9-5', locate: 'M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v3m0 14v3M2 12h3m14 0h3', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', x: 'M6 6l12 12M18 6L6 18', chev: 'M9 6l6 6-6 6', back: 'M15 6l-6 6 6 6',
-  check: 'M5 12.5l4.5 4.5L19 7.5', trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13', edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4', share: 'M12 15V3m0 0L8 7m4-4l4 4M5 12v7a1 1 0 001 1h12a1 1 0 001-1v-7',
-  play: 'M8 5l11 7-11 7z', pause: 'M8 5v14M16 5v14', target: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 16a4 4 0 100-8 4 4 0 000 8zM12 12h.01', medal: 'M8 3l4 7 4-7M12 21a5.5 5.5 0 100-11 5.5 5.5 0 000 11zM12 13.5v4',
-  flame: 'M12 21c-3.5 0-6-2.5-6-6 0-3 2-4.5 3-7 .5 2 1.5 3 2.5 3.5C11 8 12 5 14.5 3c0 4 3.5 5.5 3.5 10.5 0 4-2.5 7.5-6 7.5z', factory: 'M3 20h18M5 20V10l5 3v-3l5 3V6h4v14', plane: 'M12 3v18M3 13.5l9-5 9 5M9 21h6',
-  anchor: 'M12 8a2 2 0 100-4 2 2 0 000 4zM12 8v13M5 13a7 7 0 0014 0M9 12h6', tank: 'M4 15a3 3 0 003 3h10a3 3 0 000-6H7a3 3 0 00-3 3zM8 12V8h7l2 4M15 8l5-1', arrowR: 'M4 12h15m0 0l-5-5m5 5l-5 5', arrowL: 'M20 12H5m0 0l5-5m-5 5l5 5',
-  ring: 'M12 20a8 8 0 100-16 8 8 0 000 16zM12 9v6M9 12h6', bomb: 'M10 21a6 6 0 100-12 6 6 0 000 12zM14 10l3-3M17 4v2M20 7h-2', fort: 'M4 20V8h3v3h3V8h4v3h3V8h3v12zM10 20v-4h4v4', box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
-  shield: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z', crown: 'M4 18l-1-10 5 4 4-7 4 7 5-4-1 10zM4 21h16', gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10l2 2M19 5l-2 2M7 17l-2 2',
-  terrain: 'M2 19l6.5-10 4 6 3-4 6.5 8z', user: 'M12 11a4 4 0 100-8 4 4 0 000 8zM4.5 21c.5-4 3.5-6.5 7.5-6.5s7 2.5 7.5 6.5', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5h.01', down: 'M12 4v12m0 0l-4-4m4 4l4-4M5 20h14', up: 'M12 20V8m0 0l-4 4m4-4l4 4M5 4h14',
-};
-const I = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${IC[n] || IC.info}"/></svg>`;
-const ACT_ICON = { arrow: 'arrowR', armor: 'tank', pocket: 'ring', air: 'plane', naval: 'anchor', build: 'factory', fort: 'fort', unit: 'shield', bomb: 'bomb' };
-const actIcon = (a, outcome) => (ACTIONS[a].icon === 'arrow' && outcome === 'loss' ? 'arrowL' : ACT_ICON[ACTIONS[a].icon] || 'shield');
+// Interface icons: Lucide (ISC). Unit silhouettes: Game-icons.net (CC BY 3.0). Both are generated into icons.js.
+const I = (n, cls = '') => (FILLED_ICONS[n] ? `<svg class="ic fill ${cls}" viewBox="0 0 512 512" aria-hidden="true"><path d="${FILLED_ICONS[n]}"/></svg>` : `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${UI_ICONS[n] || UI_ICONS.info}</svg>`);
+// every battle type has its own icon, matching what it means
+const ACT_ICON = { offensive: 'arrowR', breakthrough: 'tank', encirclement: 'ring', air_superiority: 'plane', cas_strike: 'plane', naval_victory: 'anchor', infrastructure: 'factory', fortify: 'fort', reinforce: 'users',
+  counterattack: 'swords', airborne: 'parachute', uprising: 'megaphone', intelligence: 'eye', lend_lease: 'gift', treaty: 'handshake', enemy_offensive: 'arrowL', enemy_breakthrough: 'tank', encircled: 'ring', enemy_cas: 'plane',
+  strategic_bombing: 'bomb', port_strike: 'anchor', supply_hub_bombed: 'box', naval_defeat: 'anchor', attrition: 'users', rail_cut: 'train', sabotage: 'bomb', desertion: 'users', winter: 'snow', skirmish: 'swords' };
+const actIcon = a => ACT_ICON[a] || 'swords';
 
 let map, view, data, st, live;
 let cfg = { server: false, judge: null, transcribe: null }; // what the private server offers
@@ -200,7 +194,7 @@ function sFronts() {
 }
 function evRow(i, ts) {
   const L = labels();
-  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action, i.outcome))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label)}${i.unit ? ` · ${esc(i.unit.replace(/ (Division|Brigade).*$/, ''))}` : ''}${i.reason ? ` (${esc(i.reason)})` : ''}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
+  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label)}${i.unit ? ` · ${esc(i.unit.replace(/ (Division|Brigade).*$/, ''))}` : ''}${i.reason ? ` (${esc(i.reason)})` : ''}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
 }
 const unitGrid = list => `<div class="units">${list.map(d => `<button class="unit" data-act="open" data-sheet="division" data-arg="${d.id}" aria-label="${esc(d.name)}"><img src="${divIcon(d)}" alt=""><span>${esc(d.home)}</span></button>`).join('')}</div>`;
 function sFront() {
@@ -307,6 +301,7 @@ function sSettings() {
     <details><summary>More</summary>
       <div class="rows">${row({ icon: 'down', t: 'Export backup', act: 'export' })}${row({ icon: 'up', t: 'Import backup', act: 'import' })}${row({ icon: 'play', t: 'Load demo', act: 'demo' })}${row({ icon: 'trash', t: '<span class="bad">Reset everything</span>', act: 'reset' })}${cfg.login ? row({ icon: 'x', t: 'Log out', act: 'logout' }) : ''}</div>
       <input type="file" id="importfile" accept="application/json,.json" hidden>
+      <p class="faint small" style="margin-top:16px">Unit icons by Game-icons.net (CC BY 3.0). Interface icons by Lucide. Borders from Natural Earth.</p>
     </details>`, true];
 }
 function sProvince() {
