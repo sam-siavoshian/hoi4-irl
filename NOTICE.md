@@ -28,14 +28,14 @@ These are embedded in files the browser loads.
 
 - Source: <https://www.naturalearthdata.com>
 - Licence: public domain
-- Where: the geometry in `data/map.json` is derived from Natural Earth 1:10m country polygons
+- Where: the geometry in `data/maps/*.json` is derived from Natural Earth 1:10m country polygons
   (through the `world-atlas` package), regrouped into 1936 political entities and cut into provinces
   by `tools/build-map.mjs`. Cities, terrain, rivers, lakes and railways are hand-authored in
   `tools/seeds.mjs`.
 
 ## Used at build time only
 
-These packages run when a developer regenerates `data/map.json` or `js/icons.js`. They are
+These packages run when a developer regenerates `data/maps/*.json` or `js/icons.js`. They are
 `devDependencies`; none of their code is shipped to the browser or loaded by the server.
 
 | Package | Used for | Licence |

@@ -9,6 +9,11 @@ The step from a personal tool to something anyone can self-host.
 
 ### Added
 
+- **Eight countries.** Iran, Turkey, Greece, France, Ethiopia, Siam, Peru and Mexico, each with its own
+  1936 map, seven fronts, order of battle, fleets, air wings, commanders, ranks, decorations and an
+  empire to restore. Choose on first run or in Settings; each country keeps its own campaign. A country
+  is one file in `tools/scenarios/` (`docs/SCENARIOS.md`).
+
 - **Model providers.** Any OpenAI-compatible endpoint through `OPENAI_BASE_URL` (Ollama, LM Studio,
   OpenRouter, Groq), with a chat-completions fallback (`LLM_API=chat`) for servers without the Responses
   API. OpenAI remains the default (`gpt-6-luna` judge, `gpt-transcribe` voice). The offline keyword judge

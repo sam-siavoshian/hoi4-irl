@@ -25,7 +25,7 @@ computed from that list.**
 
 ## 1. The map build
 
-`data/map.json` is generated, committed, and never edited by hand.
+`data/maps/<id>.json` (one per country) is generated, committed, and never edited by hand.
 
 `tools/build-map.mjs` (run with `npm run build:map`):
 
@@ -39,7 +39,7 @@ computed from that list.**
 5. Attaches hand-authored geography from `tools/seeds.mjs`: cities with victory points and buildings
    (port, naval base, airbase, supply hub, refinery, fort, capital), terrain, rivers, lakes, railways.
 6. For each of the seven fronts, computes the border provinces and the order in which provinces fall, in
-   both directions: outwards through the enemy's territory to its objectives, and inwards to Tehran.
+   both directions: outwards through the enemy's territory to its objectives, and inwards to the capital.
 
 The output holds provinces (geometry, owner, terrain, centre, city), countries, fronts, rivers, lakes
 and railways. The browser, the engine and the tests all read this one file.
@@ -85,7 +85,7 @@ A report looks like this:
 - `action`: a key of `ACTIONS`, the table of battle types. Each has a side, a movement factor (`adv`), a
   label, a map glyph and `means`, the real-life situation it stands for.
 
-A front's position runs from −100 (every objective taken) through 0 (the border) to +100 (Tehran
+A front's position runs from −100 (every objective taken) through 0 (the border) to +100 (the capital
 falls). Severity sets the base movement, the action scales it, and the engine layers the rest on top:
 which division leads (by arm of service), experience and honours, named battles at the nearest city,
 operations after a run of wins, weather, strikes on buildings where the geography allows them,

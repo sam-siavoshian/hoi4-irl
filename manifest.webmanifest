@@ -1,7 +1,7 @@
 {
   "name": "ARTESH — Life Front Command",
   "short_name": "ARTESH",
-  "description": "A grand-strategy war map of your life. Iran, 1936 borders.",
+  "description": "A grand-strategy war map of your life. Eight countries, 1936 borders.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

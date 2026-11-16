@@ -89,6 +89,9 @@ export const META = {
   wings: [{ name: '1st Air Regiment', type: 'fighter', model: 'Hawker Fury', base: 'Tehran', planes: 24 }, …4],   // type: fighter | cas | bomber; real aircraft the country flew in 1936; base is a home city with an airbase
   newWingModels: { fighter: 'Hawker Hurricane', cas: 'Hawker Hind', bomber: 'Bristol Blenheim' },
   fleets: [{ id: 'south', name: 'Southern Fleet', base: 'Khorramshahr', sea: 'Persian Gulf', fronts: ['glf'], ships: [['Babr', 'Sloop'], …] }, { id: 'north', name: 'Caspian Flotilla', base: 'Bandar Pahlavi', sea: 'Caspian Sea', fronts: ['cau', 'tks'], ships: […] }],   // 1–2 fleets; `fronts` lists the fronts this fleet serves. A front listed here "has a fleet": naval victories and defeats can be fought on it, even if it is a land front (Iran's two Caspian fronts). A land front that is NOT listed never has naval battles. Every naval front should be listed by exactly one fleet (one fleet may serve several); an unlisted front falls back to the first fleet. `base` is a home city. Real 1936 ship names where the navy had them; a landlocked country still needs one small river or lake flotilla
+  // fleets[].fronts decides which fronts can have naval battles. List every naval front, and a land front only if its
+  // border really touches that fleet's water (a coast both sides share, or a river the flotilla sails). A landlocked
+  // front listed here gets naval victories in the mountains. tests/countries.test.mjs checks this.
   shipNames: [24 names for ships commissioned later],
   operations: [16 codenames for the player's operations],        // drawn from the country's history and myth
   enemyOperations: [12 codenames for enemy operations],

@@ -8,15 +8,17 @@ No. There is nothing to play and no way to win by being clever. The map only mov
 something that happened in your life. It borrows the look and the pull of a strategy game so that
 keeping a record is something you want to do. Think of it as a diary with consequences.
 
-### Why a war map? Why Iran in 1936?
+### Why a war map? Why 1936?
 
 A front line is an honest picture of a life. Several things compete for limited attention; ground gained
 in one place is often paid for in another; neglect has a cost that shows up slowly and then all at once.
 A map shows all of that at a glance.
 
-Iran in 1936 gives the map its shape: one country in the middle, with borders in every direction, each
-facing a different neighbour. That makes seven distinct fronts with their own terrain and objectives,
-plus a sea. The Achaemenid Empire supplies the far goal: take every objective and it is restored.
+A country in 1936 gives the map its shape: one state in the middle, with borders in every direction, each
+facing a different neighbour. That makes seven distinct fronts with their own terrain and objectives.
+Each country's historical empire supplies the far goal: take every objective and it is restored. The
+project began with Iran and the Achaemenid Empire; Turkey, Greece, France, Ethiopia, Siam, Peru and
+Mexico followed. Countries that were the aggressors of the period are left out on purpose.
 
 ### Is it making light of war?
 
@@ -32,8 +34,8 @@ shows up as a warning on that front. The map never invents defeats for you.
 
 ### What does "winning" look like?
 
-Each front has objectives beyond the border. Take them all, on every front, and the Achaemenid Empire is
-restored. In the other direction, a front that collapses all the way puts the enemy in Tehran. Most of
+Each front has objectives beyond the border. Take them all, on every front, and the empire is
+restored. In the other direction, a front that collapses all the way puts the enemy in the capital. Most of
 life happens in between.
 
 ## Using it
@@ -75,9 +77,11 @@ Fewer: pause the ones you do not use. More: not today. The seven fronts come fro
 
 ### Can I use my own map or country?
 
-Not yet. The map is generated from Natural Earth borders and a hand-written seed file
-(`tools/seeds.mjs`), so the pipeline is general, but the engine's names, commanders, satrapies and
-objectives assume Iran. A documented seed format for other theatres is on the roadmap.
+Yes. Eight countries ship with it; choose one on first run or change it in Settings, and each keeps its
+own campaign. A new country is one file in `tools/scenarios/` holding its geography, fronts and names;
+[SCENARIOS.md](SCENARIOS.md) documents the format. Borders are rebuilt from modern country outlines, so
+where a 1936 border cut through a modern country the map uses the modern line; each scenario file lists
+its approximations at the top.
 
 ## Models and cost
 

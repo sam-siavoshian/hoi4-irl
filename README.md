@@ -2,12 +2,28 @@
 
 **Your life as a 1936 grand-strategy war map. Say what happened today; the fronts move.**
 
-ARTESH is a self-hosted life tracker. Iran sits in the middle of the map with its 1936 borders, and every
-border front is one area of your life: school, family, your startup, your health. You say or type what
+ARTESH is a self-hosted life tracker. You pick a country; it sits in the middle of the map with its 1936
+borders, and every border front is one area of your life: school, family, your startup, your health. You say or type what
 happened, an LLM "general staff" judges it, and the map reacts. Fronts advance or collapse province by
 province, named divisions lead the battles and earn honours, ports get bombed and rebuilt, operations
-launch. Take every objective and the Achaemenid Empire is restored. Let things slide and the enemy
-reaches Tehran.
+launch. Take every objective and the country's historical empire is restored. Let things slide and the enemy
+reaches the capital.
+
+Eight countries ship with it, each with its own map, army, navy, air force, commanders and names:
+
+| Country | Year | Borders to restore | Fronts |
+|---|---|---|---|
+| Iran | 1936 | Achaemenid Empire | 6 land, 1 naval |
+| Turkey | 1936 | Ottoman Empire | 5 land, 2 naval |
+| Greece | 1936 | Byzantine Empire of Basil II | 3 land, 4 naval |
+| France | 1936 | First French Empire (1812) | 5 land, 2 naval |
+| Ethiopia | 1935 | Aksumite Empire | 7 land |
+| Siam | 1936 | Greater Siam | 5 land, 2 naval |
+| Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
+| Mexico | 1936 | Mexican Empire (1821) | 4 land, 3 naval |
+
+You can change country at any time; each keeps its own campaign. Adding one is a single file:
+see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
 No build step, no framework, no database. Vanilla ES modules, one canvas, and one dependency-free Node
 server that holds your API key, puts a password in front of the app and stores the campaign.
@@ -56,7 +72,7 @@ needs you this week.
 
 **The map**
 
-- Seven fronts around Iran, each advancing or retreating province by province, with real cities as
+- Eight countries, seven fronts around each, every front advancing or retreating province by province, with real cities as
   objectives.
 - Battle types that follow from what happened: nearly thirty of them, from Armoured Breakthrough to Desertions,
   each tied to a real-life meaning. The judge states the reason first and only then picks the type.
@@ -248,8 +264,9 @@ And with no API key at all, the offline keyword judge classifies reports on the 
 a model, but it works.
 
 **Can I use my own map or country?**
-Not yet. The map data is generated from Natural Earth plus a hand-authored seed file, so it is possible
-in principle, but the engine and the names still assume Iran. It is on the roadmap.
+Yes. Eight countries ship with it and you choose one on first run or in Settings. A new country is one
+file in `tools/scenarios/`; [docs/SCENARIOS.md](docs/SCENARIOS.md) describes the format, and
+`npm run build:map` turns it into a map.
 
 **How much does it cost to run?**
 One short model call per report, plus transcription if you use voice. For daily use that is very little.
