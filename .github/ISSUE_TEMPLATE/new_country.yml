@@ -1,0 +1,40 @@
+name: New country
+description: Propose or claim a country to add as a scenario.
+labels: [scenario]
+body:
+  - type: markdown
+    attributes:
+      value: A country is one file in `tools/scenarios/`. Read `docs/SCENARIOS.md` first. Countries that were the aggressors of the 1930s are left out on purpose.
+  - type: input
+    id: country
+    attributes:
+      label: Country and year
+      placeholder: Portugal, 1936
+    validations:
+      required: true
+  - type: input
+    id: empire
+    attributes:
+      label: The borders to restore
+      description: The historical state whose extent the objectives add up to.
+      placeholder: The Portuguese Empire of 1580
+    validations:
+      required: true
+  - type: textarea
+    id: fronts
+    attributes:
+      label: The seven fronts
+      description: One line each. Neighbour, land or naval, and roughly what lies beyond the border. Exactly seven.
+    validations:
+      required: true
+  - type: textarea
+    id: borders
+    attributes:
+      label: Border problems
+      description: The map is rebuilt from modern country outlines. Where did the 1936 border cut through a modern country, and how would you approximate it?
+  - type: checkboxes
+    id: who
+    attributes:
+      label: Who writes it
+      options:
+        - label: I would like to write this scenario myself

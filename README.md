@@ -1,15 +1,60 @@
-# ARTESH
+<h1 align="center">ARTESH</h1>
 
-**Your life as a 1936 grand-strategy war map. Say what happened today; the fronts move.**
+<p align="center">
+  <b>A self-hosted life tracker and journal, drawn as a 1936 grand-strategy war map.</b><br>
+  Say what happened today. An AI general staff judges it, and the front lines of your life move.
+</p>
 
-ARTESH is a self-hosted life tracker. You pick a country; it sits in the middle of the map with its 1936
-borders, and every border front is one area of your life: school, family, your startup, your health. You say or type what
-happened, an LLM "general staff" judges it, and the map reacts. Fronts advance or collapse province by
-province, named divisions lead the battles and earn honours, ports get bombed and rebuilt, operations
-launch. Take every objective and the country's historical empire is restored. Let things slide and the enemy
-reaches the capital.
+<p align="center">
+  <a href="https://sam-siavoshian.github.io/hoi4-irl/"><b>Try the demo</b></a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="docs/SELF_HOSTING.md">Self-hosting</a> ·
+  <a href="docs/API.md">API</a> ·
+  <a href="docs/FAQ.md">FAQ</a>
+</p>
 
-Eight countries ship with it, each with its own map, army, navy, air force, commanders and names:
+<p align="center">
+  <a href="https://github.com/sam-siavoshian/hoi4-irl/actions/workflows/ci.yml"><img src="https://github.com/sam-siavoshian/hoi4-irl/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-informational" alt="MIT licence"></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-informational" alt="Node 20 or newer">
+  <img src="https://img.shields.io/badge/self--hosted-yes-informational" alt="Self-hosted">
+  <img src="https://img.shields.io/badge/works%20with-OpenAI%20%C2%B7%20Ollama%20%C2%B7%20offline-informational" alt="Works with OpenAI, Ollama, or fully offline">
+</p>
+
+<p align="center">
+  <img src="docs/img/hero.png" alt="ARTESH on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
+</p>
+
+## What it is
+
+ARTESH is a personal tracker for people who give up on habit trackers. You pick a country. It sits in
+the middle of a 1936 map, and each of its seven border fronts stands for one area of your life: school,
+family, work, health, friends. Once a day you say or type what happened, in your own words. A language
+model acting as your general staff decides which front each event belongs to, whether it was a win or a
+loss, and how big. Then the map reacts: fronts advance or collapse province by province, named divisions
+fight and earn honours, ports are bombed and rebuilt.
+
+Do well for long enough and the country's historical empire is restored. Let things slide and the enemy
+reaches the capital. It is a diary with consequences, not a game: nothing moves unless you report
+something real.
+
+- **Private by design.** One user, one password, your own machine. Your API key never reaches the browser.
+- **Works with any model, or none.** OpenAI, Ollama, LM Studio, OpenRouter, Groq, or the built-in offline judge.
+- **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
+- **Open source.** MIT licensed. The engine and server have no runtime dependencies.
+
+<p align="center">
+  <img src="docs/img/map.png" width="19%" alt="The war map on a phone: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">
+  <img src="docs/img/report.png" width="19%" alt="Reporting: one text box, a microphone and a Send button, with today's three small goals underneath">
+  <img src="docs/img/front.png" width="19%" alt="A front: its status, next objective, one-tap Win and Loss buttons and its divisions">
+  <img src="docs/img/history.png" width="19%" alt="History: a calendar of reported days and the list of entries, each editable">
+  <img src="docs/img/division.png" width="19%" alt="A division: its commander, experience, record and battle honours">
+</p>
+
+## Eight countries
+
+Each has its own map, army, navy, air force, commanders, ranks and decorations, and an empire to restore.
+Change country at any time; each keeps its own campaign.
 
 | Country | Year | Borders to restore | Fronts |
 |---|---|---|---|
@@ -22,27 +67,11 @@ Eight countries ship with it, each with its own map, army, navy, air force, comm
 | Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
 | Mexico | 1936 | Mexican Empire (1821) | 4 land, 3 naval |
 
-You can change country at any time; each keeps its own campaign. Adding one is a single file:
-see [docs/SCENARIOS.md](docs/SCENARIOS.md).
-
-No database. The engine and the map are plain ES modules on one canvas; the interface is a small React
-app built with Vite on a vendored design system; and one dependency-free Node server that holds your API key, puts a password in front of the app and stores the campaign.
-
 <p align="center">
-  <img src="docs/img/map.png" width="19%" alt="The war map: Iran and its seven fronts, with divisions on the border and the front lines drawn province by province">
-  <img src="docs/img/report.png" width="19%" alt="Reporting: a typed update judged into battles, each with a front, a result and a headline">
-  <img src="docs/img/front.png" width="19%" alt="A front page: status, next objective, its divisions and one-tap Win and Loss buttons">
-  <img src="docs/img/history.png" width="19%" alt="History: a calendar of reported days and the list of dispatches, each editable">
-  <img src="docs/img/division.png" width="19%" alt="A division page: its commander, experience, record and battle honours">
+  <img src="docs/img/countries.png" alt="The eight countries side by side: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with its own 1936 map and front lines">
 </p>
 
-<p align="center">
-  <a href="https://sam-siavoshian.github.io/hoi4-irl/">Landing page and offline demo</a> ·
-  <a href="docs/SELF_HOSTING.md">Self-hosting</a> ·
-  <a href="docs/API.md">API</a> ·
-  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="docs/FAQ.md">FAQ</a>
-</p>
+Want another one? A country is a single file: see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
 ## Why
 
@@ -72,8 +101,8 @@ needs you this week.
 
 **The map**
 
-- Eight countries, seven fronts around each, every front advancing or retreating province by province, with real cities as
-  objectives.
+- Seven fronts around your country, each advancing or retreating province by province, with real
+  cities as objectives.
 - Battle types that follow from what happened: nearly thirty of them, from Armoured Breakthrough to Desertions,
   each tied to a real-life meaning. The judge states the reason first and only then picks the type.
 - Named divisions that lead battles according to their arm (armour breaks through, cavalry
@@ -82,8 +111,8 @@ needs you this week.
 - Geography that is respected: ports are struck only where there is a port, fleets fight only where there
   is sea. Weather follows the calendar. Three wins in a row launch a named operation; a front you stop
   reporting on lets the enemy mass.
-- Satrapies restored under their Old Persian names, railways, repairs, new divisions and commanders,
-  all run by the engine.
+- Regions restored under their historical names (satrapies, themes, eyalets, suyus), railways, repairs,
+  new divisions and commanders, all run by the engine.
 
 **Progress**
 
@@ -103,7 +132,7 @@ needs you this week.
 
 **Running it**
 
-- One Node file, no runtime dependencies. Also ships as a small Docker image.
+- One Node server with no runtime dependencies. Also ships as a small Docker image.
 - Password wall, API key kept on the host, `noindex` everywhere.
 - Installs to the iPhone Home Screen and opens offline.
 - A token-authenticated HTTP API and a small CLI, so iOS Shortcuts, Siri or a cron job can file a report.
@@ -121,7 +150,7 @@ cp .env.example .env      # set ARTESH_PASSWORD; add OPENAI_API_KEY if you have 
 npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
-Open the address, type the password, pick a persona and file your first report.
+Open the address, type the password, pick a country and a persona, and file your first report.
 
 With Docker:
 
@@ -158,6 +187,8 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### The fronts
 
+For Iran, as an example:
+
 | Front | Enemy | Example meaning |
 |---|---|---|
 | Afghan Front | Afghanistan | School |
@@ -182,8 +213,8 @@ precedence over the file.
 | `OPENAI_MODEL` | `gpt-6-luna` | Model that judges reports. |
 | `OPENAI_TRANSCRIBE_MODEL` | `gpt-transcribe` | Model that transcribes voice. |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Point this at any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, Groq). |
-| `LLM_API` | `responses` | *New.* Set to `chat` to use chat completions on servers that do not offer the Responses API. |
-| `ARTESH_TOKEN` | empty | *New.* Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
+| `LLM_API` | `responses` | Set to `chat` to use chat completions on servers that do not offer the Responses API. |
+| `ARTESH_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
 | `PORT` | `8080` | Port to listen on. |
 | `HOST` | `0.0.0.0` | Interface to bind. Use `127.0.0.1` when a tunnel or reverse proxy sits in front. |
 | `ARTESH_DATA_DIR` | `./private` | Where the campaign, sessions, journal and backups are stored. |
@@ -280,7 +311,7 @@ More in [docs/FAQ.md](docs/FAQ.md).
 
 ## Roadmap
 
-- Other maps and countries: a documented seed format so you can build your own theatre.
+- More countries, and proper flags for the ones whose flag is not three stripes.
 - Translations of the interface and the staff's voice.
 - Native Anthropic and Gemini providers, alongside the OpenAI-compatible route.
 - Import from other trackers and from plain-text journals.
@@ -311,7 +342,7 @@ Playwright is not a dependency. For the browser tests, run `npm i --no-save play
 - `js/map.js`: the canvas renderer. `js/classify.js`: prompts, schema and the offline judge.
   `js/voice.js`: recording. `js/store.js`: local storage and sync. `src/`: the interface (React, built into `dist/`).
 - `server.mjs`: login, model proxy (`/api/llm`, `/api/transcribe`), storage (`/api/state`), automation API.
-- `tools/seeds.mjs`: cities, states, fronts, terrain, rivers, railways.
+- `tools/scenarios/<country>.mjs`: cities, states, fronts, terrain, rivers, railways and every name.
 
 ## Contributing
 
@@ -325,9 +356,12 @@ problems go through [private advisories](SECURITY.md), not public issues.
   contributors, CC BY 3.0.
 - Interface icons: [Lucide](https://lucide.dev), ISC licence.
 - Borders: [Natural Earth](https://www.naturalearthdata.com), public domain.
+- Interface: React, Vite, Tailwind CSS and Base UI, through the design system in `vendor/design-system`.
 
-Full attributions are in [NOTICE.md](NOTICE.md). ARTESH is not affiliated with any commercial strategy
-game.
+Full attributions are in [NOTICE.md](NOTICE.md).
+
+ARTESH is an original project inspired by grand-strategy games such as Hearts of Iron IV. It is not
+affiliated with or endorsed by Paradox Interactive, and it uses none of their code, art or data.
 
 ## Licence
 

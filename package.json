@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ARTESH: a self-hosted life tracker drawn as a 1936 grand-strategy war map. Report your day, an LLM general staff judges it, and the fronts move.",
+  "description": "ARTESH: a self-hosted life tracker and journal drawn as a 1936 grand-strategy war map. Say what happened today, an AI general staff judges it, and the front lines of your life move.",
   "license": "MIT",
   "homepage": "https://sam-siavoshian.github.io/hoi4-irl/",
   "repository": {
@@ -14,18 +14,26 @@
     "url": "https://github.com/sam-siavoshian/hoi4-irl/issues"
   },
   "keywords": [
-    "productivity",
-    "habit-tracker",
     "life-tracker",
+    "habit-tracker",
     "journal",
+    "diary",
+    "productivity",
     "gamification",
-    "grand-strategy",
+    "quantified-self",
     "self-hosted",
     "pwa",
+    "grand-strategy",
+    "strategy-map",
+    "hoi4",
     "llm",
     "openai",
     "ollama",
-    "canvas"
+    "local-first",
+    "voice-journal",
+    "canvas",
+    "react",
+    "nodejs"
   ],
   "bin": {
     "artesh": "bin/artesh.mjs"
@@ -65,5 +73,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "author": "ARTESH contributors"
 }
