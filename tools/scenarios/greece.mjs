@@ -395,7 +395,7 @@ export const META = {
   year: 1936,
   blurb: 'Three mountain borders and four seas. Restore the empire of Basil II, from the Danube to Antioch.',
   pitch: 'a 1936 grand-strategy war map of Greece',
-  flag: { type: 'h3', colors: ['#0d5eaf', '#f4f1e6', '#0d5eaf'] },
+  flag: { type: 'h', stripes: [['#0d5eaf', 1]], cross: { color: '#f4f1e6', width: 0.2 } },
   regionWord: 'Theme',
   regions: {
     'Gegeria': 'Dyrrhachion', 'Myzeqe': 'Aulon', 'Northern Epirus': 'Dryinopolis',

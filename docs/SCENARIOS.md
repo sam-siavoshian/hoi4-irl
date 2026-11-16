@@ -75,7 +75,13 @@ export const META = {
   year: 1936,
   blurb: 'Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.',   // one line for the country picker
   pitch: 'a 1936 grand-strategy war map of Iran',                                         // completes "a personal life tracker drawn as …"
-  flag: { type: 'h3', colors: ['#3f9467', '#efeadb', '#cf4a39'], disc: '#e3b85c' },   // h3 | v3 (three bands, horizontal or vertical); optional `disc` colour for a centre emblem
+  flag: { type: 'h3', colors: ['#3f9467', '#efeadb', '#cf4a39'], disc: '#e3b85c' },   // the small round flag; the forms are listed below
+  // flag, three bands:   { type: 'h3' | 'v3', colors: [a, b, c], disc?: colour }   (h3 across, v3 upright; `disc` is a centre emblem)
+  // flag, any stripes:   { type: 'h' | 'v', stripes: [[colour, weight], …], disc?: colour, canton?: { color, w, h }, cross?: { color, width } }
+  //   stripes run top to bottom (h) or left to right (v), each as wide as its weight: Siam is [[red, 1], [white, 1], [blue, 2], [white, 1], [red, 1]];
+  //   one stripe is a plain field. Over them, in this order: `canton` (a corner block from the top left, w and h as parts of the flag, 0–1),
+  //   `cross` (a centred cross, its arms `width` of the flag wide: Greece in 1936 is a blue field with a white cross) and `disc`.
+  //   Every colour is #rrggbb; tools/build-map.mjs reports a flag it cannot read.
   regionWord: 'Satrapy',                 // what a restored region is called: "Satrapy of Babirush restored"
   regions: { 'Mesopotamia': 'Babirush', … },   // FOREIGN region name → the name it had under the empire (optional per region; falls back to the region name)
   capitalFalls: 'The government evacuates to Isfahan. The war goes on.',

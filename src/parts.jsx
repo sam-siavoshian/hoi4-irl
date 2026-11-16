@@ -12,16 +12,30 @@ import { app, fmtDate, labels, openSheet, statusOf } from './core.js';
 // engine tones → the kit's status tones
 export const TONE = { gold: 'success', good: 'success', neutral: 'idle', warn: 'attention', bad: 'danger', crit: 'danger', dim: 'idle' };
 
-// A small round flag from the scenario's own colours: 3 bands (h3 across, v3 upright) and an optional disc.
-// The paints are the country's, so they come from the data; a scenario without a flag gets a plain roundel.
+// A small round flag from the scenario's own colours (META.flag, described in docs/SCENARIOS.md): bands across (`h`) or
+// upright (`v`) of any number and weight, then an optional canton, centred cross and disc over them. `h3` and `v3` are the
+// first form: three bands, the middle one a little narrower. The paints are the country's, so they come from the data;
+// a scenario without a flag gets a plain roundel.
+function bands(flag) {
+  if (!flag) return null;
+  if (flag.type === 'h3' || flag.type === 'v3') return Array.isArray(flag.colors) && flag.colors.length >= 3 ? flag.colors.slice(0, 3).map((c, i) => [c, i === 1 ? 12 : 14]) : null;
+  const list = (Array.isArray(flag.stripes) ? flag.stripes : []).map(s => (Array.isArray(s) ? [s[0], Number(s[1]) > 0 ? Number(s[1]) : 1] : [s, 1])).filter(s => typeof s[0] === 'string');
+  return list.length ? list : null;
+}
 export function Flag({ flag, className = 'size-8' }) {
-  const c = flag && Array.isArray(flag.colors) && flag.colors.length >= 3 ? flag.colors : null;
-  const upright = flag?.type === 'v3';
-  const band = i => (upright ? { x: [0, 14, 26][i], width: [14, 12, 14][i], height: 40 } : { y: [0, 14, 26][i], width: 40, height: [14, 12, 14][i] });
+  const list = bands(flag); const upright = flag?.type === 'v3' || flag?.type === 'v';
+  const total = (list || []).reduce((n, s) => n + s[1], 0); let at = 0;
+  const band = w => { const a = (at / total) * 40, b = (w / total) * 40; at += w; return upright ? { x: a, width: b, height: 40 } : { y: a, width: 40, height: b }; };
+  const part = n => Math.max(0, Math.min(1, Number(n) || 0)) * 40;
+  const canton = list && flag.canton?.color ? flag.canton : null, cross = list && flag.cross?.color ? flag.cross : null; const arm = cross ? part(cross.width ?? 0.2) : 0;
   return (
-    <svg data-flag="" viewBox="0 0 40 40" aria-hidden="true" className={`${className} shrink-0 rounded-full`}>
-      {[0, 1, 2].map(i => (c ? <rect key={i} {...band(i)} fill={c[i]} /> : <rect key={i} {...band(i)} className={i === 1 ? 'fill-muted-foreground/50' : 'fill-muted-foreground'} />))}
-      {flag?.disc ? <circle cx="20" cy="20" r="4.6" fill={flag.disc} /> : null}
+    <svg data-flag="" viewBox="0 0 40 40" aria-hidden="true" shapeRendering="crispEdges" className={`${className} shrink-0 rounded-full`}>
+      {list
+        ? list.map(([color, w], i) => <rect key={i} {...band(w)} fill={color} />)
+        : [0, 1, 2].map(i => <rect key={i} y={[0, 14, 26][i]} width="40" height={[14, 12, 14][i]} className={i === 1 ? 'fill-muted-foreground/50' : 'fill-muted-foreground'} />)}
+      {canton ? <rect width={part(canton.w ?? 0.5)} height={part(canton.h ?? 0.5)} fill={canton.color} /> : null}
+      {cross ? <><rect x={20 - arm / 2} width={arm} height="40" fill={cross.color} /><rect y={20 - arm / 2} width="40" height={arm} fill={cross.color} /></> : null}
+      {list && flag.disc ? <circle cx="20" cy="20" r="4.6" shapeRendering="geometricPrecision" fill={flag.disc} /> : null}
     </svg>
   );
 }
