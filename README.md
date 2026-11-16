@@ -95,13 +95,14 @@ needs you this week.
 
 ## Quickstart
 
-You need Node 20 or newer. There is nothing to install.
+You need Node 20 or newer.
 
 ```bash
 git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
 cd artesh
+npm install               # the build tools for the interface
 cp .env.example .env      # set ARTESH_PASSWORD; add OPENAI_API_KEY if you have one
-npm start                 # http://localhost:8080
+npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
 Open the address, type the password, pick a persona and file your first report.
@@ -276,6 +277,9 @@ Ideas and pull requests are welcome; open an issue first for anything large.
 
 ```bash
 npm install
+npm run build        # build the interface (src/ + the vendored design system) into dist/
+npm run dev          # Vite dev server on :5173 with hot reload; /api is proxied to the server on :8080
+npx sam-design-check src   # the design system's check: no hand-rolled controls, colours or sizes in src/
 npm test             # engine, classifier and server tests (the model API is mocked)
 npm run test:e2e     # headless-browser tests at iPhone size (needs Playwright's Chromium)
 npm run build:map    # regenerate data/maps/*.json and data/scenarios.json from Natural Earth + tools/scenarios/

@@ -265,7 +265,7 @@ export function commitReports(reps, { quiet = false, warning = '' } = {}) {
   if (quiet) return;
   const live = app.live;
   const entries = live.log.filter(l => lastCommit.includes(l.id)); if (!entries.length) return;
-  const fxs = entries.flatMap(e => e.fx), items = entries.flatMap(e => e.items);
+  const items = entries.flatMap(e => e.items);
   const main = items.slice().sort((a, b) => b.severity - a.severity)[0];
   const wins = items.filter(i => i.outcome === 'win').length, losses = items.filter(i => i.outcome === 'loss').length;
   // the single most important thing that happened decides the headline and the celebration
@@ -274,17 +274,16 @@ export function commitReports(reps, { quiet = false, warning = '' } = {}) {
   const promoted = entries.find(e => e.levelUp)?.levelUp; const medalIds = entries.flatMap(e => e.medals || []);
   const tally = [wins ? `${wins} win${wins > 1 ? 's' : ''}` : '', losses ? `${losses} loss${losses > 1 ? 'es' : ''}` : ''].filter(Boolean).join(', ') || 'noted';
   const saved = `${warning ? 'Saved offline' : 'Saved'} · ${tally}${xp ? ` · +${xp} XP` : ''}${combo > 1 ? ` · ×${combo}` : ''}`;
-  let title = saved, lines = [];
+  let title = `${saved}.`, lines = [];
   if (main) {
     const big = m.kind !== 'normal' && m.kind !== 'levelup' && m.kind !== 'medal' && m.kind !== 'order_done' && m.kind !== 'streak';
     title = big ? m.title : main.headline;
-    const extra = fxs.filter(x => x.front === main.front && x.text !== m.title && x.kind !== 'lead').map(x => x.text).slice(0, 2);
-    lines = [`${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}${main.at != null ? ` at ${map.provinces[main.at].n}` : ''}`, ...extra, saved];
+    lines = [`${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}${main.at != null ? ` at ${map.provinces[main.at].n}` : ''}.`, `${saved}.`];
     fx.celebrate({ tone: big ? m.tone : wins >= losses ? 'good' : 'bad', magnitude: big ? m.magnitude : main.severity, kind: big ? m.kind : 'normal', at: null, el: fxRoot });
     setTimeout(() => view.flyToFront(main.front), 250);
   }
   // one toast says what happened and offers Undo
-  toast(title, 7000, { label: 'Undo', run: undo }, lines.join('\n'));
+  toast(title, 7000, { label: 'Undo', run: undo }, lines.join(' '));
   // rank, decorations and orders get their own beat a few seconds later
   const later = promoted ? { title: `Promoted to ${promoted.title}`, sub: promoted.gloss, kind: 'levelup' } : medalIds.length ? { title: medalOf(medalIds[0], map)?.name || 'Decoration awarded', sub: medalOf(medalIds[0], map)?.desc || '', kind: 'medal' }
     : before.nation.name !== live.nation.name ? { title: `Long live the ${live.nation.name}`, sub: `Every ${F().regionWord.toLowerCase()} is restored`, kind: 'empire' } : entries.some(e => e.allOrders) ? { title: 'All orders carried out', sub: '3 of 3 today', kind: 'order_done' } : null;

@@ -45,7 +45,7 @@ export function App() {
 
 // ---------- chrome over the map ----------
 function Chrome() {
-  const { st, ui, view } = useApp(); const wide = useWide();
+  const { st, ui } = useApp(); const wide = useWide();
   const covered = !!ui.sheet && !wide; // a phone's sheet covers the foot of the map
   const alert = topAlert(); const v = st.nation.stability;
   return (
@@ -104,10 +104,10 @@ function MapControls({ wide }) {
         <MenuTrigger render={<IconButton label="Map layers" size="md" tooltip={false} data-testid="layers" variant={view.mode !== 'political' || view.showEmpire ? 'secondary' : 'ghost-muted'} />}><LayersIcon /></MenuTrigger>
         <MenuPopup align={wide ? 'start' : 'end'} side={wide ? 'right' : 'bottom'}>
           <MenuRadioGroup value={view.mode} onValueChange={setMode}>
-            {MODES.map(([id, name]) => <MenuRadioItem key={id} value={id} data-mode={id}>{name}</MenuRadioItem>)}
+            {MODES.map(([id, name]) => <MenuRadioItem key={id} value={id} data-mode={id} closeOnClick>{name}</MenuRadioItem>)}
           </MenuRadioGroup>
           <MenuSeparator />
-          <MenuCheckboxItem checked={!!view.showEmpire} data-mode="empire" onCheckedChange={() => setMode('empire')}>Old empire</MenuCheckboxItem>
+          <MenuCheckboxItem checked={!!view.showEmpire} data-mode="empire" closeOnClick onCheckedChange={() => setMode('empire')}>Old empire</MenuCheckboxItem>
         </MenuPopup>
       </Menu>
     </Card>
@@ -129,7 +129,7 @@ function Legend() {
 function Replay() {
   const { ui } = app;
   return (
-    <Card padding="none" data-testid="replay" className="pointer-events-auto flex w-full max-w-md items-center gap-2 p-1.5">
+    <Card padding="none" data-testid="replay-bar" className="pointer-events-auto flex w-full max-w-md items-center gap-2 p-1.5">
       <IconButton label={ui.playing ? 'Pause' : 'Play'} size="md" tooltip={false} data-testid="replay-play" onClick={playReplay}>{ui.playing ? <PauseIcon /> : <PlayIcon />}</IconButton>
       <Slider label="Date" min={0} max={1000} step={1} value={replayAt()} valueText={fmtDate(ui.asOf, { day: 'numeric', month: 'long' })} onValueChange={seekReplay} />
       <span className="w-14 shrink-0 text-end text-xs text-muted-foreground tabular-nums">{fmtDate(ui.asOf, { day: 'numeric', month: 'short' })}</span>

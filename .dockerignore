@@ -1,11 +1,16 @@
-# Allowlist: the image contains only what server.mjs serves or imports.
+# Allowlist: the build context holds only what the interface build and server.mjs need.
 *
 
 !package.json
+!package-lock.json
 !server.mjs
+!server
 !index.html
 !sw.js
+!vite.config.js
 !manifest.webmanifest
+!src
+!vendor
 !css
 !js
 !data

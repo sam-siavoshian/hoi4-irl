@@ -22,6 +22,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build the interface
+        run: npm run build
+      - name: Design system check
+        run: npx sam-design-check src
       - run: npm test
 
   e2e:
@@ -41,6 +45,8 @@ jobs:
         run: npm i --no-save playwright
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Build the interface
+        run: npm run build
       - run: npm run test:e2e
       - name: Upload screenshots
         if: always()

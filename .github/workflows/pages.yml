@@ -24,10 +24,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - id: pages
         uses: actions/configure-pages@v5
+      # builds the interface into dist/ first, then copies it to _site/demo/ beside the landing page
       - name: Build _site
-        run: node tools/build-site.mjs
+        run: npm run build:site
         env:
           SITE_URL: ${{ steps.pages.outputs.base_url }}/
       - uses: actions/upload-pages-artifact@v3

@@ -17,9 +17,13 @@ Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-s
 ```bash
 git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
 cd artesh
+npm install               # the build tools for the interface
 cp .env.example .env      # then set ARTESH_PASSWORD (and OPENAI_API_KEY if you use a model)
-npm start                 # http://localhost:8080
+npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
+
+`npm start` rebuilds `dist/` whenever the sources are newer. If you start the server another way
+(`node server.mjs`, launchd, systemd), run `npm run build` first and after every update.
 
 `.env` and `private/` are git-ignored. Keep them that way.
 
@@ -260,6 +264,7 @@ log in again on each device only if you leave `sessions.json` behind.
 
 ```bash
 git pull
+npm install && npm run build   # not needed with Docker: the image builds the interface itself
 # then restart: launchctl unload/load, systemctl restart artesh, or docker compose up -d --build
 ```
 

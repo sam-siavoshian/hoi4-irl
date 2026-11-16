@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Keeps ARTESH running on a Mac. Replace /PATH/TO with real paths, then:
+<!-- Keeps ARTESH running on a Mac. Build the interface once first (npm install && npm run build, and again after
+     each update). Replace /PATH/TO with real paths, then:
      cp deploy/com.artesh.server.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.artesh.server.plist -->
 <plist version="1.0">
 <dict>

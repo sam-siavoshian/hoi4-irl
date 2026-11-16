@@ -35,6 +35,7 @@
     "build": "vite build",
     "prestart": "node tools/ensure-build.mjs",
     "start": "node server.mjs",
+    "preserve": "node tools/ensure-build.mjs",
     "serve": "node tools/serve.mjs",
     "check:design": "sam-design-check src",
     "build:map": "node tools/build-map.mjs",
