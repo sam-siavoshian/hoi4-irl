@@ -29,13 +29,13 @@ multi-user service and was not designed to face the open internet without someth
   endpoint return `401`.
 - **Sessions are hard to steal from disk.** A session is a random 256-bit token in an `HttpOnly`,
   `SameSite=Lax` cookie (also `Secure` when the request arrived over HTTPS). Only its SHA-256 hash is
-  stored, in `private/sessions.json`. Sessions last one year; logging out deletes that device's session.
+  stored, in `~/.homefront/sessions.json`. Sessions last one year; logging out deletes that device's session.
 - **Guessing is slow.** Eight failed logins from one address in ten minutes lock that address out, each
   failure is delayed, and the password comparison is constant-time.
 - **Files are allowlisted.** The server serves a fixed set of paths (`index.html`, `sw.js`, `css/*.css`,
   `js/*.js`, `data/scenarios.json`, `data/maps/*.json`, the manifest and icons). There is no directory listing and no way to reach
-  `private/`, `.env`, `server.mjs` or `package.json` over HTTP.
-- **Data files are private to the user.** `private/` is created with mode `0700` and its files with
+  `~/.homefront/`, `.env`, `server.mjs` or `package.json` over HTTP.
+- **Data files are private to the user.** `~/.homefront/` is created with mode `0700` and its files with
   `0600`. Writes go to a temporary file and are renamed into place.
 - **Request sizes are capped**, so a client cannot exhaust memory with one upload.
 - **The app keeps out of search engines and frames**: `X-Robots-Tag: noindex`, a deny-all `robots.txt`,
@@ -53,7 +53,7 @@ multi-user service and was not designed to face the open internet without someth
   only lock. Rate limiting slows guessing; it does not make a short password safe. Behind a reverse proxy
   every visitor shares one address, so one attacker can also lock you out for ten minutes at a time.
 - **Other users and processes on the host.** Anyone who can read your files as you, or as root, can read
-  `.env` and `private/`. Data is not encrypted at rest.
+  `.env` and `~/.homefront/`. Data is not encrypted at rest.
 - **More than one person.** There are no accounts, roles or per-user data. Everyone with the password
   sees and can change the same campaign.
 - **The model provider.** The text of your reports, and your audio if you use voice, is sent to the
@@ -73,8 +73,8 @@ multi-user service and was not designed to face the open internet without someth
 3. With a proxy or tunnel in front, set `HOST=127.0.0.1` so the port is not reachable directly.
 4. Treat `HOMEFRONT_TOKEN` like a password: generate it randomly, and rotate it if a Shortcut or script
    that holds it is shared.
-5. Keep `.env` and `private/` out of git (they are ignored by default) and out of shared folders.
-6. Back up `private/`.
+5. Keep `.env` and `~/.homefront/` out of git (they are ignored by default) and out of shared folders.
+6. Back up `~/.homefront/`.
 
 ## Scope
 

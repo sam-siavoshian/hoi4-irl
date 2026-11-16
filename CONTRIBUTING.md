@@ -70,7 +70,7 @@ bin/homefront.mjs           Command-line client for the automation API.
 site/                    Static landing page and offline demo (GitHub Pages).
 deploy/                  launchd plist for running on a Mac.
 docs/                    Architecture, self-hosting, API, FAQ.
-private/                 Runtime data. Git-ignored. Never commit it.
+~/.homefront/            Runtime data. Lives outside the repository (older installs: ./private, git-ignored).
 ```
 
 ## Tests
@@ -222,7 +222,7 @@ covers its path. Otherwise it will work in development and fail once installed.
 - [ ] New browser files are in `sw.js` (`SHELL`, cache name bumped) and reachable through the server.
 - [ ] New settings are in `.env.example` and the README table.
 - [ ] `CHANGELOG.md` has a line under Unreleased.
-- [ ] Nothing private in the diff: no `.env`, no `private/`, no real report text in tests or screenshots.
+- [ ] Nothing private in the diff: no `.env`, no `~/.homefront/`, no real report text in tests or screenshots.
 
 ## Reporting bugs and security problems
 

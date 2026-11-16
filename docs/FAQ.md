@@ -155,7 +155,7 @@ real use. The hosted [demo](https://sam-siavoshian.github.io/hoi4-irl/) works th
 
 ### Where is my data?
 
-In one folder on your host: `private/` (or wherever `HOMEFRONT_DATA_DIR` points). `state.json` is the
+In one folder on your host: `~/.homefront/` (or wherever `HOMEFRONT_DATA_DIR` points). `state.json` is the
 campaign, `journal.ndjson` is an append-only record of every change, and the server keeps daily backups
 beside them. Each device also holds a copy in the browser's storage so it can work offline.
 

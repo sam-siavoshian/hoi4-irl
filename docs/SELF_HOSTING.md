@@ -5,7 +5,7 @@ Home Front runs as one small Node server (`server.mjs`, Node 20 or newer, nothin
 - shows nothing but a password box until you log in (one password, remembered per device for a year),
 - keeps the model API key on the host, so the browser never receives it,
 - judges reports and transcribes voice through the provider you configure,
-- stores the campaign in `private/`, so the phone and the desktop show the same war,
+- stores the campaign in `~/.homefront/`, so the phone and the desktop show the same war,
 - tells search engines to stay away (`noindex`, `robots.txt`).
 
 Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-systemd) ·
@@ -25,7 +25,7 @@ npm start                 # builds the interface into dist/ if needed, then http
 `npm start` rebuilds `dist/` whenever the sources are newer. If you start the server another way
 (`node server.mjs`, launchd, systemd), run `npm run build` first and after every update.
 
-`.env` and `private/` are git-ignored. Keep them that way.
+`.env` and `~/.homefront/` are git-ignored. Keep them that way.
 
 All settings are listed in the [README](../README.md#configuration). The ones that matter for hosting:
 
@@ -34,7 +34,7 @@ All settings are listed in the [README](../README.md#configuration). The ones th
 | `HOMEFRONT_PASSWORD` | Required. Choose a long one; you type it once per device. |
 | `HOST` | `0.0.0.0` by default (all interfaces). Set `127.0.0.1` when a tunnel or reverse proxy sits in front. |
 | `PORT` | `8080` by default. |
-| `HOMEFRONT_DATA_DIR` | Where data is stored. `./private` by default. |
+| `HOMEFRONT_DATA_DIR` | Where data is stored. `~/.homefront` by default, outside the source folder. (An older install that already has `./private` keeps using it.) |
 | `HOMEFRONT_TOKEN` | Enables the automation API. Generate one with `openssl rand -hex 32`. |
 
 Without `OPENAI_API_KEY` the app still works, with the offline keyword judge and the keyboard's
@@ -224,7 +224,7 @@ To file reports from Shortcuts or Siri without opening the app, set `HOMEFRONT_T
 
 ## Backups
 
-Everything worth keeping is in the data folder (`private/` by default, or `HOMEFRONT_DATA_DIR`):
+Everything worth keeping is in the data folder (`~/.homefront` by default, or `HOMEFRONT_DATA_DIR`):
 
 | File | What it is |
 |---|---|

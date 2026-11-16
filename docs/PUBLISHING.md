@@ -9,7 +9,10 @@ in the order that avoids a half-finished public page.
    (`"private": true`, no licence file of its own). Once this repository is public, so is that source.
    Either add a licence file to that folder (MIT, to match the rest), or say in its README that it is
    included for building Home Front only and is not licensed for reuse.
-2. **Merge the working branch into `main`.** GitHub shows the default branch's README, and the Pages
+2. **Merge the working branch into `main` as one squashed commit.** The branch's history carries links to
+   the private sessions it was built in (they need your login to open, but there is no reason to publish
+   them). A squash merge puts a single clean commit on `main`; delete the branch afterwards.
+   GitHub shows the default branch's README, and the Pages
    workflow deploys from `main`.
 3. **Check the first CI run is green** (Actions tab). The workflows have not run yet.
 4. **Consider the name.** The repository is called `hoi4-irl`, which contains another company's

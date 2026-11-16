@@ -217,7 +217,7 @@ precedence over the file.
 | `HOMEFRONT_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
 | `PORT` | `8080` | Port to listen on. |
 | `HOST` | `0.0.0.0` | Interface to bind. Use `127.0.0.1` when a tunnel or reverse proxy sits in front. |
-| `HOMEFRONT_DATA_DIR` | `./private` | Where the campaign, sessions, journal and backups are stored. |
+| `HOMEFRONT_DATA_DIR` | `~/.homefront` | Where the campaign, sessions, journal and backups are stored. |
 | `HOMEFRONT_OPEN` | unset | `1` starts the server with no login at all. Only for a machine nobody else can reach. |
 
 ## Local models
@@ -275,8 +275,9 @@ Home Front is built for one person on a machine they control.
   key is never sent to the browser.
 - **One password, one user.** Nothing but a password box is served until you log in. The session is
   remembered per device for a year. Failed attempts are rate-limited.
-- **Your data is a folder.** The campaign, sessions, journal and backups live in `private/`, written with
-  owner-only permissions. Back it up by copying it. Delete it and everything is gone.
+- **Your data is a folder, and it is not in the repository.** The campaign, sessions, journal and backups
+  live in `~/.homefront`, outside the source folder, written with owner-only permissions. `.env` is
+  git-ignored, and CI fails if a data or secret file is ever committed. Back it up by copying it. Delete it and everything is gone.
 - **Hidden from search engines.** Every response carries `noindex`, and `robots.txt` disallows everything.
 - **No telemetry.** The server makes no network calls other than to the model endpoint you configured.
 
@@ -315,7 +316,7 @@ More in [docs/FAQ.md](docs/FAQ.md).
 - Translations of the interface and the staff's voice.
 - Native Anthropic and Gemini providers, alongside the OpenAI-compatible route.
 - Import from other trackers and from plain-text journals.
-- Optional encryption at rest for `private/`.
+- Optional encryption at rest for `~/.homefront/`.
 - Reminders and notifications.
 - Multiple campaigns on one server.
 

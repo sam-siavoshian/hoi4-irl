@@ -150,7 +150,7 @@ structured-output call (the Responses API by default; chat completions when `LLM
 `/api/transcribe` forwards raw audio to `/audio/transcriptions`. The model names and the key exist only
 on the server.
 
-Storage is a folder, `private/`:
+Storage is a folder, `~/.homefront/`:
 
 | File | Contents |
 |---|---|

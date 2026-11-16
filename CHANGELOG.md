@@ -26,7 +26,7 @@ The step from a personal tool to something anyone can self-host.
   still covers the case of no key at all.
 - **Persona presets** on first run (Student, Founder, Athlete, Creator, Parent and more) that name the
   fronts for you. Everything stays renameable, and fronts can be paused.
-- **Journal and backups.** An append-only journal of every change (`private/journal.ndjson`) and daily
+- **Journal and backups.** An append-only journal of every change (`~/.homefront/journal.ndjson`) and daily
   backups of the campaign.
 - **Automation API.** Token-authenticated `POST /api/report` (plain text in, judged on the server, map
   updated) for iOS Shortcuts, Siri, scripts and cron; `GET /api/sitrep`; `GET /healthz`. A small
@@ -95,7 +95,7 @@ Iran.
 
 - One dependency-free Node file. Password wall with year-long per-device sessions and login throttling.
 - The OpenAI key stays on the host; judging and transcription are proxied.
-- The campaign is stored in `private/state.json` with a revision check, so the phone and the desktop
+- The campaign is stored in `~/.homefront/state.json` with a revision check, so the phone and the desktop
   show the same war and cannot silently overwrite each other.
 - `noindex` headers and a deny-all `robots.txt`.
 - Tests for the engine, the classifier and the server, and end-to-end browser tests at iPhone size.

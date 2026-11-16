@@ -17,4 +17,4 @@
 - [ ] Engine changes are deterministic (no `Math.random()` or `Date.now()` inside the replay) and existing campaigns still replay sensibly
 - [ ] New files the browser loads are added to `SHELL` in `sw.js` and to the server's file allowlist, and the cache name is bumped
 - [ ] Docs updated (`README.md`, `docs/`, `.env.example`) and `CHANGELOG.md` has a line under Unreleased
-- [ ] No secrets, personal data or `private/` contents in the diff
+- [ ] No secrets, personal data or `~/.homefront/` contents in the diff

@@ -7,6 +7,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { llmConfig, createLLM } from './server/llm.mjs';
@@ -31,7 +32,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 const PASSWORD = process.env.HOMEFRONT_PASSWORD || '';
 const TOKEN = (process.env.HOMEFRONT_TOKEN || '').trim(); // optional bearer token for the automation API
 const RATE = process.env.HOMEFRONT_RATE_LIMIT === undefined || process.env.HOMEFRONT_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.HOMEFRONT_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
-const PRIVATE = path.resolve(process.env.HOMEFRONT_DATA_DIR || path.join(ROOT, 'private'));
+// Your data is kept out of the source folder, so no git command run here can ever pick it up. An install that already
+// has ./private keeps using it (that folder is git-ignored).
+const tilde = p => (p && /^~(?=$|\/)/.test(p) ? path.join(os.homedir(), p.slice(1)) : p);
+const PRIVATE = path.resolve(tilde(process.env.HOMEFRONT_DATA_DIR) || (fs.existsSync(path.join(ROOT, 'private')) ? path.join(ROOT, 'private') : path.join(os.homedir(), '.homefront')));
 const COOKIE = 'homefront_session';
 const die = msg => { console.error(msg); process.exit(1); };
 
@@ -179,4 +183,4 @@ const server = http.createServer(async (req, res) => {
     if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Your data is kept in ${PRIVATE}`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
