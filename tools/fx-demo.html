@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARTESH fx demo</title>
+<meta name="theme-color" content="#0b0e10">
+<link rel="stylesheet" href="../css/fx.css">
+<style>
+  :root { --bg: #0b0e10; --surface: #14181b; --raised: #1b2024; --hover: #22282d; --line: rgba(255,255,255,.07); --line-strong: rgba(255,255,255,.14); --text: #eceae5; --text-2: #a2a7ab; --text-3: #6d7377; --accent: #e3b85c; --accent-ink: #1c1505; --good: #5bbf8a; --bad: #e5604d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  #app { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px 96px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0 0 2px; } h1 + p { margin: 0 0 16px; color: var(--text-2); font-size: 13px; }
+  h2 { font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 24px 0 8px; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 10px; min-height: 40px; font-size: 13.5px; font-weight: 550; touch-action: manipulation; }
+  button:active { background: var(--hover); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggles button { border-radius: 999px; padding: 8px 14px; color: var(--text-3); }
+  .toggles button[aria-pressed=true] { color: var(--accent-ink); background: var(--accent); border-color: transparent; }
+  .toggles .plain { margin-left: auto; color: var(--text-2); }
+  #status { position: sticky; top: 0; z-index: 5; margin: 0 -16px 8px; padding: 8px 16px; background: rgba(11,14,16,.86); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; display: flex; gap: 14px; }
+  #status b { color: var(--text); font-weight: 600; }
+  .row { display: grid; grid-template-columns: 1fr repeat(5, 36px); gap: 6px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .row > span { font-size: 13.5px; } .row > span i { font-style: normal; font-size: 11px; margin-left: 6px; color: var(--text-3); }
+  .row button { padding: 0; min-height: 36px; font-variant-numeric: tabular-nums; }
+  .row.good button { color: var(--good); } .row.bad button { color: var(--bad); } .row.gold button { color: var(--accent); }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 8px; display: flex; align-items: center; gap: 16px; min-height: 68px; }
+  #flame { width: 40px; height: 40px; border-radius: 50%; background: var(--raised); display: grid; place-items: center; color: var(--accent); flex: none; }
+  #flame svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #count { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; min-width: 84px; }
+  #type { color: var(--text-2); font-size: 14px; min-height: 42px; flex: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>fx demo</h1>
+  <p>Every sound, particle and celebration in js/fx.js. Nothing plays until the first tap.</p>
+  <div id="status"><span>particles <b id="s-alive">0</b></span><span>loop <b id="s-run">idle</b></span><span>audio <b id="s-audio">locked</b></span></div>
+
+  <div class="toggles">
+    <button data-toggle="sound" aria-pressed="true">Sound</button>
+    <button data-toggle="motion" aria-pressed="true">Motion</button>
+    <button data-toggle="haptics" aria-pressed="true">Haptics</button>
+    <button class="plain" data-do="stop">Stop all</button>
+  </div>
+
+  <h2>Sounds</h2>
+  <div class="grid" id="sounds"></div>
+
+  <h2>Bursts</h2>
+  <div class="grid" id="bursts"></div>
+
+  <h2>Rain, flash, shake</h2>
+  <div class="grid">
+    <button data-rain="confetti">confetti rain</button>
+    <button data-rain="embers">ember rain</button>
+    <button data-do="flash-red">flash red</button>
+    <button data-do="flash-gold">flash gold</button>
+    <button data-do="shake">shake page</button>
+  </div>
+
+  <h2>Pulse, count, type</h2>
+  <div class="panel">
+    <div id="flame"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
+    <div id="count">0</div>
+    <div id="type"></div>
+  </div>
+  <div class="grid" style="margin-top:8px">
+    <button data-do="pulse">pulse flame</button>
+    <button data-do="count">count up</button>
+    <button data-do="type">typewriter</button>
+  </div>
+
+  <h2>Celebrate · kind × magnitude</h2>
+  <div id="celebrate"></div>
+</div>
+
+<script type="module">
+import { fx } from '../js/fx.js';
+window.fx = fx;
+const $ = s => document.querySelector(s);
+const app = $('#app');
+fx.init({ root: app });
+const cfg = fx.configure({});
+addEventListener('pointerdown', () => fx.unlock(), { capture: true });
+addEventListener('keydown', () => fx.unlock(), { capture: true });
+
+const centre = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+const btn = (parent, label, attrs) => { const b = document.createElement('button'); b.textContent = label; for (const k in attrs) b.dataset[k] = attrs[k]; parent.appendChild(b); return b; };
+
+for (const n of fx.sounds) btn($('#sounds'), n, { sound: n });
+for (const k of fx.kinds) btn($('#bursts'), k, { burst: k });
+
+// each kind with the tone it will usually be called with; "normal" and "operation" depend on tone
+const ROWS = [['normal', 'good'], ['normal', 'bad'], ['normal', 'gold'], ['order_done', 'good'], ['streak', 'good'], ['medal', 'gold'], ['levelup', 'gold'], ['city_captured', 'good'], ['city_lost', 'bad'], ['operation', 'good'], ['operation', 'bad'], ['satrapy', 'gold'], ['tehran_fallen', 'bad'], ['tehran_freed', 'good'], ['empire', 'gold']];
+for (const [kind, tone] of ROWS) {
+  const row = document.createElement('div'); row.className = 'row ' + tone;
+  const label = document.createElement('span'); label.textContent = kind; const i = document.createElement('i'); i.textContent = tone; label.appendChild(i); row.appendChild(label);
+  for (let m = 1; m <= 5; m++) btn(row, String(m), { kind, tone, mag: m });
+  $('#celebrate').appendChild(row);
+}
+
+window.lastCelebrate = null; window.celebrateDone = 0;
+const LINES = ['The 3rd Khorasan Division holds the Zagros passes. Tabriz is ours again.', 'Dispatch received. The General Staff commends your discipline, Shahanshah.'];
+let line = 0, total = 0;
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset, at = centre(b);
+  if (d.toggle) { cfg[d.toggle] = !cfg[d.toggle]; fx.configure(cfg); b.setAttribute('aria-pressed', String(cfg[d.toggle])); fx.sound('tap'); return; }
+  if (d.sound) return fx.sound(d.sound);
+  if (d.burst) return fx.burst(at.x, at.y, { kind: d.burst });
+  if (d.rain) return fx.rain({ kind: d.rain, duration: 1800 });
+  if (d.kind) {
+    // big moments happen mid-screen; small ones come from where you tapped
+    const big = ['satrapy', 'tehran_fallen', 'tehran_freed', 'empire'].includes(d.kind);
+    window.lastCelebrate = fx.celebrate({ kind: d.kind, tone: d.tone, magnitude: +d.mag, at: big ? null : at }).then(() => { window.celebrateDone++; });
+    return;
+  }
+  switch (d.do) {
+    case 'stop': fx.stop(); break;
+    case 'flash-red': fx.flash({ color: '#e5604d', duration: 160, vignette: true, opacity: .4 }); fx.sound('loss'); break;
+    case 'flash-gold': fx.flash({ color: '#e3b85c', duration: 320, opacity: .14 }); break;
+    case 'shake': fx.shake(app, { strength: 8, duration: 420 }); fx.haptic('heavy'); break;
+    case 'pulse': fx.pulse($('#flame')); fx.sound('streak'); fx.haptic('light'); break;
+    case 'count': { const from = total; total += 1250; fx.countUp($('#count'), from, total, { duration: 900, format: v => Math.round(v).toLocaleString('en') }); fx.sound('tap'); break; }
+    case 'type': fx.typewriter($('#type'), LINES[line++ % LINES.length], { cps: 40 }); fx.sound('send'); break;
+  }
+});
+
+setInterval(() => { $('#s-alive').textContent = fx._alive(); $('#s-run').textContent = fx._running() ? 'running' : 'idle'; $('#s-audio').textContent = fx._audio() === 'none' ? 'locked' : fx._audio(); }, 120);
+</script>
+</body>
+</html>
