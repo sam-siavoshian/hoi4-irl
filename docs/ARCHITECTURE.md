@@ -8,8 +8,8 @@ Home Front has four parts. The engine, map and server run as written; only the i
   │ Natural Earth + seeds.mjs│      │ browser                                       │
   │        │                 │      │  app.js ── classify.js ── engine.js ── map.js │
   │   build-map.mjs          │      │    │            │            ▲                │
-  │        ▼                 │      │  store.js    voice.js    data/map.json        │
-  │   data/map.json ─────────┼─────▶│    │            │                             │
+  │        ▼                 │      │  store.js    voice.js    data/maps/*          │
+  │   data/maps/*   ─────────┼─────▶│    │            │                             │
   └──────────────────────────┘      └────┼────────────┼─────────────────────────────┘
                                          │ /api/state │ /api/llm, /api/transcribe
                                     ┌────▼────────────▼────┐        ┌──────────────┐

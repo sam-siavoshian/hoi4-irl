@@ -9,12 +9,20 @@ The step from a personal tool to something anyone can self-host.
 
 ### Changed
 
+- **Renamed to Home Front.** The project was called ARTESH. Settings named `ARTESH_*` are still read, and a
+  browser with a saved campaign keeps it.
+- **Data lives outside the source folder.** New installs store everything in `~/.homefront`; an install
+  that already has `./private` keeps using it.
 - **New interface.** Rebuilt as a React app on a vendored design system (`vendor/design-system`): light,
   dark and automatic appearance, a side panel on desktop, bottom sheets on a phone. The engine, map and
   server are unchanged. There is now a build step: `npm start` builds `dist/` when needed.
 
 ### Added
 
+- **Country selection screen.** A full-screen "choose your country" step on first run and in Settings:
+  the live map changes behind as you browse, with each nation's forces and seven fronts laid out.
+- **Setup skill for coding agents** (`.claude/skills/setup-home-front`, `AGENTS.md`): install, verify,
+  background service, HTTPS for a phone, backups and updates, asking before each system change.
 - **Your own key, set in the app, and more providers.** Settings → General staff chooses who judges your
   reports: OpenAI, Anthropic, Google Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, any other
   OpenAI-compatible server, or the offline judge. Paste your own key, press Test, and it works without a

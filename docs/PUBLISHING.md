@@ -5,6 +5,10 @@ in the order that avoids a half-finished public page.
 
 ## Before making it public
 
+Already done in the repository: no data, keys or personal details in any file or commit; data is stored
+outside the source folder; CI fails if a data or key file is committed; licence, notices, code of conduct,
+security policy, contributing guide, issue templates and Dependabot are in place.
+
 1. **Decide the design system's licence.** `vendor/design-system/` is a copy of a private package
    (`"private": true`, no licence file of its own). Once this repository is public, so is that source.
    Either add a licence file to that folder (MIT, to match the rest), or say in its README that it is
