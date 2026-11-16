@@ -2,6 +2,7 @@
 // When the private server has an OpenAI key the report is judged there (the key never reaches the browser);
 // otherwise a local keyword classifier is used.
 import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf, frontCaps } from './engine.js';
+import { AREAS, areasForLabel } from './presets.js';
 
 const schemaFor = (map, off = []) => ({
   type: 'object',
@@ -135,19 +136,47 @@ const WEAK = ['little', 'slightly', 'kinda', 'kind of', 'bit', 'small', 'minor',
 // short words must match whole (so "mad" does not fire on "made"); longer ones may be stems ("procrastinat")
 const has = (s, w) => new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${w.length <= 4 ? '(?![a-z])' : ''}`, 'i').test(s);
 
-export function classifyLocal({ map, labels, text, off = [] }) {
-  const areaFront = {};
+// A vocabulary word as a whole-word pattern: plain words also match their regular inflections, "x*" is a stem,
+// and entries with a space or hyphen are phrases.
+const wordCache = new Map();
+function wordRe(w) {
+  let re = wordCache.get(w); if (re) return re;
+  const stem = w.endsWith('*'); let core = w.replace(/\*$/, '').toLowerCase(); let tail = stem ? '[a-z]*' : '(?:s|es|ed|d|ing)?';
+  if (!stem && /[^aeiou]y$/.test(core)) { core = core.slice(0, -1); tail = '(?:y|ies|ied|ying)'; }
+  re = new RegExp(`(?:^|[^a-z])${core.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[\s-]+/g, '[\\s-]+')}${tail}(?![a-z])`, 'i');
+  wordCache.set(w, re); return re;
+}
+const STOP = new Set('the and for with from that this what when have has had are was were not but you your our their about into over under very just more most some any all its his her him she they them then than there here been being will would could should'.split(' '));
+// Which front each life area belongs to, for the user's own labels and notes. Works for any labels.
+function buildRouter(map, labels, notes = {}, off = []) {
   const fronts = map.fronts.filter(f => !off.includes(f.id));
-  for (const f of fronts) { const lab = labels[f.id] || f.defaultLabel; const m = LABEL_AREA.find(([re]) => re.test(lab)); if (m && !areaFront[m[1]]) areaFront[m[1]] = f.id; }
-  const labelWords = fronts.map(f => [f.id, (labels[f.id] || f.defaultLabel).toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2)]);
-  const fallback = areaFront.personal || fronts.at(-1).id;
+  const carried = {}; // area id → front id that names it
+  const own = fronts.map(f => { const lab = labels[f.id] || f.defaultLabel; for (const a of areasForLabel(lab)) carried[a] ??= f.id;
+    const toks = t => String(t || '').toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2 && !STOP.has(w));
+    return { id: f.id, label: toks(lab), note: toks(notes[f.id]) }; });
+  const route = AREAS.map(a => { let fid = carried[a.id], w = 1; if (!fid) { const n = (a.near || []).find(x => carried[x]); if (n) { fid = carried[n]; w = 0.7; } } return fid ? { fid, w, words: a.words } : null; }).filter(Boolean);
+  const fallback = carried.self || carried.mental || carried.home || fronts.at(-1)?.id;
+  const score = lc => {
+    const sc = {};
+    for (const o of own) { const n = o.label.filter(w => wordRe(w).test(lc)).length * 2.5 + o.note.filter(w => wordRe(w).test(lc)).length * 1.5; if (n) sc[o.id] = (sc[o.id] || 0) + n; }
+    for (const r of route) { let n = 0; for (const w of r.words) if (wordRe(w).test(lc)) n += /[\s-]/.test(w) ? 2 : 1; if (n) sc[r.fid] = (sc[r.fid] || 0) + n * r.w; }
+    let best = null, top = 0, second = 0; for (const [fid, v] of Object.entries(sc)) { if (v > top) { second = top; top = v; best = fid; } else if (v > second) second = v; }
+    return { front: best, top, second };
+  };
+  return { fronts, fallback, score };
+}
+// Best guess at the front for a short text, with a confidence 0..1 (used to preselect in "which front?").
+export function suggestFront({ map, labels, notes = {}, off = [], text }) {
+  const r = buildRouter(map, labels, notes, off); const s = r.score(String(text || '').toLowerCase());
+  return s.front ? { front: s.front, confidence: Math.min(1, (s.top - s.second * 0.6) / 3) } : { front: null, confidence: 0 };
+}
+export function classifyLocal({ map, labels, text, off = [], notes = {} }) {
+  const router = buildRouter(map, labels, notes, off); const fronts = router.fronts; const fallback = router.fallback;
   const clauses = text.split(/[.!?;\n]+|,\s*(?:and|but)\s+|\s+(?:and then|but|also)\s+|,\s+(?=i\s|my\s|we\s|our\s)/i).map(s => s.trim()).filter(s => s.length > 2);
   const items = []; let lastFront = null;
   for (const c of clauses) {
     const lc = c.toLowerCase();
-    let front = null, best = 0;
-    for (const [fid, words] of labelWords) { const n = words.filter(w => has(lc, w)).length * 2; if (n > best) { best = n; front = fid; } }
-    for (const [area, words] of Object.entries(AREA_WORDS)) { if (!areaFront[area]) continue; const n = words.filter(w => has(lc, w)).length; if (n > best) { best = n; front = areaFront[area]; } }
+    let front = router.score(lc).front;
     let p = POS.filter(w => has(lc, w)).length, n = NEG.filter(w => has(lc, w)).length;
     if (/\b(not|never|no|didn'?t|wasn'?t|isn'?t)\s+(\w+\s+)?(good|great|well|happy|fun|productive|better)/i.test(lc)) { n += 2; p = Math.max(0, p - 1); }
     if (/\b(not|no longer|isn'?t|wasn'?t)\s+(\w+\s+)?(bad|sick|behind|stressed|failing)/i.test(lc)) { p += 2; n = Math.max(0, n - 1); }

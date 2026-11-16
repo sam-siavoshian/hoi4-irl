@@ -231,3 +231,11 @@ img.tok { width: 40px; height: 45px; }
 .answer .quote { font-size: 15.5px; line-height: 1.55; } .answer .chips { margin-top: 4px; }
 #demo-note { position: absolute; z-index: 3; left: calc(12px + var(--sal)); top: calc(var(--sat) + 104px); max-width: min(calc(100% - 76px), 330px); display: flex; align-items: center; gap: 4px; padding: 8px 4px 8px 12px; border-radius: var(--r-m); font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
 #demo-note b { color: var(--text); } #demo-note a { color: var(--accent); } #demo-note button { flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: var(--text-3); }
+
+/* rewards */
+.rank { margin: 8px 0 4px; } .rank .rk { display: flex; align-items: baseline; gap: 8px; } .rank .rk b { font-size: 22px; font-weight: 650; letter-spacing: -.01em; color: var(--accent); } .rank .rk span { color: var(--text-2); font-size: 13px; } .rank .rk em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--text-2); }
+.rank .meter { height: 6px; margin: 10px 0 6px; }
+.orders { display: grid; gap: 2px; } .ord { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14.5px; color: var(--text); } .ord .ic { color: var(--text-3); } .ord span { flex: 1; } .ord b { font-weight: 600; font-size: 12.5px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ord.done { color: var(--text-3); } .ord.done span { text-decoration: line-through; text-decoration-color: var(--line-strong); } .ord.done .ic { color: var(--good); } .ord.done b { color: var(--text-3); }
+.nextmedal { margin-top: 12px; font-size: 13px; color: var(--text-2); } .nextmedal b { color: var(--text); font-weight: 600; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .cardbtn { display: block; text-align: left; } .cardbtn span { display: block; margin-top: 6px; font-size: 13px; color: var(--text-2); } .cardbtn .thumb { border-radius: 10px; background: var(--raised); min-height: 120px; overflow: hidden; } .cardbtn:active { opacity: .8; }

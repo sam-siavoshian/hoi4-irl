@@ -1,12 +1,15 @@
 // The interface is deliberately thin: a map, one report button, a list of fronts and a history.
 // Everything else (objectives, commanders, satrapies, decorations, repairs) is worked out by engine.js.
-import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, shortName, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, rankIndex, DAY } from './engine.js';
+import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, shortName, momentOf, headlineOf, weeklyRecap, medalProgress, medalOf, orderText, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, rankIndex, DAY } from './engine.js';
 import { MapView, FRONT_COLORS } from './map.js';
 import { classify, assess } from './classify.js';
 import { ask } from './ask.js';
+import { fx } from './fx.js';
+import { renderBulletin, renderFrontPage, renderRecap, renderRankUp, shareCanvas } from './share.js';
+import { PRESETS, applyPreset } from './presets.js';
 import { pickEngine, startDictation } from './voice.js';
 import * as store from './store.js';
-import { UI_ICONS, FILLED_ICONS } from './icons.js';
+import { UI_ICONS, FILLED_ICONS, UNIT_PATHS } from './icons.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -46,11 +49,13 @@ async function boot() {
   document.addEventListener('visibilitychange', async () => { if (!document.hidden) { await resync(); refresh(); } });
   setInterval(() => { if (!ui.playing) refresh(); }, 60000);
   view.setMode(data.mode || 'political');
+  fx.init({ root: $('#mapwrap') }); fx.configure({ sound: data.settings.sound !== false, motion: data.settings.motion !== false, haptics: true });
+  document.addEventListener('pointerdown', () => fx.unlock(), { passive: true });
   refresh();
   if (!data.onboarded) openSheet('welcome'); else greet();
   if (demo) demoNote();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__artesh = { get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
+  window.__artesh = { save: persist, get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
 }
 
 const labels = () => Object.fromEntries(map.fronts.map(f => [f.id, data.labels[f.id] || f.defaultLabel]));
@@ -176,11 +181,12 @@ function closeSheet() {
 }
 function back() { const p = ui.stack.pop(); if (p) openSheet(p[0], p[1], false); else closeSheet(); }
 function renderSheet() {
-  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, settings: sSettings, units: sUnits, division: sDivision }[ui.sheet];
+  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, settings: sSettings, units: sUnits, division: sDivision, share: sShare }[ui.sheet];
   if (!R) return;
   const [title, html, tall] = R();
   $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html; $('#sheet').classList.toggle('tall', !!tall);
   $('#sheet .back').hidden = !ui.stack.length;
+  if (ui.sheet === 'share') mountCards();
 }
 const row = ({ icon, lead, t, d, end = '', act, attrs = '', cls = '' }) => `<${act ? 'button' : 'div'} class="row ${cls}" ${act ? `data-act="${act}"` : ''} ${attrs}>${lead ?? (icon ? `<span class="lead">${I(icon)}</span>` : '')}<span class="main"><span class="t">${t}</span>${d ? `<div class="d">${d}</div>` : ''}</span>${end ? `<span class="end">${end}</span>` : ''}</${act ? 'button' : 'div'}>`;
 const kpi = (k, v, cls = '') => `<div class="kpi"><small>${k}</small><b class="${cls}">${v}</b></div>`;
@@ -283,6 +289,7 @@ function sReport() {
       <div class="hint" id="micnote">${esc(hint)}</div>
       <button class="mic ${ui.dict ? (ui.dict.state === 'transcribing' ? 'busy' : 'live') : ''}" data-act="mic" aria-label="Dictate">${I('mic')}</button></div>
     <div class="btns"><button class="btn primary" data-act="send" ${r.busy ? 'disabled' : ''}>${r.busy ? 'Working…' : 'Send'}</button></div>
+    ${r.pick ? '' : `<h3>Orders of the day</h3>${ordersHTML()}`}
     ${r.pick ? `<p class="small warn" style="margin:14px 0 8px">Not sure where that belongs. Pick a front:</p><div class="pick">${activeFronts().map(f => `<div class="pk" style="--c:${FRONT_COLORS[f.id]}"><span><i class="dotc"></i>${esc(L[f.id])}</span><button class="btn sm win" data-act="quick" data-id="${f.id}" data-o="win">Win</button><button class="btn sm loss" data-act="quick" data-id="${f.id}" data-o="loss">Loss</button></div>`).join('')}</div>` : ''}`, true];
 }
 function sEdit() {
@@ -303,23 +310,65 @@ function autoAssess() {
   const n = data.reports.length;
   assess({ map, st: live, labels: labels(), off: data.off, remote: !!cfg.judge }).then(x => { ui.assess = x; ui.assessAt = Date.now(); ui.assessN = n; if (ui.sheet === 'overview') renderSheet(); }).catch(() => {});
 }
+const ordersHTML = () => `<div class="orders">${(live.orders || []).map(o => `<div class="ord ${o.done ? 'done' : ''}">${I(o.done ? 'check' : 'target', 's')}<span>${esc(orderText(o, labels(), map))}</span><b>+${o.reward}</b></div>`).join('')}</div>`;
 function sOverview() {
-  const n = st.nation; const L = labels(); const a = ui.assess; const earned = MEDALS.filter(([id]) => live.ach[id]);
+  const n = st.nation; const L = labels(); const a = ui.assess; const c = st.commander;
+  const earned = Object.keys(live.ach).map(medalOf).filter(Boolean); const next = (medalProgress(live) || [])[0];
   const total = Math.round(map.fronts.reduce((s, f) => s + Math.max(0, -st.fronts[f.id].pos), 0) / map.fronts.length);
   return [n.name, `
     <p class="dim small">${fmtDate(st.now, { weekday: 'long', day: 'numeric', month: 'long' })} · ${persian(st.now)}</p>
+    <div class="rank"><div class="rk"><b>${esc(c.title)}</b><span>${esc(c.gloss)}</span><em class="num">${c.xp.toLocaleString()} XP</em></div>
+      <div class="meter"><i style="width:${Math.round(c.progress * 100)}%;background:var(--accent)"></i></div>
+      ${c.next ? `<div class="fends"><span>${(c.nextAt - c.xp).toLocaleString()} XP to ${esc(c.next.title)}</span><span>${esc(c.next.gloss)}</span></div>` : ''}</div>
     <div class="grid">${kpi('Stability', n.stability + '%', n.stability >= 60 ? 'good' : n.stability < 35 ? 'bad' : '')}${kpi('Day streak', st.dayStreak, st.dayStreak ? 'gold' : '')}${kpi('Empire', total + '%')}</div>
-    ${a ? `<p class="quote">${esc(a.assessment)}</p>${a.orders.map(o => `<div class="ev" style="--c:${FRONT_COLORS[o.front]}">${I('target')}<div><div class="h">${esc(o.order)}</div><div class="m"><b>${esc(L[o.front])}</b></div></div></div>`).join('')}` : ''}
-    ${st.satrapies.length || earned.length ? `<h3>Earned</h3><div class="tags">${earned.map(([, name, desc]) => `<span class="tag gold" title="${esc(desc)}">${I('medal', 's')}${esc(name)}</span>`).join('')}${st.satrapies.map(x => `<span class="tag" title="${esc(x.region)}">${esc(x.name)}</span>`).join('')}</div>` : ''}
-    <div class="btns"><button class="btn" data-act="sharemap">${I('share', 's')}Share</button><button class="btn" data-act="open" data-sheet="settings">${I('gear', 's')}Settings</button></div>`, true];
+    <h3>Orders of the day</h3>${ordersHTML()}
+    ${a ? `<h3>Chief of staff</h3><p class="quote">${esc(a.assessment)}</p>${a.orders.map(o => `<div class="ev" style="--c:${FRONT_COLORS[o.front]}">${I('target')}<div><div class="h">${esc(o.order)}</div><div class="m"><b>${esc(L[o.front])}</b></div></div></div>`).join('')}` : ''}
+    <h3>Decorations · ${earned.length}</h3>
+    ${earned.length || st.satrapies.length ? `<div class="tags">${earned.map(md => `<span class="tag gold" title="${esc(md.desc)}">${I('medal', 's')}${esc(md.name)}</span>`).join('')}${st.satrapies.map(x => `<span class="tag" title="${esc(x.region)}">${esc(x.name)}</span>`).join('')}</div>` : ''}
+    ${next ? `<div class="nextmedal"><span>Next: <b>${esc(next.name)}</b> · ${esc(next.desc)}</span><div class="meter"><i style="width:${Math.round(next.pct * 100)}%"></i></div></div>` : ''}
+    <div class="btns"><button class="btn primary" data-act="open" data-sheet="share">${I('share', 's')}Share</button><button class="btn" data-act="open" data-sheet="settings">${I('gear', 's')}Settings</button></div>`, true];
 }
+
+// ---------- share cards ----------
+function mapShot() {
+  const c = document.createElement('canvas'); c.width = view.base.width; c.height = view.base.height; const x = c.getContext('2d'); x.drawImage(view.base, 0, 0); x.drawImage(view.over, 0, 0);
+  const t = map.provinces[map.tehran].city; const [sx, sy] = view.toScreen(t[0], t[1] + 260);
+  return { canvas: c, focus: [Math.max(0.2, Math.min(0.8, sx / view.w)), Math.max(0.2, Math.min(0.8, sy / view.h))] };
+}
+function latestEntry() { return live.log.filter(l => !l.kind).at(-1) || null; }
+function cardData(kind) {
+  const L = labels(); const e = latestEntry(); const m = e ? momentOf(e) : null; const shot = mapShot(); const c = live.commander;
+  const main = e?.items.slice().sort((a, b) => b.severity - a.severity)[0];
+  const fronts = activeFronts().map(f => ({ label: L[f.id], status: statusOf(live.fronts[f.id].pos).text, pos: live.fronts[f.id].pos, color: FRONT_COLORS[f.id] }));
+  const nation = live.empire ? live.nation.name : 'Iran';
+  const fresh = e && live.now - e.ts < 3 * DAY;
+  const headline = fresh ? (m.kind === 'normal' || m.kind === 'levelup' || m.kind === 'medal' ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front';
+  const tone = fresh ? (m.kind === 'normal' ? (main?.outcome === 'loss' ? 'bad' : 'good') : m.tone) : 'gold';
+  if (kind === 'bulletin') return renderBulletin({ map: shot.canvas, focus: shot.focus, nation, date: live.now, headline, sub: fresh && main ? `${L[main.front]} · ${main.battle || ACTIONS[main.action].label}` : `${live.nation.stability}% stability`, tone, stability: live.nation.stability, streak: live.dayStreak, rank: c.title, fronts });
+  if (kind === 'frontpage') return renderFrontPage({ map: shot.canvas, date: live.now, persianDate: true, tone, headline: e ? headlineOf(e, L) : 'All quiet on every front', deck: e?.summary || '',
+    body: e ? [e.items.map(i => `**${L[i.front]}.** ${i.headline}.`).join(' '), e.fx.filter(x => x.tone).map(x => x.text).slice(0, 5).join('. ') + '.', sitrep(map, live, L).split('\n').slice(-1)[0]].filter(t => t.length > 3) : ['The borders are quiet.'],
+    sidebar: fronts.map(f => `${f.label}: ${f.status.toLowerCase()}`) });
+  if (kind === 'recap') { const r = weeklyRecap(map, live, L); const col = Object.fromEntries(map.fronts.map(f => [f.id, FRONT_COLORS[f.id]]));
+    return renderRecap({ ...r, perFront: r.perFront.filter(f => !f.paused).map(f => ({ ...f, color: col[f.id] })), rankProgress: c.progress, mvp: r.mvp ? { ...r.mvp, iconPath: UNIT_PATHS[r.mvp.type] } : null }); }
+  return renderRankUp({ kind: 'rank', title: c.title, gloss: c.gloss, sub: c.promotedAt ? `Promoted on ${fmtDate(c.promotedAt, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${c.xp.toLocaleString()} XP`, streak: live.dayStreak, nation });
+}
+const CARDS = [['bulletin', 'Today\u2019s bulletin'], ['frontpage', 'Front page'], ['recap', 'Week in review'], ['rank', 'Your rank']];
+function sShare() {
+  return ['Share', `<p class="dim small">Tap a card to share or save it.</p><div class="cards">${CARDS.map(([k, n]) => `<button class="cardbtn" data-act="sharecard" data-kind="${k}"><div class="thumb" id="th-${k}"></div><span>${n}</span></button>`).join('')}</div>`, true];
+}
+const cardCache = {};
+function mountCards() { for (const [k] of CARDS) { try { const c = cardCache[k] = cardData(k); c.style.cssText = 'width:100%;height:auto;display:block;border-radius:10px'; $(`#th-${k}`)?.replaceChildren(c); } catch (err) { console.error(err); } } }
+
 function sSettings() {
   const s = data.settings; const L = labels();
   return ['Settings', `
     <h3>Your fronts</h3>
     ${map.fronts.map(f => `<div class="frow" style="--c:${FRONT_COLORS[f.id]}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"><button class="switch ${data.off.includes(f.id) ? '' : 'on'}" data-act="togglefront" data-id="${f.id}" aria-label="Active"></button></div>`).join('')}
     <h3>Staff</h3>
-    <div class="rows">${row({ icon: cfg.judge ? 'check' : 'info', t: cfg.judge ? `Judged by ${esc(cfg.judge)}` : 'Offline keyword judge', d: cfg.judge ? `Voice transcribed by ${esc(cfg.transcribe)}` : cfg.server ? 'Add OPENAI_API_KEY to .env on the server' : 'Run the private server to use OpenAI' })}</div>
+    <div class="rows">${row({ icon: cfg.judge ? 'check' : 'info', t: cfg.judge ? `Judged by ${esc(cfg.judge)}` : 'Offline keyword judge', d: cfg.judge ? (cfg.transcribe ? `Voice transcribed by ${esc(cfg.transcribe)}` : 'Voice: keyboard dictation') : cfg.server ? 'Set OPENAI_API_KEY or OPENAI_BASE_URL in .env on the server' : 'Run the server to use an AI judge' })}</div>
+    <h3>Feel</h3>
+    <div class="frow"><span style="flex:1">Sound</span><button class="switch ${data.settings.sound !== false ? 'on' : ''}" data-act="togglefx" data-k="sound" aria-label="Sound"></button></div>
+    <div class="frow"><span style="flex:1">Motion and confetti</span><button class="switch ${data.settings.motion !== false ? 'on' : ''}" data-act="togglefx" data-k="motion" aria-label="Motion"></button></div>
     <details><summary>More</summary>
       <div class="rows">${row({ icon: 'down', t: 'Export backup', act: 'export' })}${row({ icon: 'up', t: 'Import backup', act: 'import' })}${row({ icon: 'play', t: 'Load demo', act: 'demo' })}${row({ icon: 'trash', t: '<span class="bad">Reset everything</span>', act: 'reset' })}${cfg.login ? row({ icon: 'x', t: 'Log out', act: 'logout' }) : ''}</div>
       <input type="file" id="importfile" accept="application/json,.json" hidden>
@@ -339,9 +388,12 @@ function sProvince() {
     ${here.length ? `<div class="rows">${here.map(frontCard).join('')}</div>` : ''}`];
 }
 function sWelcome() {
-  const L = labels();
-  return ['Your fronts', `<p class="dim">Each border of Iran is one part of your life. Name them, then tell the staff what happened each day.</p>
+  const L = labels(); const cur = PRESETS.find(p => p.id === ui.preset);
+  return ['Your fronts', `<p class="dim">Each border of Iran is one part of your life. Pick a starting point, rename anything, then tell the staff what happened each day.</p>
+    <div class="chips">${PRESETS.map(p => `<button class="chip ${ui.preset === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div>
+    ${cur ? `<p class="faint small">${esc(cur.blurb)}</p>` : ''}
     ${map.fronts.map(f => `<div class="frow" style="--c:${FRONT_COLORS[f.id]}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"></div>`).join('')}
+    ${cur ? `<p class="faint small">Try saying: “${esc(cur.examples[0])}”</p>` : ''}
     <div class="btns"><button class="btn primary" data-act="close">Begin</button></div>`, true];
 }
 
@@ -374,7 +426,7 @@ function toggleMic() {
 }
 // Send: judge the text and apply it straight away. Undo is one tap; History lets you edit.
 async function send() {
-  const r = ui.report; stopDictation();
+  const r = ui.report; stopDictation(); fx.sound('send');
   r.text = ($('#rtext')?.value ?? r.text).trim();
   if (r.text.length < 3) { toast('Say or type what happened first.'); return; }
   r.busy = true; r.pick = false; renderSheet();
@@ -396,22 +448,34 @@ function quick(fid, outcome) {
 }
 
 let lastCommit = [];
+const KIND_RANK = ['empire', 'tehran_fallen', 'tehran_freed', 'satrapy', 'levelup', 'medal', 'operation', 'city_captured', 'city_lost', 'order_done', 'streak', 'normal'];
 export function commitReports(reps, { quiet = false, warning = '' } = {}) {
-  const before = live; const seen = new Set(Object.keys(before.ach));
+  const before = live;
   data.reports.push(...reps); lastCommit = reps.map(r => r.id); persist(); refresh();
   if (quiet) return;
   const entries = live.log.filter(l => lastCommit.includes(l.id)); if (!entries.length) return;
-  const fx = entries.flatMap(e => e.fx), items = entries.flatMap(e => e.items);
-  const medal = MEDALS.find(([id]) => live.ach[id] && !seen.has(id));
-  const pick = fx.find(x => x.tone === 'gold') || fx.find(x => x.city != null) || null;
+  const fxs = entries.flatMap(e => e.fx), items = entries.flatMap(e => e.items);
   const main = items.slice().sort((a, b) => b.severity - a.severity)[0];
   const wins = items.filter(i => i.outcome === 'win').length, losses = items.filter(i => i.outcome === 'loss').length;
-  const extra = fx.filter(x => x !== pick && x.front === main?.front).map(x => x.text).slice(0, 2).join(' · ');
-  if (main) { banner(pick ? pick.text : main.headline, `${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}${main.at != null ? ` at ${map.provinces[main.at].n}` : ''}`, pick?.tone || (wins > losses ? 'good' : losses > wins ? 'bad' : 'gold'), extra); setTimeout(() => view.flyToFront(main.front), 250); }
-  if (before.nation.name !== live.nation.name) setTimeout(() => banner(`Long live the ${live.nation.name}`, 'Every satrapy is restored', 'gold'), 4200);
-  else if (medal) setTimeout(() => banner(medal[1], medal[2], 'gold'), 4200);
+  // the single most important thing that happened decides the banner and the celebration
+  const m = entries.map(momentOf).sort((x, y) => KIND_RANK.indexOf(x.kind) - KIND_RANK.indexOf(y.kind) || y.magnitude - x.magnitude)[0];
+  const xp = entries.reduce((a, e) => a + (e.xp || 0), 0); const combo = entries.at(-1).combo?.mult || 1;
+  const promoted = entries.find(e => e.levelUp)?.levelUp; const medalIds = entries.flatMap(e => e.medals || []);
+  if (main) {
+    const sub = `${labels()[main.front]} · ${main.battle || ACTIONS[main.action].label}${main.at != null ? ` at ${map.provinces[main.at].n}` : ''}`;
+    const extra = fxs.filter(x => x.front === main.front && x.text !== m.title && x.kind !== 'lead').map(x => x.text).slice(0, 2).join(' · ');
+    const big = m.kind !== 'normal' && m.kind !== 'levelup' && m.kind !== 'medal' && m.kind !== 'order_done' && m.kind !== 'streak';
+    banner(big ? m.title : main.headline, sub, big ? m.tone : wins > losses ? 'good' : losses > wins ? 'bad' : 'gold', extra);
+    fx.celebrate({ tone: big ? m.tone : wins >= losses ? 'good' : 'bad', magnitude: big ? m.magnitude : main.severity, kind: big ? m.kind : 'normal', at: null, el: $('#mapwrap') });
+    setTimeout(() => view.flyToFront(main.front), 250);
+  }
+  // rank, decorations and orders get their own beat a few seconds later
+  const later = promoted ? { title: `Promoted to ${promoted.title}`, sub: promoted.gloss, kind: 'levelup' } : medalIds.length ? { title: medalOf(medalIds[0])?.name || 'Decoration awarded', sub: medalOf(medalIds[0])?.desc || '', kind: 'medal' }
+    : before.nation.name !== live.nation.name ? { title: `Long live the ${live.nation.name}`, sub: 'Every satrapy is restored', kind: 'empire' } : entries.some(e => e.allOrders) ? { title: 'All orders carried out', sub: 'Three of three today', kind: 'order_done' } : null;
+  if (later) setTimeout(() => { banner(later.title, later.sub, 'gold'); fx.celebrate({ tone: 'gold', magnitude: later.kind === 'empire' ? 5 : 4, kind: later.kind, at: null }); }, 4300);
+  if (live.dayStreak > before.dayStreak) setTimeout(() => { fx.pulse($('#stats .hot')); if (!later) fx.sound('streak'); }, 900);
   const tally = [wins ? `${wins} win${wins > 1 ? 's' : ''}` : '', losses ? `${losses} loss${losses > 1 ? 'es' : ''}` : ''].filter(Boolean).join(', ') || 'noted';
-  toast(warning ? `Saved with the offline judge · ${tally}` : `Saved · ${tally}`, 7000, { act: 'undo', label: 'Undo' });
+  toast(`${warning ? 'Saved offline' : 'Saved'} · ${tally}${xp ? ` · +${xp} XP` : ''}${combo > 1 ? ` · ×${combo}` : ''}`, 7000, { act: 'undo', label: 'Undo' });
 }
 
 function onClick(e) {
@@ -445,6 +509,9 @@ function onClick(e) {
     case 'replay-play': playReplay(); break;
     case 'replay-exit': exitReplay(); break;
     case 'sharemap': shareMap(); break;
+    case 'sharecard': { const c = cardCache[b.dataset.kind]; if (c) shareCanvas(c, { filename: `artesh-${b.dataset.kind}.png`, text: sitrep(map, live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved. Report copied.'); }); break; }
+    case 'preset': { const p = PRESETS.find(x => x.id === b.dataset.id); if (p) { const a = applyPreset(p); data.labels = a.labels; data.notes = a.notes; data.off = a.off; ui.preset = p.id; persist(); refresh(); renderSheet(); } break; }
+    case 'togglefx': { const k = b.dataset.k; data.settings[k] = data.settings[k] === false; persist(); fx.configure({ sound: data.settings.sound !== false, motion: data.settings.motion !== false }); if (k === 'sound' && data.settings.sound !== false) fx.sound('order'); renderSheet(); break; }
     case 'togglefront': { const id = b.dataset.id; if (data.off.includes(id)) data.off = data.off.filter(x => x !== id); else if (activeFronts().length > 1) data.off.push(id); else { toast('Keep at least one front.'); break; } persist(); refresh(); renderSheet(); break; }
     case 'export': { const blob = new Blob([store.exportData(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); break; }
     case 'import': $('#importfile').click(); break;

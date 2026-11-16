@@ -39,14 +39,17 @@ try {
       await q.screenshot({ path: shots + '00-login.png' });
       await q.fill('#p', 'nope'); await q.click('button'); await q.waitForFunction(() => /Wrong/.test(document.querySelector('#e').textContent));
       await q.fill('#p', 'open sesame'); await q.click('button'); await q.waitForFunction(() => window.__artesh?.st);
-      assert.deepEqual(await q.evaluate(() => window.__artesh.cfg), { server: true, judge: 'gpt-6-luna', transcribe: 'gpt-transcribe', login: true });
+      const cfg = await q.evaluate(() => window.__artesh.cfg); assert.equal(cfg.judge, 'gpt-6-luna'); assert.equal(cfg.transcribe, 'gpt-transcribe'); assert.equal(cfg.login, true); assert.doesNotMatch(JSON.stringify(cfg), /sk-/);
       assert.equal(await q.evaluate(() => JSON.stringify(localStorage).includes('sk-')), false);
     });
     await c0.close();
   }
   let { ctx, p } = await open();
   await step('first run: name your fronts', async () => {
-    assert.equal(await p.textContent('#sheet-title'), 'Your fronts'); await shot(p, '00-welcome');
+    assert.equal(await p.textContent('#sheet-title'), 'Your fronts');
+    assert.ok(await p.locator('[data-act=preset]').count() >= 7); await p.click('[data-act=preset][data-id=founder]');
+    assert.notEqual(await p.inputValue('input[data-id=afg]'), 'School'); await shot(p, '00-welcome');
+    await p.evaluate(() => { const a = window.__artesh; a.data.labels = {}; a.data.notes = {}; a.data.off = []; a.save(); a.refresh(); });
     await p.fill('input[data-id=tur]', 'Guitar'); await p.click('[data-act=close]');
     assert.ok(await p.isHidden('#sheet')); assert.equal(await p.evaluate(() => window.__artesh.data.labels.tur), 'Guitar');
     assert.equal(await p.locator('#nav button').count(), 3);
@@ -66,7 +69,8 @@ try {
     assert.ok(await p.isHidden('#sheet'));
     const s = await st(p); assert.ok(s.fronts.afg.pos > 2); assert.ok(s.fronts.cau.pos > 0); assert.ok(s.fronts.tur.pos < 0);
     assert.equal(s.log, 2, 'yesterday and today are filed on their own days'); assert.equal(s.streak, 2);
-    assert.match(await p.textContent('#toast'), /Saved · 1 win, 2 losses/); assert.equal(mock.seen.at(-1).body.model, 'gpt-6-luna');
+    assert.match(await p.textContent('#toast'), /Saved · 1 win, 2 losses · \+\d+ XP/); assert.ok(s.streak === 2);
+    assert.ok(await p.evaluate(() => window.__artesh.live.commander.xp > 0 && window.__artesh.live.orders.length === 3)); assert.equal(mock.seen.at(-1).body.model, 'gpt-6-luna');
   });
   await p.waitForTimeout(1200); await shot(p, '03-after');
 
@@ -132,10 +136,23 @@ try {
     assert.match(await body(p), /Two hours on the problem set/); assert.match(await body(p), /Order of Zolfaghar/); await shot(p, '15-overview');
   });
 
-  await step('share saves the map and copies the report', async () => {
+  await step('overview shows rank and orders; share cards render and save', async () => {
+    assert.match(await body(p), /XP to/); assert.equal(await p.locator('.orders .ord').count(), 3);
     await p.evaluate(() => { navigator.canShare = undefined; });
-    const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-act=sharemap]')]); const f = shots + 'share.png'; await dl.saveAs(f); assert.ok(fs.statSync(f).size > 50000);
+    await p.click('[data-sheet=share]'); await p.waitForSelector('#th-rank canvas');
+    assert.equal(await p.locator('.cards canvas').count(), 4); await shot(p, '15b-share');
+    const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=frontpage]')]); const f = shots + 'share-frontpage.png'; await dl.saveAs(f); assert.ok(fs.statSync(f).size > 80000);
+    const [d2] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=bulletin]')]); await d2.saveAs(shots + 'share-bulletin.png');
+    const [d3] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=recap]')]); await d3.saveAs(shots + 'share-recap.png');
     await p.waitForTimeout(200); assert.match(await p.evaluate(() => navigator.clipboard.readText()), /Mesopotamian Front \(Startup\)/);
+  });
+
+  await step('ask the staff answers from history; sound can be switched off', async () => {
+    await p.click('#nav [data-sheet=history]'); await p.fill('#askq', 'when did I last report on the startup?'); await p.press('#askq', 'Enter');
+    await p.waitForSelector('.answer'); assert.ok((await p.textContent('.answer')).length > 20); await shot(p, '15c-ask');
+    await p.click('[data-act=askclear]'); assert.equal(await p.locator('.answer').count(), 0);
+    await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); await p.click('[data-act=togglefx][data-k=sound]');
+    assert.equal(await p.evaluate(() => window.__artesh.data.settings.sound), false); await p.click('[data-act=togglefx][data-k=sound]');
   });
 
   await step('backup: export → reset → import', async () => {
