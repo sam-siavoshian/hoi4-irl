@@ -1,0 +1,536 @@
+/* ChoiceCards `sample` (./choice-cards.tsx): the writing style's preset cards,
+ * moved here from components/style/style.css. Raised cards that arrive one
+ * after another, lift and glow under the pointer, press in, and ring and tick
+ * when chosen, all on the motion tokens (design/motion/README.md: they rise
+ * on --motion-rise-after, --motion-stagger apart, rule 3; press to
+ * --press-scale at once, rules 4 and 14; the tick is `motion-appear`, rules
+ * 13 and 18). The type is Zephium's option card's (onboarding Models.svelte:
+ * the title at 15px/500, the body in the body size), the rest as the style
+ * cards were drawn. */
+
+[data-slot="choice-cards"][data-variant="sample"] {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Five across where there is room (first run's wide glass); three in a narrower column (Settings). */
+@container (max-width: 880px) {
+  [data-slot="choice-cards"][data-variant="sample"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* `columns`: a choice of 2 or 4 (how you sound on X), as many across; four go two across in a narrow column. */
+[data-slot="choice-cards"][data-variant="sample"][data-columns="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-slot="choice-cards"][data-variant="sample"][data-columns="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@container (max-width: 560px) {
+  [data-slot="choice-cards"][data-variant="sample"][data-columns="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.choice-sample {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 12px 12px 14px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  animation: choice-in var(--motion-rise-after) var(--ease-emphasized) backwards;
+  animation-delay: calc(var(--motion-stage-delay) + min(var(--i, 0), var(--motion-stagger-cap)) * var(--motion-stagger));
+  transition:
+    translate var(--motion-base) var(--ease-emphasized),
+    scale var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.choice-sample:hover:not(:disabled) {
+  translate: 0 -3px;
+  box-shadow:
+    var(--shadow-float),
+    0 0 0 1px color-mix(in srgb, var(--color-lit) 18%, transparent),
+    0 10px 30px -10px color-mix(in srgb, var(--color-lit) 45%, transparent);
+}
+
+.choice-sample:active:not(:disabled) {
+  translate: 0 0;
+  scale: var(--press-scale);
+  transition-duration: 0ms;
+}
+
+.choice-sample:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
+.choice-sample:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.choice-sample[aria-checked="true"] {
+  background: color-mix(in srgb, var(--color-card) 82%, var(--color-lit) 6%);
+  box-shadow:
+    inset 0 0 0 2px var(--color-lit),
+    var(--shadow-float);
+}
+
+[data-slot="choice-sample-title"] {
+  font-size: var(--text-reading);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* Who it suits: two lines, always, so the cards' tastes line up. */
+[data-slot="choice-sample-sub"] {
+  display: -webkit-box;
+  min-block-size: 2lh;
+  margin-block-start: -2px;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The taste: how it opens (bold), one sentence, how it signs off. */
+[data-slot="choice-sample-quote"] {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: var(--radius-control-compact);
+  background: var(--color-fill);
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
+  font-size: var(--text-label);
+  line-height: 1.4;
+}
+
+[data-slot="choice-sample-quote"] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-slot="choice-sample-quote"] > span:first-child {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+[data-slot="choice-sample-quote"] > span:nth-child(2) {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-slot="choice-sample-tags"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-block-start: auto;
+}
+
+[data-slot="choice-sample-tags"] > span {
+  padding: 1px 6px;
+  border-radius: var(--radius-capsule);
+  background: var(--color-fill);
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* The radio: an empty ring, filled with a tick once chosen. */
+[data-slot="choice-sample-radio"] {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: var(--radius-capsule);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-text) 28%, transparent);
+  color: transparent;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+
+[data-slot="choice-sample-radio"] svg {
+  inline-size: 12px;
+  block-size: 12px;
+}
+
+.choice-sample:hover [data-slot="choice-sample-radio"] {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.choice-sample[aria-checked="true"] [data-slot="choice-sample-radio"] {
+  background: var(--color-lit);
+  box-shadow: none;
+  color: var(--color-on-lit, var(--color-background));
+}
+
+/* A card or a tile arriving: it rises a little as it fades in (none of the
+   way under reduced motion: --motion-travel is 0 there). */
+@keyframes choice-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--enter-distance) * var(--motion-travel));
+  }
+}
+
+/* Narrow: the cards scroll sideways, one and a bit at a time. */
+@media (max-width: 639px) {
+  [data-slot="choice-cards"][data-variant="sample"] {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 2px;
+    margin-inline: -4px;
+    padding: 4px 4px 10px;
+    scrollbar-width: none;
+  }
+
+  [data-slot="choice-cards"][data-variant="sample"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  .choice-sample {
+    flex: 0 0 74%;
+    scroll-snap-align: start;
+  }
+}
+
+:root[data-motion="reduce"] .choice-sample {
+  animation: none;
+  transition: none;
+}
+
+/* ChoiceCards `thumbs` and `swatches` (Make your pal): a row of small tiles, a
+ * picture each, and a row of round paints. The chosen tile stands on the
+ * surface with the theme cards' 2px ring in the lit ink; the rest are quiet
+ * on the fill. Both press to --press-scale, as every button does. */
+
+.choice-thumb {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 8.5rem;
+  padding: 8px 4px 6px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-fill);
+  color: var(--color-muted);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    scale var(--motion-fast) var(--ease-out);
+}
+
+.choice-thumb:hover:not(:disabled) {
+  background: var(--color-fill-hover);
+  color: var(--color-text);
+}
+
+.choice-thumb:active:not(:disabled),
+.choice-swatch:active:not(:disabled) {
+  scale: var(--press-scale);
+  transition-duration: 0ms;
+}
+
+.choice-thumb:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.choice-thumb[aria-checked="true"] {
+  background: var(--color-surface);
+  box-shadow:
+    inset 0 0 0 2px var(--color-lit),
+    var(--shadow-raised);
+  color: var(--color-text);
+}
+
+[data-slot="choice-thumb-picture"] {
+  display: grid;
+  place-items: center;
+  block-size: 40px;
+  transition: translate var(--motion-base) var(--ease-emphasized);
+}
+
+.choice-thumb:hover [data-slot="choice-thumb-picture"],
+.choice-swatch:hover [data-slot="choice-swatch-paint"] {
+  translate: 0 -1px;
+}
+
+:is([data-slot="choice-thumb-label"], [data-slot="choice-swatch-label"]) {
+  max-inline-size: 100%;
+  overflow: hidden;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choice-swatch {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 4.5rem;
+  padding: 6px 2px 4px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    scale var(--motion-fast) var(--ease-out);
+}
+
+.choice-swatch:hover:not(:disabled),
+.choice-swatch[aria-checked="true"] {
+  color: var(--color-text);
+}
+
+.choice-swatch:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 0;
+}
+
+/* The paint, lit from the top like the faces; once chosen, a ring of the lit ink a step out from it. */
+[data-slot="choice-swatch-paint"] {
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--radius-capsule);
+  background:
+    radial-gradient(circle at 34% 28%, color-mix(in srgb, white 55%, transparent), transparent 58%),
+    var(--swatch, var(--color-fill-strong));
+  box-shadow: inset 0 -2px 4px color-mix(in srgb, black 14%, transparent);
+  transition:
+    box-shadow var(--motion-fast) var(--ease-out),
+    translate var(--motion-base) var(--ease-emphasized);
+}
+
+.choice-swatch[aria-checked="true"] [data-slot="choice-swatch-paint"] {
+  box-shadow:
+    inset 0 -2px 4px color-mix(in srgb, black 14%, transparent),
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-lit);
+}
+
+:root[data-motion="reduce"] :is(.choice-thumb, .choice-swatch, [data-slot="choice-thumb-picture"], [data-slot="choice-swatch-paint"]) {
+  transition: none;
+}
+
+/* ChoiceCards and ChoiceToggles `tiles` (About you): a grid of small cards, an
+ * icon and a few words each, on the writing style's cards' surface (the card
+ * fill and the raised shadow, so they stand evenly off any glass, day or
+ * night). Three across, two on a phone; every tile in a row the same height.
+ * The chosen ones say so three ways: a tint of the lit ink, its 2px ring all
+ * round (the theme cards' and the style cards'), and a tick on the icon's
+ * well, which turns lit. They arrive one after another (on --motion-rise-after,
+ * --motion-stagger apart; a group after another sets --choice-from to the
+ * count of tiles before it, so a page of questions arrives as one list), lift
+ * a pixel under the pointer, press to --press-scale, and the tick appears with
+ * `motion-appear` (./choice-cards.tsx). */
+
+:is([data-slot="choice-cards"], [data-slot="choice-toggles"])[data-variant="tiles"] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 639px) {
+  :is([data-slot="choice-cards"], [data-slot="choice-toggles"])[data-variant="tiles"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.choice-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-block-size: 40px;
+  padding: 6px 12px 6px 6px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  animation: choice-in var(--motion-rise-after) var(--ease-emphasized) backwards;
+  animation-delay: calc(
+    var(--motion-stage-delay) + min(var(--choice-from, 0) + var(--i, 0), var(--motion-stagger-cap)) * var(--motion-stagger)
+  );
+  transition:
+    translate var(--motion-base) var(--ease-emphasized),
+    scale var(--motion-press) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.choice-tile[data-size="lg"] {
+  min-block-size: 44px;
+  padding-block: 6px;
+  font-size: 14px;
+}
+
+.choice-tile:hover:not(:disabled) {
+  translate: 0 -1px;
+  box-shadow: var(--shadow-float);
+}
+
+.choice-tile:active:not(:disabled) {
+  translate: 0 0;
+  scale: var(--press-scale);
+  transition-duration: 0ms;
+}
+
+.choice-tile:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.choice-tile:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.choice-tile:is([aria-checked="true"], [aria-pressed="true"]) {
+  background: color-mix(in srgb, var(--color-card) 94%, var(--color-lit) 6%);
+  box-shadow:
+    inset 0 0 0 2px var(--color-lit),
+    var(--shadow-raised);
+}
+
+.choice-tile:is([aria-checked="true"], [aria-pressed="true"]):hover:not(:disabled) {
+  box-shadow:
+    inset 0 0 0 2px var(--color-lit),
+    var(--shadow-float);
+}
+
+/* The icon's well: quiet on the fill, lit once chosen. */
+[data-slot="choice-tile-icon"] {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: var(--radius-control-compact);
+  background: var(--color-fill);
+  color: var(--color-muted);
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+
+.choice-tile[data-size="lg"] [data-slot="choice-tile-icon"] {
+  inline-size: 32px;
+  block-size: 32px;
+}
+
+[data-slot="choice-tile-icon"] > svg {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.choice-tile:hover:not(:disabled, [aria-checked="true"], [aria-pressed="true"]) [data-slot="choice-tile-icon"] {
+  color: var(--color-text);
+}
+
+.choice-tile:is([aria-checked="true"], [aria-pressed="true"]) [data-slot="choice-tile-icon"] {
+  background: var(--color-lit);
+  color: var(--color-on-lit);
+}
+
+/* The tick, on the well's corner, ringed in the surface so it reads on the lit
+   well. Drawn only once chosen, arriving as a crossfade's new icon does
+   (`motion-appear`, rule 18): no spring (rule 13). */
+[data-slot="choice-tile-tick"] {
+  position: absolute;
+  inset-block-end: -4px;
+  inset-inline-end: -4px;
+  display: grid;
+  place-items: center;
+  inline-size: 16px;
+  block-size: 16px;
+  border-radius: var(--radius-capsule);
+  background: var(--color-lit);
+  box-shadow: 0 0 0 2px var(--color-surface);
+  color: var(--color-on-lit);
+}
+
+[data-slot="choice-tile-tick"] > svg {
+  inline-size: 10px;
+  block-size: 10px;
+}
+
+/* A few words, never cut short: on a phone's narrow tiles they wrap. */
+[data-slot="choice-tile-label"] {
+  min-width: 0;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+/* A phone: the well and the words a step smaller, so most answers keep to two lines. */
+@media (max-width: 639px) {
+  .choice-tile,
+  .choice-tile[data-size="lg"] {
+    gap: 8px;
+    padding-inline-end: 10px;
+    font-size: var(--text-body);
+  }
+
+  .choice-tile[data-size="lg"] [data-slot="choice-tile-icon"] {
+    inline-size: 28px;
+    block-size: 28px;
+  }
+}
+
+:root[data-motion="reduce"] :is(.choice-tile, [data-slot="choice-tile-icon"]) {
+  transition: none;
+}

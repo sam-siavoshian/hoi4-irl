@@ -1,0 +1,360 @@
+/* SuggestionCard, SuggestionCardSkeleton and SuggestionGrid (./suggestion-card.tsx):
+ * an idea on the sky, as a card of liquid glass.
+ *
+ * The sheet is the sky's own (Zephium's --sky-card, --sky-card-rim and
+ * --sky-card-edge, design/zephium/material.css; white over the day, deep blue
+ * over the night), thinned so the sky shows through in colour, with the
+ * sky-glass blur (design/morrow/effects.css). On it: a sheen falling from the
+ * top edge, a rim lit at the top-left and the bottom-right (the beam's mask,
+ * effects.css `beam-edge`, held still), and a highlight under the pointer
+ * (--spot-x, --spot-y, set by the card). Zephium's curves and durations
+ * (design/motion/tokens.css); the press is the kit's (--press-scale, instant
+ * down, eased back over --motion-press: design/motion/README.md rules 4 and
+ * 14); they arrive 30ms apart after the page (rule 3). */
+
+.suggestion-grid {
+  container: suggestions / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Centred under the hero, over the open sky rather than the cloud bank at the sides. */
+.suggestion-grid-heading {
+  padding-inline: 4px;
+  color: var(--sky-ink);
+  text-align: center;
+  font-size: var(--text-label);
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  text-shadow: var(--sky-text-shadow-firm);
+}
+
+.suggestion-grid-track {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@container suggestions (min-width: 30rem) {
+  .suggestion-grid-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+/* A single card (an example to try) takes the whole row. */
+@container suggestions (min-width: 30rem) {
+  .suggestion-grid-track[data-count="1"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Three across where the column allows; exactly four stay two by two. */
+@container suggestions (min-width: 42rem) {
+  .suggestion-grid-track:not([data-count="4"], [data-count="1"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.suggestion-card {
+  --spot-x: 22%;
+  --spot-y: 0%;
+  --liquid-fill: color-mix(in srgb, var(--sky-card) 74%, transparent);
+  --liquid-fill-hover: color-mix(in srgb, var(--sky-card) 90%, transparent);
+  --liquid-sheen: color-mix(in srgb, var(--sky-card-rim) 42%, transparent);
+  --liquid-rim: var(--sky-card-rim);
+  --liquid-spot: rgb(255 255 255 / 0.62);
+  --liquid-drop: 0 1px 2px color-mix(in srgb, var(--sky-shadow) 55%, transparent),
+    0 14px 34px -16px var(--sky-shadow);
+  --liquid-drop-lifted: 0 2px 6px color-mix(in srgb, var(--sky-shadow) 55%, transparent),
+    0 24px 48px -18px var(--sky-shadow);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 8.25rem;
+  padding: 14px 16px 15px;
+  border: 0;
+  border-radius: var(--radius-panel);
+  background-color: var(--liquid-fill);
+  background-image: linear-gradient(to bottom, var(--liquid-sheen), transparent 58%);
+  box-shadow:
+    inset 0 0 0 0.5px var(--sky-card-edge),
+    inset 0 1px 0 var(--liquid-rim),
+    var(--liquid-drop);
+  -webkit-backdrop-filter: blur(24px) saturate(1.45);
+  backdrop-filter: blur(24px) saturate(1.45);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: suggestion-card-in var(--motion-rise-after) var(--ease-emphasized) backwards;
+  animation-delay: calc(var(--motion-rise-after-delay) + min(var(--i, 0), var(--motion-stagger-cap)) * var(--motion-stagger));
+  transition:
+    translate var(--motion-base) var(--ease-emphasized),
+    scale var(--motion-press) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+[data-sky="night"] .suggestion-card {
+  --liquid-spot: rgb(176 196 238 / 0.16);
+}
+
+/* The highlight under the pointer. */
+.suggestion-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(14rem circle at var(--spot-x) var(--spot-y), var(--liquid-spot), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-slow) var(--ease-out);
+}
+
+/* The rim: light caught at the top-left edge and, fainter, the bottom-right. */
+.suggestion-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    140deg,
+    var(--liquid-rim) 0%,
+    transparent 32%,
+    transparent 68%,
+    color-mix(in srgb, var(--liquid-rim) 50%, transparent) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .suggestion-card:not([data-skeleton], [data-static]):hover {
+    translate: 0 -2px;
+    background-color: var(--liquid-fill-hover);
+    box-shadow:
+      inset 0 0 0 0.5px var(--sky-card-edge),
+      inset 0 1px 0 var(--liquid-rim),
+      var(--liquid-drop-lifted);
+  }
+
+  .suggestion-card:not([data-skeleton], [data-static]):hover::before {
+    opacity: 1;
+  }
+}
+
+.suggestion-card:focus-visible {
+  translate: 0 -2px;
+  background-color: var(--liquid-fill-hover);
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+
+.suggestion-card:not([data-skeleton], [data-static]):active {
+  translate: 0 0;
+  scale: var(--press-scale);
+  transition-duration: 0ms;
+}
+
+.suggestion-card:is([data-skeleton], [data-static]) {
+  cursor: default;
+}
+
+/* FeatureCard: the same glass, read rather than pressed, its words never cut short. */
+.suggestion-card[data-static] .suggestion-card-title,
+.suggestion-card[data-static] .suggestion-card-line {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.suggestion-card[data-static] {
+  min-height: 0;
+}
+
+.suggestion-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suggestion-card-well {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  box-shadow:
+    inset 0 0 0 0.5px color-mix(in srgb, currentColor 16%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+
+.suggestion-card-well svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
+.suggestion-card-mark {
+  display: inline-flex;
+  padding-top: 2px;
+  opacity: 0.9;
+}
+
+.suggestion-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.suggestion-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--text-reading);
+  font-weight: 560;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.suggestion-card-line {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.suggestion-card-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  color: var(--color-text);
+  font-size: var(--text-label);
+  font-weight: 560;
+  opacity: 0.82;
+}
+
+.suggestion-card-note svg {
+  width: 14px;
+  height: 14px;
+  transition: translate var(--motion-base) var(--ease-emphasized);
+}
+
+@media (hover: hover) {
+  .suggestion-card:hover .suggestion-card-note svg:last-child {
+    translate: 2px 0;
+  }
+}
+
+/* A phone's single column: the card on its side, the well beside the words. */
+@container suggestions (max-width: 29.99rem) {
+  .suggestion-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "well body mark"
+      "well note note";
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+    min-height: 0;
+    padding: 12px 14px 13px 12px;
+    border-radius: var(--radius-card);
+  }
+
+  .suggestion-card:not([data-needs]) {
+    grid-template-areas: "well body mark";
+  }
+
+  .suggestion-card[data-static] {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "well body";
+  }
+
+  .suggestion-card-head {
+    display: contents;
+  }
+
+  .suggestion-card-well {
+    grid-area: well;
+  }
+
+  .suggestion-card-mark {
+    grid-area: mark;
+  }
+
+  .suggestion-card-body {
+    grid-area: body;
+    gap: 2px;
+  }
+
+  .suggestion-card-note {
+    grid-area: note;
+    margin-top: 0;
+  }
+}
+
+@keyframes suggestion-card-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(10px * var(--motion-travel));
+    scale: calc(1 - 0.015 * var(--motion-travel));
+  }
+}
+
+:root[data-motion="reduce"] .suggestion-card {
+  animation: none;
+  transition: none;
+}
+
+:root[data-motion="reduce"] .suggestion-card:hover,
+:root[data-motion="reduce"] .suggestion-card:focus-visible {
+  translate: none;
+}
+
+@media (forced-colors: active) {
+  .suggestion-card {
+    border: 1px solid ButtonText;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .suggestion-card::before,
+  .suggestion-card::after {
+    display: none;
+  }
+}

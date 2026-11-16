@@ -1,0 +1,40 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Adapted from zephium-browser/Zephium frame/src/styles/global.css
+ * (https://github.com/zephium-browser/Zephium): how the body sets its type,
+ * the selection, and the legibility of text on a native material.
+ * Changes: only the type-rendering lines of `body` are taken. Zephium's body
+ * ground, colour, face and 13px size are not: ../t3code/theme.css and
+ * ../bridge.css own those here. `font-synthesis` keeps `style`, where Zephium says
+ * `none`: Zephium only ever draws the platform's faces, which have real
+ * italics, while app/ui bundles Inter Variable without an italic face, and
+ * `none` would set every <em> upright off the Mac. The
+ * `[data-palette]` variants of the glass-text rule are left out: Lanes has no
+ * palette axis (no `--seed-fg`).
+ */
+
+body {
+  font-synthesis: style;
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+/* Native material samples arbitrary content. Keep text stronger than on solid
+   surfaces, with hierarchy carried by shape and weight rather than opacity. */
+:root[data-material="liquid_glass"] :is(.browser-sidebar, [data-glass-text]) {
+  --color-muted: rgb(244 244 246 / 0.78);
+  --color-faint: rgb(244 244 246 / 0.55);
+}
+:root[data-material="liquid_glass"][data-theme="light"] :is(.browser-sidebar, [data-glass-text]) {
+  --color-muted: rgb(27 28 33 / 0.72);
+  --color-faint: rgb(27 28 33 / 0.55);
+}

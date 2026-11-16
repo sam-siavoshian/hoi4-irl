@@ -50,8 +50,8 @@ test.before(async () => {
 test.after(() => { for (const p of procs) p.kill(); mock.close(); mock2.close(); for (const d of [dir, dirChat, dirLocal, home]) fs.rmSync(d, { recursive: true, force: true }); });
 
 test('nothing is served without the password', async () => {
-  for (const p of ['/', '/js/app.js', '/data/maps/iran.json', '/css/style.css', '/sw.js']) { const r = await req(p); assert.equal(r.status, 401, p); }
-  const home = await (await req('/')).text(); assert.match(home, /type="password"/); assert.doesNotMatch(home, /mapwrap/);
+  for (const p of ['/', '/index.html', '/assets/index.js', '/theme-boot.js', '/data/maps/iran.json', '/sw.js']) { const r = await req(p); assert.equal(r.status, 401, p); }
+  const home = await (await req('/')).text(); assert.match(home, /type="password"/); assert.doesNotMatch(home, /id="root"|assets\//);
   for (const p of ['/api/state', '/api/config', '/api/llm', '/api/transcribe']) assert.equal((await req(p, { method: p === '/api/llm' ? 'POST' : 'GET' })).status, 401, p);
   for (const [p, method] of [['/api/report', 'POST'], ['/api/sitrep', 'GET'], ['/api/journal', 'GET'], ['/api/state', 'PUT'], ['/api/transcribe', 'POST']]) assert.equal((await req(p, { method })).status, 401, p);
   assert.match(await (await req('/robots.txt')).text(), /Disallow: \//);
@@ -68,7 +68,12 @@ test('secrets and private files are never served, even when signed in', async ()
   assert.equal((await req('/api/login', { method: 'POST', body: JSON.stringify({ password: 'wrong' }) })).status, 401);
   const ok = await req('/api/login', { method: 'POST', body: JSON.stringify({ password: 'open sesame' }) }); assert.equal(ok.status, 200);
   const sc = ok.headers.get('set-cookie'); assert.match(sc, /HttpOnly/); assert.match(sc, /SameSite=Lax/); cookie = sc.split(';')[0];
-  assert.equal((await req('/')).status, 200); assert.match(await (await req('/')).text(), /mapwrap/);
+  assert.equal((await req('/')).status, 200); const app = await (await req('/')).text(); assert.match(app, /id="root"/);
+  // the built interface: hashed files under assets/, the theme boot script and the service worker, and nothing beside them
+  const assets = [...app.matchAll(/(?:src|href)="\.\/(assets\/[^"]+)"/g)].map(m => '/' + m[1]); assert.ok(assets.some(a => a.endsWith('.js')) && assets.some(a => a.endsWith('.css')), 'index.html names its script and stylesheet');
+  for (const a of assets) { const r = await req(a); assert.equal(r.status, 200, a); assert.match(r.headers.get('cache-control'), /immutable/); assert.equal(r.headers.get('x-content-type-options'), 'nosniff'); }
+  assert.equal((await req('/theme-boot.js')).status, 200); const sw = await req('/sw.js'); assert.equal(sw.status, 200); assert.match(await sw.text(), /assets\/index-[\w-]+\.js/);
+  for (const p of ['/assets/', '/assets/%2e%2e/%2e%2e/.env', '/assets/..%2f..%2fserver.mjs', '/dist/index.html', '/src/main.jsx', '/src/core.js', '/js/engine.js', '/vendor/design-system/package.json', '/vite.config.js', '/node_modules/vite/package.json']) assert.equal((await req(p)).status, 404, p);
   for (const p of ['/.env', '/.env.example', '/server.mjs', '/server/llm.mjs', '/server/storage.mjs', '/bin/artesh.mjs', '/private/state.json', '/private/sessions.json', '/private/journal.ndjson', '/journal.ndjson', '/backups/state-2020-02-01.json', '/package.json', '/js/../.env', '/tests/e2e.mjs', '/.git/config']) assert.equal((await req(p)).status, 404, p);
   const cfg = await (await req('/api/config')).json();
   assert.deepEqual(cfg, { server: true, judge: 'gpt-6-luna', transcribe: 'gpt-transcribe', login: true, provider: '127.0.0.1', api: 'responses' });
@@ -141,7 +146,7 @@ test('the first save of the day keeps a dated backup; only the newest 30 are kep
 
 test('the automation token opens /api/report, /api/sitrep and /api/journal — and nothing else', async () => {
   assert.equal((await bearer('/api/sitrep')).status, 200); assert.equal((await bearer('/api/journal')).status, 200);
-  for (const p of ['/', '/js/app.js', '/api/state', '/api/config', '/data/maps/iran.json']) assert.equal((await bearer(p)).status, 401, p);
+  for (const p of ['/', '/assets/index.js', '/api/state', '/api/config', '/data/maps/iran.json']) assert.equal((await bearer(p)).status, 401, p);
   assert.equal((await bearer('/api/llm', { method: 'POST', body: '{}' })).status, 401); assert.equal((await bearer('/api/transcribe', { method: 'POST', body: 'x' })).status, 401);
   assert.equal((await bearer('/api/state', { method: 'PUT', body: JSON.stringify({ rev: 5, data: { reports: [] } }) })).status, 401);
   for (const t of ['wrong-token-0123456789abcdef', TOKEN + 'x', TOKEN.slice(0, -1), 'open sesame']) { assert.equal((await bearer('/api/sitrep', {}, t)).status, 401); assert.equal((await report('I failed my exam', t)).status, 401); }

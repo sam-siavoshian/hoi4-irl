@@ -1,0 +1,142 @@
+/* The sky. From sam-siavoshian/morrow (the owner's own repo):
+ *
+ *   web/src/components/sky/static-sky.module.css   .sky-baked and .sky-frost (was .baked/.frost)
+ *   web/src/app/globals.css                        --sky-baked/-narrow/-frost per scene, the dawn values
+ *   web/public/sky/*                               the pictures in ./sky, unchanged
+ *
+ * Morrow places the picture after Zephium's new-tab mockup; the glass that
+ * stands on it (--sky-card, --sky-shadow...) is Zephium's, in
+ * ../zephium/material.css, and the values below are Morrow's where they
+ * differ. Changes: the scene is `data-sky` on any element (on <html> by the
+ * clock, see ./scenes.ts) rather than Morrow's data-theme, because Lanes keeps
+ * light/dark and the sky apart, so a scene names its own paper (--sky-paper,
+ * Morrow's --color-ground) and its night float shadow; the pictures are
+ * bundled from ./sky rather than served from /sky; and with forced colours
+ * the pictures are not drawn.
+ */
+
+:root,
+[data-sky="day"] {
+  --sky-paper: #f7f7f8;
+  --sky-baked: image-set(
+    url("./sky/day-baked-2200.avif") type("image/avif"),
+    url("./sky/day-baked-2200.jpg") type("image/jpeg")
+  );
+  --sky-baked-narrow: image-set(
+    url("./sky/day-baked-1200.avif") type("image/avif"),
+    url("./sky/day-baked-1200.jpg") type("image/jpeg")
+  );
+  --sky-frost: url("./sky/frost-day.png");
+}
+
+/* Dawn: the day ladder shifted onto the dawn paper (#f2f0fa), same steps. */
+[data-sky="dawn"] {
+  --sky-paper: #f2f0fa;
+  --sky-shadow: rgb(27 41 88 / 22%);
+  --sky-lip: var(--sky-day-lip);
+  --sky-card: var(--sky-day-card);
+  --sky-card-rim: var(--sky-day-card-rim);
+  --sky-card-edge: var(--sky-day-card-edge);
+  --sky-baked: image-set(
+    url("./sky/dawn-baked-2200.avif") type("image/avif"),
+    url("./sky/dawn-baked-2200.jpg") type("image/jpeg")
+  );
+  --sky-baked-narrow: image-set(
+    url("./sky/dawn-baked-1200.avif") type("image/avif"),
+    url("./sky/dawn-baked-1200.jpg") type("image/jpeg")
+  );
+  --sky-frost: url("./sky/frost-dawn.png");
+}
+
+[data-sky="night"] {
+  --sky-paper: #1a1d25;
+  --sky-baked: image-set(
+    url("./sky/night-baked-2200.avif") type("image/avif"),
+    url("./sky/night-baked-2200.jpg") type("image/jpeg")
+  );
+  --sky-baked-narrow: image-set(
+    url("./sky/night-baked-1200.avif") type("image/avif"),
+    url("./sky/night-baked-1200.jpg") type("image/jpeg")
+  );
+  --sky-frost: url("./sky/frost-night.png");
+}
+
+/* Ink and veils for things standing on the sky (Morrow globals.css); the ink
+   on a white sky control and its hover are Morrow's, not Zephium's. */
+:root {
+  --sky-on-ink: rgb(11 31 54);
+  --sky-ink-hover: rgb(238 244 251);
+  --sky-veil: rgb(18 52 96 / 0.24);
+  --sky-veil-hover: rgb(18 52 96 / 0.32);
+  --sky-veil-rim: inset 0 0 0 0.5px rgb(255 255 255 / 0.45);
+  --sky-text-shadow: 0 1px 16px rgb(20 60 110 / 0.32);
+  /* Lanes: a firmer halo and veil for small numbers over bright cloud (the
+     Agents window's header). Not Morrow's. */
+  --sky-text-shadow-firm: 0 0 2px rgb(11 31 54 / 0.6), 0 1px 12px rgb(11 31 54 / 0.55);
+  --sky-veil-firm: rgb(11 31 54 / 0.4);
+  --sky-float-shadow: 0 18px 50px rgb(8 20 40 / 0.18);
+}
+
+/* After :root, so they win on <html> too, where the clock puts data-sky. */
+[data-sky="dawn"] {
+  --sky-float-shadow: 0 18px 50px rgb(36 28 84 / 0.18);
+}
+
+[data-sky="night"] {
+  --sky-float-shadow: 0 18px 50px rgb(8 20 40 / 0.32);
+}
+
+/* Placement from Zephium's new-tab mockup (website/components/scene/new-tab.module.css):
+   the picture is wide enough that its horizon, 38.83% of its width down,
+   lands on --horizon and the top never shows the page. */
+.sky-baked {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: size;
+  background: var(--sky-paper);
+  pointer-events: none;
+}
+
+.sky-baked::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(var(--horizon, 60) * 1cqh - max(100cqw, calc(var(--horizon, 60) / 0.3883 * 1cqh)) * 0.3883);
+  width: max(100cqw, calc(var(--horizon, 60) / 0.3883 * 1cqh));
+  aspect-ratio: 2200 / 1238;
+  translate: -50% 0;
+  background: var(--sky-baked) 50% 50% / 100% 100% no-repeat;
+}
+
+@media (max-width: 899px) {
+  .sky-baked::before {
+    background-image: var(--sky-baked-narrow);
+  }
+}
+
+.sky-baked[data-arrive]::before {
+  animation: sky-fade calc(var(--motion-page) * 3) var(--ease-out) backwards;
+}
+
+/* Frosted glass for free: the sky pre-blurred to 192x108 and stretched over the box. */
+.sky-frost {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-canvas) var(--sky-frost) 50% 50% / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+@keyframes sky-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .sky-baked::before,
+  .sky-frost {
+    display: none;
+  }
+}

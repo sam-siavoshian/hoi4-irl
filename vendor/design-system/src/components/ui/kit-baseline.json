@@ -1,0 +1,13 @@
+{
+  "about": "Hand-rolled building blocks outside the kit, per rule and file, as of 2026-11-03 (src/components/ui/kit.test.ts). Counts only go down: LANES_KIT_BASELINE=shrink npm --prefix app test. app/ui/COMPONENTS.md, Migration, lists each one and the kit component that replaces it.",
+  "rules": {
+    "raw-button": {},
+    "raw-input": {},
+    "raw-textarea": {},
+    "hex-colour": {},
+    "rgb-colour": {},
+    "inline-style-colour": {},
+    "arbitrary-value": {},
+    "local-spinner": {}
+  }
+}

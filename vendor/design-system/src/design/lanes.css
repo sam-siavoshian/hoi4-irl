@@ -1,0 +1,111 @@
+/* Lanes' own named values: the sizes, insets and glows the screens used to
+ * write as arbitrary Tailwind values (`h-[var(--workspace-topbar-height)]`,
+ * `text-[13px]`, `bg-[radial-gradient(...)]`). Each keeps the number the
+ * screen had, under a name, so a screen says `h-topbar` or `text-hero`
+ * (app/ui/COMPONENTS.md, Migration; src/components/ui/kit.test.ts). New
+ * names for the type scale and the curves are registered with
+ * tailwind-merge in ../lib/utils.ts, so cn() never mistakes them for a
+ * colour.
+ *
+ * Where each number came from is said beside it. Nothing here is copied
+ * from the sources; it is the geometry of Lanes' own screens.
+ */
+
+@theme inline reference {
+  /* The titlebar band (t3code's --workspace-* geometry, ./t3code/theme.css),
+     as the shell's header, sidebar brand and floating toggle place
+     themselves. `*-inner` measures from inside the device's safe area. */
+  --spacing-topbar: var(--workspace-topbar-height);
+  --spacing-titlebar-content: var(--workspace-titlebar-content-left);
+  --inset-controls-y: var(--workspace-controls-top);
+  --inset-controls-x: var(--workspace-controls-left);
+  --inset-controls-y-inner: calc(var(--workspace-controls-top) - env(safe-area-inset-top));
+  --spacing-controls-x-inner: calc(var(--workspace-controls-left) + 1px - env(safe-area-inset-left));
+
+  /* The command palette's heights (components/shell/CommandPaletteContent.tsx). */
+  --spacing-palette: min(34rem, 76vh);
+  --spacing-palette-list: min(28rem, 70vh);
+
+  /* The chat's column: the reading width plus its gutters, the hero's
+     breathing room above, and the composer's foot over the safe area
+     (screens/chat/ChatScreen.tsx). */
+  --spacing-chat-column: calc(var(--chat-content-max-width) + 2rem);
+  /* The main page with its ideas: wider than the conversation, so three
+     cards across keep their lines to two and both rows stand above the
+     composer on a laptop (components/chat/ChatSuggestions.tsx). */
+  --spacing-ideas-column: 58rem;
+  --spacing-hero-top: max(1.5rem, min(10vh, 6rem));
+  --spacing-composer-foot: calc(env(safe-area-inset-bottom) + 1rem);
+  --spacing-composer-fade: calc(env(safe-area-inset-bottom) + 2.5rem);
+  /* The prompt grows with what is typed, to 40% of the window (components/ui/composer-prompt.tsx). */
+  --spacing-prompt-max: 40vh;
+  /* Find in the chat: 22rem, or the column less its gutters (components/chat/ChatFindBar.tsx). */
+  --spacing-find-bar: min(22rem, calc(100% - 1.5rem));
+  /* A banner's list over the composer (components/chat/ComposerBanners.tsx, ContextPicker.tsx). */
+  --spacing-banner-list: min(12rem, 30dvh);
+
+  /* The Agents window's inspector: wide, never past the window's gutters
+     (components/agents/AgentInspector.tsx). */
+  --spacing-inspector: min(72rem, calc(100vw - 2rem));
+
+  /* Type: the chat's hero on the sky and its lede (screens/chat/ChatScreen.tsx),
+     the Agents window's big number (components/agents/CampaignTotals.tsx),
+     and a screen header's title at opencode's size, weight and tracking
+     (packages/app/src/session/session-identity-header.tsx: 13px, 530, -0.04px). */
+  --text-hero: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+  --text-hero--line-height: 1.08;
+  --text-hero--letter-spacing: -0.035em;
+  --text-lede: 14.5px;
+  --text-lede--line-height: 1.5;
+  --text-figure: 2.75rem;
+  --text-figure--line-height: 1;
+  --text-figure--letter-spacing: -0.04em;
+  --font-weight-header: 530;
+  --tracking-header: -0.04px;
+
+  /* A state's ink on a dark chip over an agent's live frame (components/agents/
+     StateBadge.tsx): the hue lifted toward white so it reads on black. */
+  --color-success-on-dark: color-mix(in srgb, var(--color-success) 70%, white);
+  --color-danger-on-dark: color-mix(in srgb, var(--color-danger) 70%, white);
+}
+
+/* A soft deep-sky veil behind words standing on the sky, so they read over
+   bright cloud: the chat's hero (a wide one) and the Agents window's totals
+   (a firm one). Put on the words' box; it draws behind them. The firm one
+   stays inside that box and fades out before its edges (give the box padding
+   to fade in): it stands in a sideways scroller, which clips both axes, and
+   a veil reaching past the box was cut into a hard rectangle there. */
+@utility sky-veil-glow {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -30% -10%;
+    z-index: -10;
+    pointer-events: none;
+    background: radial-gradient(closest-side, var(--sky-veil), transparent);
+  }
+}
+
+@utility sky-veil-glow-firm {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -10;
+    pointer-events: none;
+    background: radial-gradient(closest-side, var(--sky-veil-firm), transparent);
+  }
+}
+
+/* t3code's virtualizer fade (./t3code/theme.css `virtualized-scroll-fade`)
+   from the top edge, 1.25rem deep: the Agents window's grid, whose tiles
+   scrolled up under the totals fade instead of being cut. */
+@utility virtualized-scroll-fade-top {
+  --fade-size: 1.25rem;
+  --virtualized-scroll-fade-mask: linear-gradient(to bottom, transparent, black var(--fade-size));
+}
+
+/* A scroller that keeps its scrollbar's room, so rows never shift when it appears. */
+@utility scrollbar-stable {
+  scrollbar-gutter: stable;
+}

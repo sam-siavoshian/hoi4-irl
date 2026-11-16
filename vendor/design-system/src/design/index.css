@@ -1,0 +1,41 @@
+/* The Lanes design system: the one stylesheet the app imports (main.tsx).
+ *
+ * Order matters. Zephium's tokens come first (the paint), t3code's theme next
+ * (the geometry and the semantic Tailwind names its primitives use), then
+ * opencode's micro details and Morrow's sky and effects, and the bridge last:
+ * it feeds t3code's names from Zephium's tokens and has the final word on
+ * the font stack. Lanes' own named sizes and glows come after it
+ * (./lanes.css). ./README.md says which file each piece came from;
+ * ./motion/ is how everything moves (its README has the twenty rules).
+ */
+@import "tailwindcss" source("../");
+
+@import "./zephium/primitive.css";
+@import "./zephium/tokens.css";
+@import "./motion/tokens.css";
+@import "./zephium/type.css";
+@import "./zephium/material.css";
+@import "./zephium/motion.css";
+@import "./motion/motion.css";
+@import "./zephium/global.css";
+@import "./zephium/controls.css";
+
+@import "./t3code/theme.css";
+
+@import "./opencode/micro.css";
+
+@import "./morrow/sky.css";
+@import "./morrow/effects.css";
+@import "./morrow/shimmer-text.css";
+
+@import "./bridge.css";
+@import "./lanes.css";
+
+html,
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}

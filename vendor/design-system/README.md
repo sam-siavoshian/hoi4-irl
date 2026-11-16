@@ -1,0 +1,31 @@
+# @sam/design-system (vendored)
+
+The Lanes design system: tokens, motion, and the component kit (React 19 + Tailwind 4). ARTESH's interface in
+`src/` is built only from this kit.
+
+- **From**: the `sam-designsystem` repository, `packages/design`.
+- **At commit**: `adcc1cf9515be9a8c5cae7add60e9cd86344f7b5`.
+- **Copied**: `src/`, `boot/`, `check/`, `package.json`, `COMPONENTS.md`, `THIRD_PARTY_NOTICES.md`. The test files
+  (`*.test.ts`, `*.test.tsx`) and the package's own build config were left out; `devDependencies` and `scripts` were
+  removed from `package.json`, because the app only consumes the source.
+- **Used as**: `"@sam/design-system": "file:vendor/design-system"` in the root `package.json`. Vite compiles the
+  TypeScript and CSS from here.
+- **Licences**: see `THIRD_PARTY_NOTICES.md` in this folder.
+
+## Changes made here
+
+A look the kit lacked was added to the kit, not to a screen. Each file's header says what changed.
+
+| File | Change | Why |
+|---|---|---|
+| `src/components/ui/sheet.tsx` | `SheetPopup layer="panel"`; `SheetPanel` | A sheet with no backdrop that lets presses reach the page, so the map stays in use beside or above it; a scrolling body with room for the home indicator. |
+| `src/components/ui/list.tsx` | `ListRowButton`; `ListRow inline` | A row that is one press (a front, a division, a country); a short control kept beside its title in a narrow panel. |
+| `src/components/ui/progress-meter.tsx` | `ProgressMeter origin="center"` | A front's balance: the fill grows from the middle, one way for ground lost and the other for ground taken. |
+| `src/components/ui/day-grid.tsx` | new `DayGrid` | History's calendar: a square a day, tinted by how the day went. |
+| `src/components/ui/slider.tsx` | new `Slider` (Base UI) | The replay's date. The kit had no slider. |
+| `src/components/ui/index.ts` | exports `DayGrid` and `Slider` | |
+
+## Updating
+
+Copy the same folders over this one from a newer commit, re-apply the changes in the table (or upstream them first),
+update the commit above, then run `npm run build`, `npx sam-design-check src` and the tests.

@@ -1,0 +1,451 @@
+/* Lanes' motion primitives: the twenty rules (./README.md) as classes, on the
+ * tokens in ./tokens.css. A component takes a class here (or a kit helper in
+ * components/ui/motion.tsx that puts it on) instead of choosing durations,
+ * curves or distances of its own.
+ *
+ * They sit in the utilities layer, after Tailwind's own, so a primitive wins
+ * over a stray `transition-*` utility on the same element; customise one with
+ * its variables (`--motion-delay`, `--i`, `--sheet-from`, `--pulse-color`),
+ * not by overriding its properties.
+ *
+ * Reduced motion: the tokens stop every distance, scale, stretch and blur
+ * (./tokens.css), and the end of this file keeps each primitive's opacity
+ * fade at --motion-reduced against zephium/motion.css's global collapse.
+ */
+
+@layer utilities {
+  /* --- 4, 14: a press. Instant down (no tween while held), eased release. --- */
+  .pressable {
+    transition-property:
+      scale, color, background-color, border-color, box-shadow, opacity, outline-color, text-decoration-color,
+      fill, stroke, translate;
+    transition-duration: var(--motion-press);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .pressable:active:not(:disabled, [aria-disabled="true"], [data-disabled], [aria-haspopup]) {
+    scale: var(--press-scale);
+    transition-duration: 0ms;
+  }
+
+  /* --- 1, 3, 6, 15: arriving and leaving in the flow of the page. --- */
+  .motion-enter {
+    animation: motion-enter var(--motion-enter) var(--ease-out) backwards;
+    animation-delay: calc(var(--motion-delay, 0ms) + min(var(--i, 0), var(--motion-stagger-cap)) * var(--motion-step, 0ms));
+  }
+
+  .motion-exit {
+    animation: motion-exit var(--motion-exit) var(--ease-exit) forwards;
+    pointer-events: none;
+  }
+
+  /* A list's rows, 30ms apart (3); a thing's details, 60ms apart and closer (6). */
+  .motion-stagger {
+    --motion-step: var(--motion-stagger);
+  }
+
+  .motion-settle {
+    --motion-step: var(--motion-settle-stagger);
+    --motion-distance: var(--settle-distance);
+  }
+
+  /* --- 2, 10, 11, 12, 15: a surface over the page, from its trigger. ---
+     Base UI marks the first frame [data-starting-style] and the leaving ones
+     [data-ending-style]; it sets --transform-origin on an anchored popup's
+     positioner (the trigger's side), and useTriggerOrigin sets
+     --trigger-origin on a dialog (the trigger's centre). */
+  .motion-tooltip,
+  .motion-dropdown,
+  .motion-popover,
+  .motion-dialog {
+    transform-origin: var(--transform-origin, var(--trigger-origin, center));
+    transition-property: opacity, scale, translate;
+    transition-timing-function: var(--ease-out);
+  }
+
+  .motion-tooltip {
+    transition-duration: var(--motion-tooltip);
+  }
+
+  .motion-dropdown {
+    transition-duration: var(--motion-dropdown);
+  }
+
+  .motion-popover {
+    transition-duration: var(--motion-popover);
+  }
+
+  .motion-dialog {
+    transition-duration: var(--motion-enter);
+  }
+
+  :is(.motion-tooltip, .motion-dropdown, .motion-popover, .motion-dialog):is(
+      [data-starting-style],
+      [data-ending-style]
+    ) {
+    opacity: 0;
+    scale: var(--popover-start-scale);
+  }
+
+  /* A large modal (Settings) starts closer to its size: 0.95 of 1280px would
+     travel 64px. 40% of the popover's shrink, so it is 1 when that is 1. */
+  .motion-dialog[data-size="large"]:is([data-starting-style], [data-ending-style]) {
+    scale: calc(1 - (1 - var(--popover-start-scale)) * 0.4);
+  }
+
+  .motion-tooltip[data-ending-style] {
+    transition-duration: var(--motion-tooltip-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  .motion-dropdown[data-ending-style] {
+    transition-duration: var(--motion-dropdown-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  .motion-popover[data-ending-style] {
+    transition-duration: var(--motion-popover-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  .motion-dialog[data-ending-style] {
+    transition-duration: var(--motion-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  /* A tooltip that moves on from one already open appears without the motion. */
+  .motion-tooltip[data-instant] {
+    transition-duration: 0ms;
+  }
+
+  /* A side panel slides from its edge (--sheet-from, set per side). */
+  .motion-sheet {
+    transition-property: opacity, translate;
+    transition-duration: var(--motion-sheet);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .motion-sheet:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+    translate: var(--sheet-from, 0 0);
+  }
+
+  .motion-sheet[data-ending-style] {
+    transition-duration: var(--motion-sheet-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  .motion-backdrop {
+    transition-property: opacity;
+    transition-duration: var(--motion-enter);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .motion-backdrop:is([data-starting-style], [data-ending-style]) {
+    opacity: 0;
+  }
+
+  .motion-backdrop[data-ending-style] {
+    transition-duration: var(--motion-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+
+  /* A surface on its way out takes no presses: the page under a dialog that
+     is fading away can be used at once, not 200ms later (QA.md, M12). */
+  :is(.motion-tooltip, .motion-dropdown, .motion-popover, .motion-dialog, .motion-sheet, .motion-backdrop)[data-ending-style] {
+    pointer-events: none;
+  }
+
+  /* --- 5, 9: a knob crossing its track, stretched mid-move. ---
+     The crossing is this transition, which turns round where it is when the
+     knob is flipped again mid-move; the stretch is a Web Animation
+     (useKnob in components/ui/motion.tsx) that carries on from the width it
+     has, where a CSS keyframe would snap back to 1 and start over. */
+  .motion-knob {
+    transition-property: translate, background-color, opacity;
+    transition-duration: var(--motion-knob);
+    transition-timing-function: var(--ease-in-out);
+  }
+
+  /* --- 8: a success, confirmed once where it happened. ---
+     The swell is `scale`, the ring an outline breathing out, so neither
+     touches the host's own shadows. data-pulse flips between a and b. */
+  .motion-pulse {
+    --pulse-color: color-mix(in srgb, var(--color-success) 55%, transparent);
+  }
+
+  .motion-pulse[data-pulse="a"] {
+    animation: motion-pulse-a var(--motion-pulse) var(--ease-out);
+  }
+
+  .motion-pulse[data-pulse="b"] {
+    animation: motion-pulse-b var(--motion-pulse) var(--ease-out);
+  }
+
+  /* A success that arrives already done (a toast that says "Sent"): it pulses
+     once on its own, after the surface it is on has landed. */
+  .motion-pulse-arrive {
+    --pulse-color: color-mix(in srgb, var(--color-success) 55%, transparent);
+    animation: motion-pulse-a var(--motion-pulse) var(--ease-out) var(--motion-delay, var(--motion-enter)) backwards;
+  }
+
+  /* --- 18: an icon becoming another, overlapping, with a little blur. ---
+     The layers share one cell; their motion is a Web Animation from where
+     each one is (Crossfade, components/ui/motion.tsx), so a second change
+     mid-crossfade turns the layers round instead of restarting them. */
+  .motion-crossfade {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .motion-crossfade > * {
+    grid-area: 1 / 1;
+  }
+
+  .motion-crossfade > [data-crossfade="out"] {
+    pointer-events: none;
+  }
+
+  /* One element arriving the way a crossfade's new icon does: a spinner over
+     a button's words (16), a tick appearing. */
+  .motion-appear {
+    animation: motion-crossfade-in var(--motion-crossfade) var(--ease-out) backwards;
+  }
+
+  /* --- 16: a value replacing a value, the old leaving as the new arrives. ---
+     Clipped to the value's own line (top and bottom only), so the one
+     leaving and the one arriving never show outside it: on a button, over
+     its border; in a row, over the row above. Motion: Swap's Web Animation. */
+  .motion-swap {
+    position: relative;
+    display: inline-grid;
+    overflow-y: clip;
+  }
+
+  .motion-swap > * {
+    grid-area: 1 / 1;
+  }
+
+  /* The one leaving is out of the line (Swap lifts it at the width it had):
+     the line is the new value's from the first frame, never held open by the
+     old one and let go a swap later (QA.md, M19). */
+  .motion-swap > [data-swap-lifted] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+  }
+
+  .motion-swap > [data-swap="out"] {
+    pointer-events: none;
+  }
+
+  /* --- 20: a track whose chosen option's capsule (SegmentThumb) slides
+     between its options. The option that holds the capsule sits under the
+     others, so while it flies over the option it is leaving that option's
+     words stay on top of it, never hidden behind it (an option is a
+     stacking context of its own anyway: a kit button has will-change: scale). */
+  .motion-segments {
+    isolation: isolate;
+  }
+
+  .motion-segments > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .motion-segments > :has(> [data-slot="segmented-thumb"]) {
+    z-index: 0;
+  }
+
+  /* An option still presses (rule 4), but its words do, not the option: the
+     capsule arriving inside it is not shrunk to 0.97 and let go mid-flight,
+     which pulled it back a pixel as it set off (QA.md, M2). */
+  .motion-segments > .pressable:active:not(:disabled, [aria-disabled="true"], [data-disabled], [aria-haspopup]) {
+    scale: none;
+  }
+
+  .motion-segments > .pressable > :not([data-slot="segmented-thumb"]) {
+    transition: scale var(--motion-press) var(--ease-out);
+  }
+
+  .motion-segments > .pressable:active:not(:disabled, [aria-disabled="true"], [data-disabled], [aria-haspopup]) > :not([data-slot="segmented-thumb"]) {
+    scale: var(--press-scale);
+    transition-duration: 0ms;
+  }
+
+  /* --- 17: a reveal wipes in from the edge it opens from. --- */
+  .motion-reveal {
+    --reveal-clip: inset(0 0 calc(100% * var(--motion-travel)) 0);
+  }
+
+  .motion-reveal[data-from="bottom"] {
+    --reveal-clip: inset(calc(100% * var(--motion-travel)) 0 0 0);
+  }
+
+  .motion-reveal[data-from="left"] {
+    --reveal-clip: inset(0 calc(100% * var(--motion-travel)) 0 0);
+  }
+
+  .motion-reveal[data-from="right"] {
+    --reveal-clip: inset(0 0 0 calc(100% * var(--motion-travel)));
+  }
+
+  .motion-reveal[data-from="center"] {
+    --reveal-clip: inset(calc(50% * var(--motion-travel)) round var(--radius-card, 12px));
+  }
+
+  /* The wipe itself is Reveal's Web Animation on --reveal-clip, from wherever
+     the wipe is, so toggling mid-wipe turns it round. */
+  .motion-reveal[data-reveal="out"] {
+    pointer-events: none;
+  }
+
+  /* A colour arriving as a sweep: the element is the new colour's layer, its
+     mask slides from the leading edge. data-sweep flips between a and b. */
+  .motion-sweep {
+    -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 55%);
+    mask-image: linear-gradient(to right, #000 45%, transparent 55%);
+    -webkit-mask-size: 220% 100%;
+    mask-size: 220% 100%;
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+
+  .motion-sweep[data-sweep="a"] {
+    animation: motion-sweep-a var(--motion-reveal) var(--ease-in-out) backwards;
+  }
+
+  .motion-sweep[data-sweep="b"] {
+    animation: motion-sweep-b var(--motion-reveal) var(--ease-in-out) backwards;
+  }
+
+  /* --- Reduced motion: the fade stays. The tokens have already stopped every
+     distance and scale; this undoes zephium/motion.css's collapse of the
+     durations for the primitives alone, so they still fade, briefly. A
+     layered !important outranks that unlayered one. Crossfade, Swap, Reveal
+     and the knob are Web Animations, which take their reduced time and
+     tokens in script (design/motion/motion.ts motionMs, tokenOn). --- */
+  :root[data-motion="reduce"]
+    :is(
+      .motion-tooltip,
+      .motion-dropdown,
+      .motion-popover,
+      .motion-dialog,
+      .motion-sheet,
+      .motion-backdrop,
+      .motion-enter,
+      .motion-exit,
+      .motion-appear,
+      .animate-menu-in,
+      .animate-settle,
+      .animate-rise,
+      .animate-rise-after
+    ) {
+    transition-duration: var(--motion-reduced) !important;
+    animation-duration: var(--motion-reduced) !important;
+  }
+
+  :root[data-motion="reduce"] .motion-tooltip[data-instant] {
+    transition-duration: 0ms !important;
+  }
+
+  /* The ring still shows (still, not growing) and fades. */
+  :root[data-motion="reduce"] :is(.motion-pulse, .motion-pulse-arrive) {
+    animation-duration: var(--motion-pulse) !important;
+  }
+
+  /* A sweep becomes a fade. */
+  :root[data-motion="reduce"] .motion-sweep {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation-name: motion-fade-in !important;
+    animation-duration: var(--motion-reduced) !important;
+  }
+
+  /* A pressable doesn't lift on hover either: no scale at all. */
+  :root[data-motion="reduce"] .pressable:hover {
+    scale: 1 !important;
+  }
+
+  /* No knob travel: it is where it should be, at once (its stretch is
+     already off: stretchKnob does nothing under reduced motion). */
+  :root[data-motion="reduce"] .motion-knob {
+    transition-duration: 0ms !important;
+  }
+}
+
+@keyframes motion-enter {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--motion-distance, var(--enter-distance)) * var(--motion-travel));
+  }
+}
+
+@keyframes motion-exit {
+  to {
+    opacity: 0;
+    translate: 0 calc(var(--motion-distance, var(--enter-distance)) * -0.5 * var(--motion-travel));
+  }
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-pulse-a {
+  0% {
+    outline: 2px solid var(--pulse-color);
+    outline-offset: var(--pulse-ring-from);
+  }
+
+  30% {
+    scale: var(--pulse-scale);
+  }
+
+  100% {
+    scale: 1;
+    outline: 2px solid transparent;
+    outline-offset: var(--pulse-ring);
+  }
+}
+
+@keyframes motion-pulse-b {
+  0% {
+    outline: 2px solid var(--pulse-color);
+    outline-offset: var(--pulse-ring-from);
+  }
+
+  30% {
+    scale: var(--pulse-scale);
+  }
+
+  100% {
+    scale: 1;
+    outline: 2px solid transparent;
+    outline-offset: var(--pulse-ring);
+  }
+}
+
+@keyframes motion-crossfade-in {
+  from {
+    opacity: 0;
+    scale: var(--crossfade-scale);
+    filter: blur(var(--crossfade-blur));
+  }
+}
+
+@keyframes motion-sweep-a {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+}
+
+@keyframes motion-sweep-b {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+}

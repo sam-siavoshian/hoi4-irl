@@ -1,0 +1,259 @@
+/* The bridge: t3code's semantic variables, painted with Zephium's tokens.
+ *
+ * The primitives in src/components/ui are t3code's and speak t3code's names
+ * (bg-background, text-muted-foreground, bg-sidebar, border-input, bg-primary).
+ * The look is Zephium's. This file is the only place the two meet: every
+ * t3code variable below is set from a Zephium token (./zephium/tokens.css),
+ * so a primitive copied from t3code needs no edit to look like Lanes, and
+ * light/dark follows Zephium's `data-theme` with no second palette.
+ *
+ * It also exposes the Zephium tokens t3code has no word for (the tonal rungs,
+ * the lit rung, role radii, elevations, curves, soft hues) as Tailwind
+ * utilities under Zephium's own names: bg-chrome, bg-raised, bg-fill-hover,
+ * text-faint, bg-lit text-on-lit, rounded-control, rounded-card,
+ * rounded-panel, rounded-capsule, shadow-float, shadow-menu, shadow-shine,
+ * ease-emphasized, ease-snap, bg-soft-sky, text-soft-lilac-ink...
+ *
+ * Where both systems have a name (muted, card, border, ring, success...), the
+ * utility is t3code's and its value is Zephium's.
+ */
+
+:root {
+  /* Surfaces: the page is solid, cards and the composer lift a rung, menus float. */
+  --background: var(--color-page);
+  --app-chrome-background: var(--color-page);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-float);
+  --popover-foreground: var(--color-text);
+  --surface-raised: var(--color-raised);
+
+  /* No accent hue (Zephium): the thing that is on is the brightest thing in the frame. */
+  --primary: var(--color-lit);
+  --primary-foreground: var(--color-on-lit);
+  --secondary: var(--color-control);
+  --secondary-foreground: var(--color-on-control);
+  --muted: var(--color-fill);
+  --muted-foreground: var(--color-muted);
+  --placeholder: var(--color-faint);
+  --secondary-label: var(--color-muted);
+  --icon-muted: var(--color-muted);
+  --accent: var(--color-fill-hover);
+  --accent-foreground: var(--color-text);
+
+  /* The user's turn, and its send button. */
+  --message-surface: var(--color-raised);
+  --message-foreground: var(--color-text);
+  --message-action: var(--color-lit);
+  --message-action-foreground: var(--color-on-lit);
+  --message-action-hover: var(--color-lit-hover);
+
+  --border: var(--color-border);
+  --input: var(--color-border-strong);
+  --ring: var(--color-ring);
+
+  /* States. */
+  --error: var(--color-danger);
+  --error-foreground: var(--color-danger);
+  --tool-error-icon: var(--color-danger);
+  --error-surface: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-danger);
+  --info: var(--color-info);
+  --info-foreground: var(--color-info);
+  --success: var(--color-success);
+  --success-foreground: var(--color-success);
+  --warning: var(--color-warning);
+  --warning-foreground: var(--color-warning);
+  --warning-surface: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  --update: var(--color-lit);
+  --update-foreground: var(--color-info);
+  --guest: var(--color-soft-rose);
+  --guest-foreground: var(--color-soft-rose-ink);
+  --guest-surface: var(--color-soft-rose-wash);
+
+  /* The sidebar is the chrome rung; hover is a whisper and the current row a plate. */
+  --sidebar: var(--color-chrome);
+  --sidebar-foreground: var(--color-text);
+  --sidebar-muted-foreground: var(--color-muted);
+  --sidebar-control-surface: var(--color-fill);
+  --sidebar-row-hover: var(--row-hover);
+  --sidebar-row-active: var(--row-pressed);
+  --sidebar-row-selected: var(--row-active);
+  --sidebar-border: var(--color-border);
+
+  --code-background: var(--color-fill);
+  --code-foreground: var(--color-text);
+
+  /* t3code's toolbar tokens (the chat header). */
+  --toolbar-background: var(--app-chrome-background);
+  --toolbar-foreground: var(--foreground);
+  --toolbar-border: var(--border);
+  --toolbar-control: var(--popover);
+  --toolbar-control-foreground: var(--foreground);
+  --toolbar-control-hover: var(--accent);
+
+  /* The scrollbar of a Base UI ScrollArea follows Zephium's thumb. */
+  --app-scrollbar-thumb: var(--scroll-thumb);
+  --app-scrollbar-thumb-hover: var(--scroll-thumb-hover);
+
+  /* Zephium's stack, verbatim (./zephium/tokens.css, styles/tokens.css):
+     the platform's own faces, SF on a Mac, Segoe UI Variable on Windows, the
+     desktop's on Linux. t3code's bundled Inter Variable (main.tsx imports it)
+     is only the last resort before sans-serif. Last word on --font-sans,
+     after both ./zephium/tokens.css and ./t3code/theme.css. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI Variable Text", "Segoe UI", "Noto Sans",
+    "Cantarell", "Inter Variable", sans-serif;
+  --radius: 0.5rem;
+}
+
+/* With a native material (the Mac app's window), the sidebar is the glass and
+   nothing is painted over it; the page stays solid (Zephium material.css). */
+:root:not([data-material="none"])[data-material] {
+  --sidebar: transparent;
+}
+
+/* Zephium's tokens as Tailwind utilities, under Zephium's names. */
+@theme inline reference {
+  --color-canvas: var(--color-canvas);
+  --color-page: var(--color-page);
+  --color-chrome: var(--color-chrome);
+  --color-surface: var(--color-surface);
+  --color-raised: var(--color-raised);
+  --color-float: var(--color-float);
+  --color-menu: var(--color-menu);
+  --color-fill: var(--color-fill);
+  --color-fill-hover: var(--color-fill-hover);
+  --color-fill-active: var(--color-fill-active);
+  --color-fill-pressed: var(--color-fill-pressed);
+  --color-fill-strong: var(--color-fill-strong);
+  --color-tile: var(--color-tile);
+  --color-tile-hover: var(--color-tile-hover);
+  --color-row-hover: var(--row-hover);
+  --color-row-active: var(--row-active);
+  --color-row-pressed: var(--row-pressed);
+  --color-text: var(--color-text);
+  --color-label-secondary: var(--color-label-secondary);
+  --color-faint: var(--color-faint);
+  --color-control: var(--color-control);
+  --color-control-hover: var(--color-control-hover);
+  --color-control-pressed: var(--color-control-pressed);
+  --color-field: var(--color-field);
+  --color-field-hover: var(--color-field-hover);
+  --color-lit: var(--color-lit);
+  --color-lit-hover: var(--color-lit-hover);
+  --color-on-lit: var(--color-on-lit);
+  --color-lit-soft: var(--color-lit-soft);
+  --color-danger: var(--color-danger);
+  --color-soft-sky: var(--color-soft-sky);
+  --color-soft-mint: var(--color-soft-mint);
+  --color-soft-lemon: var(--color-soft-lemon);
+  --color-soft-peach: var(--color-soft-peach);
+  --color-soft-rose: var(--color-soft-rose);
+  --color-soft-lilac: var(--color-soft-lilac);
+  --color-soft-sky-wash: var(--color-soft-sky-wash);
+  --color-soft-mint-wash: var(--color-soft-mint-wash);
+  --color-soft-lemon-wash: var(--color-soft-lemon-wash);
+  --color-soft-peach-wash: var(--color-soft-peach-wash);
+  --color-soft-rose-wash: var(--color-soft-rose-wash);
+  --color-soft-lilac-wash: var(--color-soft-lilac-wash);
+  --color-soft-sky-ink: var(--color-soft-sky-ink);
+  --color-soft-mint-ink: var(--color-soft-mint-ink);
+  --color-soft-lemon-ink: var(--color-soft-lemon-ink);
+  --color-soft-peach-ink: var(--color-soft-peach-ink);
+  --color-soft-rose-ink: var(--color-soft-rose-ink);
+  --color-soft-lilac-ink: var(--color-soft-lilac-ink);
+  --color-agent-browser: var(--color-agent-browser);
+  --color-agent-research: var(--color-agent-research);
+  --color-agent-computer: var(--color-agent-computer);
+  --color-agent-connection: var(--color-agent-connection);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-ink-hover: var(--sky-ink-hover);
+  --color-sky-on-ink: var(--sky-on-ink);
+  --color-sky-veil: var(--sky-veil);
+  --color-sky-veil-hover: var(--sky-veil-hover);
+
+  --radius-swatch: var(--radius-swatch);
+  --radius-inset: var(--radius-inset);
+  --radius-row: var(--radius-row);
+  --radius-control-compact: var(--radius-control-compact);
+  --radius-control: var(--radius-control);
+  --radius-control-large: var(--radius-control-large);
+  --radius-card: var(--radius-card);
+  --radius-panel: var(--radius-panel);
+  --radius-capsule: var(--radius-capsule);
+
+  --shadow-raised: var(--shadow-raised);
+  --shadow-float: var(--shadow-float);
+  --shadow-overlay: var(--shadow-overlay);
+  --shadow-menu: var(--shadow-menu);
+  --shadow-sheet: var(--shadow-sheet);
+  --shadow-badge: var(--shadow-badge);
+  --shadow-control: var(--shadow-control);
+  --shadow-field-focus: var(--shadow-field-focus);
+  --shadow-shine: var(--shine);
+  --shadow-shine-top: var(--shine-top);
+  --shadow-sky: var(--sky-float-shadow);
+  --shadow-sky-veil: var(--sky-veil-rim);
+
+  --ease-emphasized: var(--ease-emphasized);
+  --ease-smooth: var(--ease-smooth);
+  --ease-press: var(--ease-press);
+  --ease-exit: var(--ease-exit);
+  --ease-snap: var(--ease-snap);
+  --ease-spring: var(--ease-spring);
+  --ease-spring-playful: var(--ease-spring-playful);
+
+  /* A bare `transition-colors` (or -opacity, -shadow...) runs on the motion
+     tokens, not Tailwind's 150ms and its own curve (motion/README.md). */
+  --default-transition-duration: var(--motion-fast);
+  --default-transition-timing-function: var(--ease-out);
+
+  --text-caption: var(--text-caption);
+  --text-label: var(--text-label);
+  --text-body: var(--text-body);
+  --text-title: var(--text-title);
+  --text-display: var(--text-display);
+  --text-headline: var(--text-headline);
+  --text-reading: var(--text-reading);
+}
+
+/* Zephium's one translucent surface (.ui-menu in ./zephium/material.css),
+   for React components: menus, the command palette, popovers. */
+@utility glass-menu {
+  border-radius: var(--radius-menu);
+  background: var(--color-menu);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-menu), var(--shine-top);
+}
+
+/* A surface arriving and leaving, on Zephium's curves (./zephium/motion.css). */
+@utility animate-menu-in {
+  animation:
+    ui-menu-fade var(--motion-fast) var(--ease-out),
+    ui-menu-in var(--motion-dropdown) var(--ease-out);
+}
+
+@utility animate-rise {
+  animation: zephium-rise var(--motion-rise) var(--ease-emphasized) var(--motion-rise-delay) backwards;
+}
+
+@utility animate-rise-after {
+  animation: zephium-rise-after var(--motion-rise-after) var(--ease-emphasized) var(--motion-rise-after-delay)
+    backwards;
+}
+
+@utility animate-settle {
+  animation: zephium-settle var(--motion-page) var(--ease-out) backwards;
+}

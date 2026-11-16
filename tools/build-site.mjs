@@ -1,16 +1,21 @@
 // Builds _site/ for static hosting (GitHub Pages): the landing page at the root, the app at /demo/.
+// The app is the built interface (dist/, made here with tools/ensure-build.mjs) plus the maps, icons and manifest.
+// Every URL in the build is relative, so it runs under any sub-path.
 //   node tools/build-site.mjs            build
 //   node tools/build-site.mjs --serve    build, then preview on http://localhost:$PORT (default 8080)
 // SITE_URL (optional, e.g. https://user.github.io/repo/) makes the social-card image URLs absolute.
-// No dependencies.
+// Needs the dev dependencies (npm install) for the interface build; nothing else.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, '_site');
-const APP = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'data/maps', 'data/scenarios.json', 'icons'];
+// [from, to under demo/]: the built files first, then what the server would serve beside them
+const APP = [['dist', ''], ['manifest.webmanifest', 'manifest.webmanifest'], ['data/maps', 'data/maps'], ['data/scenarios.json', 'data/scenarios.json'], ['icons', 'icons']];
+{ const r = spawnSync(process.execPath, [path.join(root, 'tools', 'ensure-build.mjs')], { stdio: 'inherit' }); if (r.status !== 0) process.exit(r.status || 1); }
 const skip = name => name.startsWith('_') || name.startsWith('.'); // site/_dev holds the screenshot tooling
 
 const written = [];
@@ -24,10 +29,10 @@ function copy(from, to) {
 
 fs.rmSync(out, { recursive: true, force: true });
 copy(path.join(root, 'site'), out);
-for (const p of APP) {
+for (const [p, to] of APP) {
   const from = path.join(root, p);
   if (!fs.existsSync(from)) { console.error(`build-site: missing ${p}`); process.exit(1); }
-  copy(from, path.join(out, 'demo', p));
+  copy(from, path.join(out, 'demo', to));
 }
 
 // Social cards need absolute image URLs; the source keeps them relative so the page works anywhere.
@@ -52,7 +57,7 @@ console.log(`landing images: ${kb(sum(f => f.startsWith('img/'))).trim()}   demo
 
 if (process.argv.includes('--serve')) {
   const port = Number(process.env.PORT || 8080);
-  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
   http.createServer((req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html';
     const file = path.join(out, p);

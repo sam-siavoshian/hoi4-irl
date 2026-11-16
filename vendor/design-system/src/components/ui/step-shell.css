@@ -1,0 +1,651 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * The guided flow's own rules, for ./step-shell.tsx. Adapted from
+ * zephium-browser/Zephium frame/src/features/onboarding/components/
+ * Onboarding.svelte: the welcome, the head, the scene's arrival, the bar, its
+ * dashes and notice, the features, the skip, leaving and the camera's curve.
+ * Changes: the rules hang off the kit's data-slots instead of Svelte's
+ * scoped classes; the stage is the window on the sky rather than a fixed
+ * 1240x780 scaled to fit, so the head and the scene sit in a scrolling column
+ * and the bar is the window's width less Zephium's 56px each side (on a
+ * phone, two rows); words standing on the sky take its ink (--sky-ink), as
+ * Zephium's welcome does, where Zephium's head is on the window's ground; the
+ * camera glides the sky's horizon (Morrow's SkyStage) instead of moving a
+ * window. Every size and weight is Zephium's; its delays and curves are the
+ * motion tokens' stage choreography (design/motion/tokens.css): the head at
+ * --motion-stage-delay, its parts after it --motion-settle-stagger apart
+ * (rule 6), a list's rows --motion-stagger apart (rule 3), the horizon moving
+ * on --ease-in-out (rule 9), and leaving quicker than arriving (rule 15).
+ */
+
+/* ------------------------------------------------------------ the stage */
+
+[data-slot="step-stage"] {
+  --gutter: clamp(16px, 4vw, 40px);
+  --step-top-height: 52px;
+  --step-bar-inset: 56px;
+  --step-bar-bottom: 34px;
+  --step-bar-height: 44px;
+  /* What the bar takes at the foot, and a little air above it. */
+  --step-bar-space: calc(var(--step-bar-bottom) + var(--step-bar-height) + 18px);
+
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--sky-paper);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* Onboarding.svelte's camera: 1400ms on cubic-bezier(0.7, 0, 0.12, 1). Here
+   the camera is the sky's horizon, gliding between the welcome's and the
+   steps', and back into the welcome's on leaving. */
+@property --horizon {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 60;
+}
+
+[data-slot="step-stage"] .sky-baked {
+  transition: --horizon var(--motion-horizon) var(--ease-in-out);
+}
+
+[data-slot="step-stage-top"] {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  block-size: var(--step-top-height);
+  padding-inline-end: 20px;
+  pointer-events: none;
+}
+
+[data-slot="step-stage-top"] > * {
+  pointer-events: auto;
+}
+
+/* The steps scroll above the bar; the sky stays where it is. */
+[data-slot="step-stage-scroll"] {
+  position: absolute;
+  inset: 0 0 var(--step-bar-space) 0;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-inline: var(--gutter);
+  overscroll-behavior: contain;
+}
+
+[data-slot="step-stage"]:not([data-bar]) [data-slot="step-stage-scroll"] {
+  inset-block-end: 0;
+}
+
+/* Onboarding.svelte .skip, on the sky's ink: quiet until hovered. */
+[data-slot="step-top-action"] {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-control-compact);
+  background: transparent;
+  color: var(--sky-ink);
+  opacity: 0.78;
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: 500;
+  text-shadow: 0 1px 12px var(--sky-shadow);
+  cursor: default;
+  transition:
+    opacity var(--motion-instant) var(--ease-smooth),
+    background-color var(--motion-instant) var(--ease-smooth),
+    scale var(--motion-press) var(--ease-out);
+}
+
+/* The press (design/motion/README.md, rules 4 and 14): at once, eased back. */
+[data-slot="step-top-action"]:active {
+  scale: var(--press-scale);
+  transition-duration: 0ms;
+}
+
+[data-slot="step-top-action"]:hover {
+  background: color-mix(in srgb, var(--sky-ink) 14%, transparent);
+  opacity: 1;
+}
+
+[data-slot="step-top-action"]:focus-visible {
+  outline: 2px solid var(--sky-ink);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ the controls */
+
+/* Under the name, on the sky: a white control with the sky's own ink
+   (Onboarding.svelte .welcome). */
+.ui-button[data-tone="sky"] {
+  --color-lit: var(--sky-ink);
+  --color-lit-hover: var(--sky-ink-hover);
+  --color-on-lit: var(--sky-on-ink);
+
+  gap: 12px;
+  padding-inline: 20px 11px;
+}
+
+/* An icon beside the words: Zephium's Icon at 16px in a large control, 14px in the regular one. */
+[data-slot="step-button"] > svg {
+  flex-shrink: 0;
+  inline-size: 14px;
+  block-size: 14px;
+}
+
+[data-slot="step-button"][data-size="large"] > svg {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+/* A phone has no Enter to press. */
+@media (max-width: 639px) {
+  [data-slot="step-button-key"] {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ the welcome */
+
+[data-slot="step-welcome"] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: 100%;
+  padding-block: var(--step-top-height) 8vh;
+  color: var(--sky-ink);
+  text-align: center;
+}
+
+[data-slot="step-welcome-air"] {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+}
+
+/* The name and, until it forms, whatever stands in its place: one cell. */
+[data-slot="step-welcome-stand"] {
+  display: grid;
+  place-items: center;
+}
+
+[data-slot="step-welcome-stand"] > * {
+  grid-area: 1 / 1;
+}
+
+/* Until it forms, the name is only where the dots will land: what stands in its place takes the press. */
+[data-slot="step-welcome"]:not([data-phase="formed"]) [data-slot="step-welcome-name"] {
+  pointer-events: none;
+}
+
+[data-slot="step-welcome-stand"] > :not([data-slot="step-welcome-name"]) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Zephium's name (camera.ts NEWTAB.name in the cover shot, the wordmark in
+   its box): its letters stand about 4.6% of the stage's width tall (57px at
+   1240x780, measured from Zephium's own frame), the stage covering the
+   window. The name is set so its capitals are that tall, at Zephium's
+   weight (500). */
+[data-slot="step-welcome-name"] {
+  margin: 0;
+  color: var(--sky-ink);
+  font-size: clamp(48px, max(6.2vw, 7.1vh), 140px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.032em;
+  text-shadow: 0 2px 24px var(--sky-shadow);
+  opacity: 0;
+  transition: opacity var(--motion-rise) var(--ease-out);
+}
+
+[data-slot="step-welcome"][data-phase="formed"] [data-slot="step-welcome-name"] {
+  opacity: 1;
+}
+
+[data-slot="step-welcome-words"] {
+  display: grid;
+  justify-items: center;
+  gap: 28px;
+  margin-block-start: 30px;
+  pointer-events: none;
+}
+
+[data-slot="step-welcome-words"] p {
+  max-inline-size: 30ch;
+  margin: 0;
+  color: var(--sky-ink);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-shadow: 0 1px 18px var(--sky-shadow);
+  text-wrap: balance;
+}
+
+[data-slot="step-welcome-action"] {
+  display: grid;
+  place-items: center;
+  min-block-size: var(--control-large);
+}
+
+[data-slot="step-welcome-words"] > * {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--motion-stage) var(--ease-out),
+    transform var(--motion-stage) var(--ease-emphasized);
+}
+
+[data-slot="step-welcome-words"] > :last-child {
+  transition-delay: var(--motion-stage-delay);
+}
+
+[data-slot="step-welcome"][data-phase="formed"] [data-slot="step-welcome-words"] {
+  pointer-events: auto;
+}
+
+[data-slot="step-welcome"][data-phase="formed"] [data-slot="step-welcome-words"] > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* ------------------------------------------------------------ a step */
+
+@keyframes step-shell-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+[data-slot="step-shell"] {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 600px;
+  margin-inline: auto;
+  padding-block: clamp(56px, 9vh, 74px) 24px;
+}
+
+[data-slot="step-shell"][data-width="wide"] {
+  max-inline-size: 1080px;
+}
+
+/* Three short answers a row, each on one line (About you's tiles). */
+[data-slot="step-shell"][data-width="medium"] {
+  max-inline-size: 800px;
+}
+
+/* Onboarding.svelte .head: 40px at 500, its line in 15px under it. */
+[data-slot="step-shell-head"] {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding-inline: 8px;
+  color: var(--sky-ink);
+  text-align: center;
+  text-shadow: 0 1px 18px var(--sky-shadow);
+}
+
+[data-slot="step-shell-head"] h1 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.032em;
+  text-wrap: balance;
+  outline: none;
+}
+
+[data-slot="step-shell-head"] p {
+  max-inline-size: 52ch;
+  margin: 0;
+  color: color-mix(in srgb, var(--sky-ink) 90%, transparent);
+  font-size: 15px;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+[data-slot="step-shell-head"] > * {
+  animation: step-shell-rise var(--motion-stage) var(--ease-emphasized) var(--motion-stage-delay) backwards;
+}
+
+[data-slot="step-shell-head"] > p {
+  animation-delay: calc(var(--motion-stage-delay) + 2 * var(--motion-settle-stagger));
+}
+
+/* The scene, in the frosted panel: rises in after its head (Onboarding.svelte .scene). */
+[data-slot="step-shell-glass"] {
+  box-sizing: border-box;
+  inline-size: 100%;
+  padding: 24px;
+  border-radius: var(--radius-panel);
+  color: var(--color-text);
+  animation: step-shell-rise var(--motion-stage) var(--ease-emphasized)
+    calc(var(--motion-stage-delay) + 3 * var(--motion-settle-stagger)) backwards;
+}
+
+[data-slot="step-shell"]:is([data-width="wide"], [data-width="medium"]) [data-slot="step-shell-glass"] {
+  padding: 18px 20px;
+}
+
+@media (max-width: 639px) {
+  [data-slot="step-shell-glass"],
+  [data-slot="step-shell"]:is([data-width="wide"], [data-width="medium"]) [data-slot="step-shell-glass"] {
+    padding: 16px;
+  }
+}
+
+/* No panel: the scene's own cards are the glass. */
+[data-slot="step-shell-glass"][data-surface="none"],
+[data-slot="step-shell"][data-width="wide"] [data-slot="step-shell-glass"][data-surface="none"] {
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Onboarding.svelte .features: the ready step's line of what is already on. */
+[data-slot="step-shell-features"] {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 30px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  animation: none;
+}
+
+[data-slot="step-shell-features"] li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: color-mix(in srgb, var(--sky-ink) 90%, transparent);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  animation: step-shell-rise var(--motion-stage) var(--ease-emphasized) backwards;
+  animation-delay: calc(
+    var(--motion-stage-delay) + 2 * var(--motion-settle-stagger) + min(var(--i, 0), var(--motion-stagger-cap)) *
+      var(--motion-settle-stagger)
+  );
+}
+
+[data-slot="step-shell-features"] li svg {
+  inline-size: 16px;
+  block-size: 16px;
+  color: var(--sky-ink);
+}
+
+/* ------------------------------------------------------------ a step's list */
+
+@keyframes step-list-lift {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+[data-slot="step-list"] {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Rows of a list arrive one after another (Essentials.svelte li). */
+[data-slot="step-list-row"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-block-size: 60px;
+  padding-block: 12px;
+  animation: step-list-lift var(--motion-rise-after) var(--ease-emphasized) backwards;
+  animation-delay: calc(var(--motion-stage-delay) + min(var(--i, 0), var(--motion-stagger-cap)) * var(--motion-stagger));
+}
+
+[data-slot="step-list-row"] + [data-slot="step-list-row"] {
+  border-block-start: 1px solid var(--color-border);
+}
+
+[data-slot="step-list-row"]:first-child {
+  padding-block-start: 0;
+}
+
+[data-slot="step-list-row"]:last-child {
+  padding-block-end: 0;
+}
+
+/* Models.svelte .tile: a glyph on a 36px tile at the control radius. */
+[data-slot="step-list-tile"] {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: var(--radius-control);
+  background: var(--color-fill);
+  color: var(--color-muted);
+}
+
+[data-slot="step-list-tile"] svg {
+  inline-size: 18px;
+  block-size: 18px;
+}
+
+[data-slot="step-list-words"] {
+  flex: 1;
+  min-inline-size: 10rem;
+}
+
+[data-slot="step-list-title"] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--text-reading);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+[data-slot="step-list-title"] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-slot="step-list-title"] > svg {
+  flex-shrink: 0;
+  inline-size: 14px;
+  block-size: 14px;
+  color: var(--color-soft-mint-ink);
+}
+
+[data-slot="step-list-detail"] {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-slot="step-list-detail"][data-quiet] {
+  color: var(--color-faint);
+}
+
+[data-slot="step-list-trailing"] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+:root[data-motion="reduce"] [data-slot="step-list-row"] {
+  animation: none;
+}
+
+/* ------------------------------------------------------------ the bar */
+
+@keyframes step-shell-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* One quiet row for the whole journey, at the foot of the stage. */
+[data-slot="step-shell-bar"] {
+  position: absolute;
+  inset-inline: var(--step-bar-inset, 56px);
+  inset-block-end: var(--step-bar-bottom, 34px);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  block-size: var(--step-bar-height, 44px);
+  animation: step-shell-bar-in var(--motion-stage-short) var(--ease-emphasized) backwards;
+}
+
+[data-slot="step-shell-back"] {
+  display: flex;
+}
+
+[data-slot="step-shell-middle"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 20px;
+}
+
+[data-slot="step-shell-actions"] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-inline-size: 0;
+}
+
+[data-slot="step-shell-actions"] .ui-button[data-variant="primary"] {
+  gap: 12px;
+  min-inline-size: 132px;
+  padding-inline: 20px 12px;
+}
+
+/* Onboarding.svelte .middle: Zephium's dashes, done ones dim, the current one long and lit. */
+[data-slot="step-shell-progress"] {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-slot="step-shell-dash"] {
+  inline-size: 18px;
+  block-size: 3px;
+  border-radius: var(--radius-capsule);
+  background: var(--color-fill-strong);
+  transition:
+    inline-size var(--motion-page) var(--ease-emphasized),
+    background-color var(--motion-slow) var(--ease-out);
+}
+
+[data-slot="step-shell-dash"][data-state="done"] {
+  background: var(--color-faint);
+}
+
+[data-slot="step-shell-dash"][data-state="now"] {
+  inline-size: 34px;
+  background: var(--color-text);
+}
+
+[data-slot="step-shell-notice"] {
+  color: var(--color-danger);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* A phone: the dashes over Back and the actions, at the foot. */
+@media (max-width: 639px) {
+  [data-slot="step-stage"] {
+    --step-bar-inset: var(--gutter);
+    --step-bar-bottom: max(16px, env(safe-area-inset-bottom));
+    --step-bar-height: 76px;
+  }
+
+  [data-slot="step-shell-bar"] {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "middle middle"
+      "back actions";
+    row-gap: 12px;
+    align-content: end;
+  }
+
+  [data-slot="step-shell-back"] {
+    grid-area: back;
+  }
+
+  [data-slot="step-shell-middle"] {
+    grid-area: middle;
+  }
+
+  [data-slot="step-shell-actions"] {
+    grid-area: actions;
+  }
+
+  [data-slot="step-shell-actions"] .ui-button[data-variant="primary"] {
+    min-inline-size: 0;
+    padding-inline: 18px;
+  }
+}
+
+/* ------------------------------------------------------------ leaving */
+
+/* The words go first, then the bar drops away, and the camera goes back into the sky. */
+[data-slot="step-stage"][data-leaving] :is([data-slot="step-shell-head"], [data-slot="step-shell-glass"], [data-slot="step-stage-top"], [data-slot="step-welcome"]) {
+  opacity: 0;
+  transition: opacity calc(var(--motion-stage) * 0.4) var(--ease-exit);
+}
+
+[data-slot="step-stage"][data-leaving] [data-slot="step-shell-bar"] {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition:
+    opacity calc(var(--motion-stage-short) * 0.8) var(--ease-exit),
+    transform calc(var(--motion-stage-short) * 0.8) var(--ease-exit);
+}
+
+:root[data-motion="reduce"] [data-slot="step-stage"] :is(
+    [data-slot="step-shell-head"] > *,
+    [data-slot="step-shell-glass"],
+    [data-slot="step-shell-features"] li,
+    [data-slot="step-shell-bar"]
+  ) {
+  animation: none;
+}
+
+:root[data-motion="reduce"] [data-slot="step-stage"] :is([data-slot="step-welcome-words"] > *, [data-slot="step-welcome-name"], .sky-baked) {
+  transition: none;
+}
