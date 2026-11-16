@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Home Front · Your life as a 1936 war map</title>
-<meta name="description" content="Home Front is a self-hosted life tracker drawn as a 1936 war map. Each front is one part of your life. Say what happened today and the front moves.">
+<meta name="description" content="Home Front is a productivity app and daily journal that shows your life as a 1936 war map. Say what happened today; see what is going well at a glance.">
 <meta name="theme-color" content="#0b0e10">
 <meta name="color-scheme" content="dark">
 <meta name="robots" content="index, follow">
@@ -72,7 +72,7 @@
   <div class="wrap nav-in">
     <a class="brand" href="./" aria-label="Home Front home"><svg class="roundel"><use href="#i-roundel"/></svg><span>Home Front</span></a>
     <nav class="links" aria-label="Sections">
-      <a href="#how">How it works</a><a href="#features">Features</a><a href="#countries">Countries</a><a href="#selfhost">Self-host</a><a href="#faq">FAQ</a>
+      <a href="#what">What it is</a><a href="#how">How it works</a><a href="#features">Features</a><a href="#countries">Countries</a><a href="#selfhost">Self-host</a><a href="#faq">FAQ</a>
     </nav>
     <a class="btn sm ghost" href="https://github.com/sam-siavoshian/hoi4-irl"><svg class="ic"><use href="#i-git"/></svg>GitHub</a>
   </div>
@@ -81,9 +81,9 @@
 <main>
 <section class="hero wrap">
   <div class="hero-copy">
-    <p class="eyebrow">Open source · self-hosted · private</p>
+    <p class="eyebrow">A daily journal and life tracker · open source · self-hosted</p>
     <h1>Your life,<br>as a war map.</h1>
-    <p class="lede">Home Front puts school, family, work and health on the borders of a 1936 map. Pick one of eight countries. Say what happened today. A general staff judges it, and the front moves, province by province.</p>
+    <p class="lede">A productivity app that shows your whole life on one map. Each border of your country is one part of it: school, family, work, health. Say what happened today, in a sentence. It files the entry, and the front line moves. One look tells you what is going well and what needs you.</p>
     <div class="cta">
       <a class="btn primary" href="./demo/?demo=1" data-demo>Try the live demo<svg class="ic"><use href="#i-arrow"/></svg></a>
       <a class="btn" href="https://github.com/sam-siavoshian/hoi4-irl#self-hosting-private"><svg class="ic"><use href="#i-git"/></svg>Self-host it</a>
@@ -113,6 +113,19 @@
     <p>“Heavy tank attack on the school front. They’re 200 km from Tehran.”</p>
     <footer>How a bad week sounds once your friends speak the language.</footer>
   </blockquote>
+</section>
+
+<section class="sec wrap" id="what">
+  <header class="sec-head">
+    <p class="eyebrow">What it is for</p>
+    <h2>Keep track of everything. See it at a glance.</h2>
+  </header>
+  <ul class="facts">
+    <li><h3>A journal you will keep</h3><p>No forms, tags or checkboxes. One spoken or typed sentence a day is the whole input. Every entry is dated, saved and searchable.</p></li>
+    <li><h3>One picture of your life</h3><p>A front pushing outward is an area going well. The enemy near the capital is an area you have neglected. You do not need a chart to see which one needs you this week.</p></li>
+    <li><h3>For people doing several things at once</h3><p>Students with a job, founders with a family, anyone training for something while holding down the rest. The map shows which part is paying for the others.</p></li>
+    <li><h3>Your data, kept and usable</h3><p>A weekly recap, a calendar, a replay from the first day, and answers to questions about your own history. It runs on your machine and exports as plain files.</p></li>
+  </ul>
 </section>
 
 <section class="sec wrap" id="how">
@@ -170,7 +183,7 @@
     <h2>A tracker with a general staff.</h2>
   </header>
   <ul class="grid">
-    <li><svg class="ic"><use href="#i-flag"/></svg><h3>Seven fronts you name</h3><p>School, family, startup, health. Each border is one part of your life. Rename or pause any of them.</p></li>
+    <li><svg class="ic"><use href="#i-flag"/></svg><h3>Seven fronts you name</h3><p>School, family, work, health. Each border is one part of your life. Rename or pause any of them.</p></li>
     <li><svg class="ic"><use href="#i-mic"/></svg><h3>Voice or text</h3><p>Dictate on the walk home or type one line. Several fronts in one sentence is fine.</p></li>
     <li><svg class="ic"><use href="#i-eye"/></svg><h3>A judge that explains itself</h3><p>Every verdict carries its reason, saved with the entry and shown in History.</p></li>
     <li><svg class="ic"><use href="#i-medal"/></svg><h3>Named divisions, battle honours</h3><p>The 5th Birjand Cavalry leads the counter-attack, gains experience and keeps the battle on its record.</p></li>
@@ -250,7 +263,7 @@
   </header>
   <ul class="facts">
     <li><h3>The key never reaches the browser</h3><p>The server holds it and makes the model calls. The app shows a password box and nothing else until you log in.</p></li>
-    <li><h3>The campaign is one file</h3><p>Everything you report lives in <code>private/state.json</code> on the host. Copy it to back it up. Delete it to forget.</p></li>
+    <li><h3>The campaign is one file</h3><p>Everything you report lives in <code>~/.homefront/state.json</code> on the host. Copy it to back it up. Delete it to forget.</p></li>
     <li><h3>You choose where the words go</h3><p>With OpenAI, the text of each report is sent there to be judged. With a local model, nothing leaves the machine.</p></li>
     <li><h3>No accounts, no analytics</h3><p>Not in the app, and not on this page, which loads nothing from third parties.</p></li>
   </ul>

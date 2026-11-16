@@ -24,7 +24,7 @@ in the order that avoids a half-finished public page.
 
 **Description**
 
-> Your life as a 1936 grand-strategy war map. A self-hosted life tracker and journal: say what happened today, an AI general staff judges it, and the fronts move. Works with OpenAI, Ollama or fully offline.
+> A productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.
 
 **Website**: `https://sam-siavoshian.github.io/hoi4-irl/`
 

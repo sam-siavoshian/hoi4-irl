@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Home Front: a self-hosted life tracker and journal drawn as a 1936 grand-strategy war map. Say what happened today, an AI general staff judges it, and the front lines of your life move.",
+  "description": "Home Front: a productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.",
   "license": "MIT",
   "homepage": "https://sam-siavoshian.github.io/hoi4-irl/",
   "repository": {

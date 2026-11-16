@@ -1,8 +1,8 @@
 <h1 align="center">Home Front</h1>
 
 <p align="center">
-  <b>A self-hosted life tracker and journal, drawn as a 1936 grand-strategy war map.</b><br>
-  Say what happened today. An AI general staff judges it, and the front lines of your life move.
+  <b>A productivity app and daily journal that shows your whole life as a 1936 war map.</b><br>
+  Say what happened today. It files the entry, the front lines move, and one look tells you what needs you.
 </p>
 
 <p align="center">
@@ -27,19 +27,66 @@
 
 ## What it is
 
-Home Front is a personal tracker for people who give up on habit trackers. You pick a country. It sits in
-the middle of a 1936 map, and each of its seven border fronts stands for one area of your life: school,
-family, work, health, friends. Once a day you say or type what happened, in your own words. A language
-model acting as your general staff decides which front each event belongs to, whether it was a win or a
-loss, and how big. Then the map reacts: fronts advance or collapse province by province, named divisions
-fight and earn honours, ports are bombed and rebuilt.
+**Home Front is a productivity app that turns your life into a map you can read at a glance.**
 
-Do well for long enough and the country's historical empire is restored. Let things slide and the enemy
-reaches the capital. It is a diary with consequences, not a game: nothing moves unless you report
-something real.
+You tell it what happened today, in a sentence or two, by voice or by typing. It files that for you:
+which part of your life it was about, whether it went well or badly, and how much it mattered. Then it
+shows you the result as a war map. Each border of your country is one area of your life. When that
+area goes well, the front line pushes outward. When you neglect it, the enemy pushes in.
+
+So instead of charts and streak counters, you get one picture:
+
+- School is deep in enemy territory. That is going well.
+- Health has the enemy 40 km from the capital. That needs you this week.
+- Friends has not moved in a month. You have not reported on it, which says something too.
+
+Underneath the map it is a plain record. Every entry is saved with its date, what you said, how it was
+judged and what it changed. You can search it, edit it, replay it from the first day, export it, and ask
+questions of it ("how has work gone since September?").
+
+It is not a game. Nothing moves unless you report something real, and there is nothing to play. The map
+is there because a front line is easier to care about than a spreadsheet.
+
+### Who it is for
+
+- **People who quit habit trackers.** There are no forms, tags or checkboxes. One sentence a day is the
+  whole input.
+- **People juggling several things at once**: students with a job, founders with a family, anyone
+  training for something while holding down the rest. The map shows which part is paying for the others.
+- **People who like strategy games** and would rather look at a front line than a dashboard.
+- **People who want their data.** It runs on your own machine, with your own key, and the record is a
+  folder of plain files.
+
+### What using it looks like
+
+1. **Set up once.** Pick a country. Name its seven borders after the parts of your life: School, Family,
+   Partner, Work, Health, Friends, Self, or whatever yours are. Pause the ones you do not need.
+2. **Report once a day.** Tap the microphone and talk: *"Aced the chemistry midterm. Skipped the gym
+   again. Had a fight with my brother."* That takes ten seconds.
+3. **It sorts it out.** Three events: a big win for School, a small loss for Health, a loss for Family.
+   Each gets a battle that fits the cause, and you can undo or correct any of them with one tap.
+4. **Look at the map.** The School front advances a province. The Health front gives ground. Divisions
+   gain experience or take losses. Over weeks, the shape of the front lines is the shape of your life.
+5. **Look back.** History has a calendar, a weekly recap, a replay of the whole campaign and an "ask the
+   staff" box that answers questions from your own entries.
+
+### What people use it for
+
+| You want to | How it shows up |
+|---|---|
+| Keep a daily journal without the blank page | One spoken sentence a day, filed and dated for you |
+| See which area of life is slipping | The front where the enemy is closest to the capital |
+| Stay consistent | A day streak, three small goals a day, and a front that decays if you stop reporting on it |
+| Track a goal over months | A front pushing toward a named objective, city by city |
+| Review your week | A weekly recap card: wins, losses, ground gained and lost per area |
+| Remember what actually happened | A searchable, editable log, and answers to questions about your own history |
+| Keep the data yours | Self-hosted, one password, plain files, export at any time |
+
+The far goal is the same in every country: take every objective and the country's historical empire is
+restored. Let everything slide and the capital falls. Most of life happens in between.
 
 - **Private by design.** One user, one password, your own machine. Your API key never reaches the browser.
-- **Works with any model, or none.** OpenAI, Ollama, LM Studio, OpenRouter, Groq, or the built-in offline judge.
+- **Works with any model, or none.** OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, a local model, or the built-in offline judge.
 - **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
 
@@ -80,21 +127,18 @@ one's army, navy, air force and seven fronts laid out before you commit.
 
 Want another one? A country is a single file: see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
-## Why
+## How events become battles
 
-Most trackers ask you to fill in forms: tick the habit, rate the day, pick a tag. That is work, so you
-stop doing it.
+You never choose a battle type. The staff reads the cause and picks one that fits, so the map tells you
+why something happened, not just that it did:
 
-Home Front asks for one thing: tell it what happened, in your own words, once a day. "Aced the chemistry
-midterm, skipped the gym again, had a fight with my brother." Everything else is derived. The judge
-sorts each event to the right front, decides whether it was a win or a loss and how big, and picks a
-battle type that matches the cause. A week of flu is a blizzard that closes the passes. Sleeping
-through an exam after scrolling all night is sabotage. A friend's introduction to an investor is allied
-aid arriving.
-
-The result is a picture you can read in two seconds. One front deep in enemy territory, another with
-the enemy forty kilometres from the capital. You do not need a chart to know which part of your life
-needs you this week.
+| What you said | What the map shows |
+|---|---|
+| "Finished the whole problem set two days early" | An armoured breakthrough on the School front |
+| "A week of flu, got nothing done" | A blizzard that closes the passes |
+| "Slept through the exam after scrolling all night" | Sabotage behind your own lines |
+| "A friend introduced me to an investor" | Allied aid arriving |
+| "Haven't called home in three weeks" | The enemy massing on a quiet front |
 
 ## Features
 
