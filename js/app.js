@@ -566,7 +566,7 @@ function onClick(e) {
     case 'export': { const blob = new Blob([store.exportData(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); break; }
     case 'import': $('#importfile').click(); break;
     case 'logout': fetch('api/logout', { method: 'POST' }).finally(() => { caches?.keys().then(ks => ks.forEach(k => caches.delete(k))); location.reload(); }); break;
-    case 'reset': if (confirm('Erase everything you have reported? This cannot be undone.')) { data.reports = []; ui.assess = null; persist(); refresh(); toast('Reset. The borders are quiet.'); } break;
+    case 'reset': if (confirm(Object.keys(data.campaigns || {}).length ? `Erase everything you have reported in ${F().name}? Other countries keep their campaigns. This cannot be undone.` : 'Erase everything you have reported? This cannot be undone.')) { data.reports = []; ui.assess = null; persist(); refresh(); toast('Reset. The borders are quiet.'); } break;
     case 'demo': if (!data.reports.length || confirm('Replace what you have with demo data?')) { data.reports = demoReports(); ui.assess = null; persist(); closeSheet(); refresh(); view.home(); toast('Demo loaded.'); } break;
   }
 }

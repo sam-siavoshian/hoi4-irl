@@ -1,6 +1,6 @@
 // Renders the app icons from the map data. Run: node tools/build-icons.cjs (needs Playwright's Chromium)
 const fs = require('fs'); const path = require('path'); const { chromium } = require('playwright');
-const m = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/map.json')));
+const m = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/maps/iran.json')));
 const d = shape => shape.map(poly => poly.map(r => { let s = ''; for (let i = 0; i < r.length; i += 2) s += (i ? 'L' : 'M') + r[i] + ',' + r[i + 1]; return s + 'Z'; }).join('')).join('');
 const others = Object.entries(m.countries).filter(([t]) => t !== 'IRN').map(([, c]) => `<path d="${d(c.shape)}" fill="${c.color}" opacity=".55" stroke="#0b0f12" stroke-width="5"/>`).join('');
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">

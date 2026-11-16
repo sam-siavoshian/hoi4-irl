@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright';
-const m = JSON.parse(fs.readFileSync('data/map.json'));
+const m = JSON.parse(fs.readFileSync('data/maps/iran.json'));
 const path = g => g.map(poly => poly.map(r => { let s=''; for(let i=0;i<r.length;i+=2) s+=(i?'L':'M')+r[i]+','+r[i+1]; return s+'Z'; }).join('')).join('');
 const tc = {mountain:'#00000030',hills:'#00000018',desert:'#ffe08030',forest:'#00400030',marsh:'#0040ff30',plains:'#0000',urban:'#ffffff30'};
 let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${m.w} ${m.h}" width="${m.w}" height="${m.h}" style="background:#1d3a52">`;

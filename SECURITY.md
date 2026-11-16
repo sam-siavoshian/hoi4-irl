@@ -33,7 +33,7 @@ multi-user service and was not designed to face the open internet without someth
 - **Guessing is slow.** Eight failed logins from one address in ten minutes lock that address out, each
   failure is delayed, and the password comparison is constant-time.
 - **Files are allowlisted.** The server serves a fixed set of paths (`index.html`, `sw.js`, `css/*.css`,
-  `js/*.js`, `data/map.json`, the manifest and icons). There is no directory listing and no way to reach
+  `js/*.js`, `data/scenarios.json`, `data/maps/*.json`, the manifest and icons). There is no directory listing and no way to reach
   `private/`, `.env`, `server.mjs` or `package.json` over HTTP.
 - **Data files are private to the user.** `private/` is created with mode `0700` and its files with
   `0600`. Writes go to a temporary file and are renamed into place.

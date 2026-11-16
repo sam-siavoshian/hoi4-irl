@@ -405,9 +405,9 @@ export class MapView {
     }
     const t = P[this.capital].city;
     if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k, g) => place(t[0] + (k - (g.length - 1) / 2) * step, t[1] - 28 * px, { type: d.type, color: '#8a6a2a', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name) }, { kind: 'division', id: d.id }));
-    // fleets sit where the scenario put them (FLEET_AT); one without a place lies off its base
+    // fleets sit where the scenario put them (FLEET_AT); one without a place lies off its base if that is on the coast, and is not drawn otherwise
     const seaPos = m.fleetAt || {};
-    for (const fl of st.fleets) { const base = this.meta.byName[fl.base]; const at = seaPos[fl.id] || (base && [base.c[0] + 40, base.c[1] + 40]); if (!at) continue; const [x, y] = at; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
+    for (const fl of st.fleets) { const base = this.meta.byName[fl.base]; const at = seaPos[fl.id] || (base && base.co ? [base.c[0] + 40, base.c[1] + 40] : null); if (!at) continue; const [x, y] = at; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
     for (const f of m.fronts) { const es = f.naval && !this.off.includes(f.id) && seaPos['enemy:' + f.id]; if (es) place(es[0], es[1], { type: 'ship', color: rgb(shade(m.countries[f.enemy].rgb, -0.3)), str: 90, enemy: true }, { kind: 'front', id: f.id }); }
     if (v.s > 0.55 || this.mode === 'air') for (const w of st.wings) { const p = this.meta.byName[w.base]; if (!p) continue; const k = st.wings.filter(x => x.base === w.base).indexOf(w); place(p.city[0] + (p.id === this.capital ? 62 : 34) * px + k * step, p.city[1] - 28 * px, { type: 'air', color: '#4a5f8a', str: (w.planes / w.max) * 100 }, { kind: 'wing', id: w.id }); }
   }
