@@ -51,7 +51,7 @@ export function createStore(dir) {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const at = f => path.join(dir, f);
   const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(at(f), 'utf8')); } catch { return d; } };
-  const writeJSON = (f, v) => { const p = at(f); fs.writeFileSync(p + '.tmp', JSON.stringify(v), { mode: 0o600 }); fs.renameSync(p + '.tmp', p); };
+  const writeJSON = (f, v) => { const p = at(f); fs.writeFileSync(p + '.tmp', JSON.stringify(v), { mode: 0o600 }); fs.chmodSync(p + '.tmp', 0o600); fs.renameSync(p + '.tmp', p); };
   const read = () => { const s = readJSON('state.json', null); return s && typeof s.rev === 'number' ? s : { rev: 0, data: null }; };
 
   // every change to the state goes through this one queue, so two writers can never interleave
