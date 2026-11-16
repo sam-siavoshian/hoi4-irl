@@ -1,12 +1,17 @@
 // ARTESH private server. No dependencies; Node 20+.
 // - serves the app only to someone who has logged in with ARTESH_PASSWORD
-// - keeps the OpenAI key on this machine and proxies judging and transcription
-// - stores the campaign in ./private/state.json so every device sees the same war
+// - keeps the LLM key on this machine and proxies judging and transcription (OpenAI or any OpenAI-compatible API)
+// - stores the campaign in ./private/state.json so every device sees the same war, journals every change
+//   to ./private/journal.ndjson and keeps dated backups in ./private/backups/
+// - offers a small automation API (POST /api/report, GET /api/sitrep, GET /api/journal) for Shortcuts and scripts
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { llmConfig, createLLM } from './server/llm.mjs';
+import { createStore } from './server/storage.mjs';
+import { createAutomation } from './server/automation.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,20 +26,19 @@ try {
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
 const PASSWORD = process.env.ARTESH_PASSWORD || '';
-const KEY = process.env.OPENAI_API_KEY || '';
-const BASE = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
-const MODEL = process.env.OPENAI_MODEL || 'gpt-6-luna';
-const STT_MODEL = process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-transcribe';
+const TOKEN = (process.env.ARTESH_TOKEN || '').trim(); // optional bearer token for the automation API
+const RATE = process.env.ARTESH_RATE_LIMIT === undefined || process.env.ARTESH_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.ARTESH_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
 const PRIVATE = path.resolve(process.env.ARTESH_DATA_DIR || path.join(ROOT, 'private'));
 const COOKIE = 'artesh_session';
+const die = msg => { console.error(msg); process.exit(1); };
 
-if (!PASSWORD && process.env.ARTESH_OPEN !== '1') {
-  console.error('Refusing to start without ARTESH_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set ARTESH_OPEN=1.');
-  process.exit(1);
-}
-fs.mkdirSync(PRIVATE, { recursive: true, mode: 0o700 });
-const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(path.join(PRIVATE, f), 'utf8')); } catch { return d; } };
-const writeJSON = (f, v) => { const p = path.join(PRIVATE, f); fs.writeFileSync(p + '.tmp', JSON.stringify(v), { mode: 0o600 }); fs.renameSync(p + '.tmp', p); };
+if (!PASSWORD && process.env.ARTESH_OPEN !== '1') die('Refusing to start without ARTESH_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set ARTESH_OPEN=1.');
+if (TOKEN && TOKEN.length < 16) die('ARTESH_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
+let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
+const store = createStore(PRIVATE);
+const { readJSON, writeJSON } = store;
+const llm = createLLM(cfg);
+const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge });
 
 // ---- sessions ----
 const sessions = new Map(Object.entries(readJSON('sessions.json', {})));
@@ -48,6 +52,13 @@ function authed(req) {
 const attempts = new Map(); // ip → [timestamps]
 function throttled(ip) { const now = Date.now(); const a = (attempts.get(ip) || []).filter(t => now - t < 10 * 60e3); attempts.set(ip, a); return a.length >= 8; }
 const safeEq = (a, b) => { const x = hash(a), y = hash(b); return crypto.timingSafeEqual(Buffer.from(x), Buffer.from(y)); };
+// the automation token opens these three endpoints and nothing else
+const TOKEN_PATHS = new Set(['/api/report', '/api/sitrep', '/api/journal']);
+function bearer(req, p) { if (!TOKEN || !TOKEN_PATHS.has(p)) return false; const m = /^Bearer\s+(\S+)\s*$/i.exec(req.headers.authorization || ''); return !!m && safeEq(m[1], TOKEN); }
+// per-address limit on the endpoints that cost money or write on someone's behalf
+const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report']); const hits = new Map(); // ip → [timestamps]
+function limited(ip) { if (!RATE) return 0; const now = Date.now(); const a = (hits.get(ip) || []).filter(t => now - t < 60e3); hits.set(ip, a); if (a.length >= RATE) return Math.max(1, Math.ceil((a[0] + 60e3 - now) / 1000)); a.push(now); return 0; }
+setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.length || now - a.at(-1) > 60e3) hits.delete(k); for (const [k, a] of attempts) if (!a.length || now - a.at(-1) > 10 * 60e3) attempts.delete(k); }, 5 * 60e3).unref();
 
 // ---- helpers ----
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
@@ -55,7 +66,8 @@ const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/
 const APP_FILES = /^\/(index\.html|sw\.js|css\/[\w.-]+\.css|js\/[\w.-]+\.js|data\/map\.json)$/;
 const SECURITY = { 'x-robots-tag': 'noindex, nofollow, noarchive', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'cache-control': 'no-store' };
 function send(res, status, body, headers = {}) { const b = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body); res.writeHead(status, { 'content-type': typeof body === 'object' && !Buffer.isBuffer(body) ? 'application/json' : 'text/plain; charset=utf-8', ...SECURITY, ...headers }); res.end(b); }
-function readBody(req, limit) { return new Promise((resolve, reject) => { const chunks = []; let n = 0; req.on('data', c => { n += c.length; if (n > limit) { reject(Object.assign(new Error('Too large'), { status: 413 })); req.destroy(); } else chunks.push(c); }); req.on('end', () => resolve(Buffer.concat(chunks))); req.on('error', reject); }); }
+// an oversized body is refused with 413 and the rest of it is thrown away as it arrives
+function readBody(req, limit) { return new Promise((resolve, reject) => { let chunks = [], n = 0; req.on('data', c => { n += c.length; if (n > limit) { if (chunks) reject(Object.assign(new Error('Too large'), { status: 413 })); chunks = null; } else chunks?.push(c); }); req.on('end', () => chunks && resolve(Buffer.concat(chunks))); req.on('error', reject); }); }
 const secure = req => req.headers['x-forwarded-proto'] === 'https' || !!req.socket.encrypted;
 
 const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#0b0e10"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><title>ARTESH</title>
@@ -63,18 +75,11 @@ const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta 
 <body><form id="f"><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Enter</button><p id="e"></p></form>
 <script>f.onsubmit=async e=>{e.preventDefault();const r=await fetch('api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});if(r.ok)location.replace('./');else{document.getElementById('e').textContent=r.status===429?'Too many tries. Wait a few minutes.':'Wrong password.';p.value=''}}</script></body></html>`;
 
-async function openai(pathname, init) {
-  if (!KEY) throw Object.assign(new Error('OPENAI_API_KEY is not set on the server.'), { status: 503 });
-  const r = await fetch(BASE + pathname, { ...init, headers: { authorization: `Bearer ${KEY}`, ...(init.headers || {}) } });
-  const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* not json */ }
-  if (!r.ok) throw Object.assign(new Error(json?.error?.message || `OpenAI error ${r.status}`), { status: r.status === 401 ? 502 : r.status === 429 ? 429 : 502 });
-  return json;
-}
-
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname); if (p === '/') p = '/index.html';
   const ip = req.socket.remoteAddress || '?';
   try {
+    const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname); if (p === '/') p = '/index.html';
+    if (p === '/healthz') return send(res, 200, 'ok'); // liveness only: says nothing about the app or its data
     if (p === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /\n');
     if (PUBLIC_FILES.has(p) && req.method === 'GET') return fs.createReadStream(path.join(ROOT, p)).on('error', () => send(res, 404, 'Not found')).pipe(res.writeHead(200, { 'content-type': TYPES[path.extname(p)], ...SECURITY, 'cache-control': 'public, max-age=86400' }) && res);
 
@@ -88,48 +93,56 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=${token}; Path=/; Max-Age=${YEAR / 1000}; HttpOnly; SameSite=Lax${secure(req) ? '; Secure' : ''}` });
     }
 
-    if (!authed(req)) {
+    if (!authed(req) && !bearer(req, p)) {
       if (p.startsWith('/api/')) return send(res, 401, { error: 'Not signed in' });
       // 401 (not a redirect) so the offline cache never stores the login page in place of the app
       return send(res, 401, p === '/index.html' ? LOGIN : 'Not signed in', p === '/index.html' ? { 'content-type': TYPES['.html'] } : {});
     }
 
     if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`${COOKIE}=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
-    if (p === '/api/config') return send(res, 200, { server: true, judge: KEY ? MODEL : null, transcribe: KEY ? STT_MODEL : null, login: !!PASSWORD });
+    if (p === '/api/config') return send(res, 200, { server: true, judge: cfg.judge ? cfg.model : null, transcribe: cfg.transcribe ? cfg.sttModel : null, login: !!PASSWORD, provider: cfg.provider, api: cfg.api });
+    if (LIMITED.has(p) && req.method === 'POST') { const wait = limited(ip); if (wait) return send(res, 429, { error: 'Too many requests. Try again shortly.' }, { 'retry-after': String(wait) }); }
 
     if (p === '/api/state') {
-      if (req.method === 'GET') return send(res, 200, readJSON('state.json', { rev: 0, data: null }));
+      if (req.method === 'GET') return send(res, 200, store.read());
       if (req.method === 'PUT') {
-        const body = JSON.parse((await readBody(req, 20e6)).toString()); const cur = readJSON('state.json', { rev: 0, data: null });
-        if (!body.data || !Array.isArray(body.data.reports)) return send(res, 400, { error: 'Bad state' });
-        if (body.rev !== cur.rev) return send(res, 409, cur); // someone else saved first: hand back the newer copy
-        const next = { rev: cur.rev + 1, saved: Date.now(), data: body.data }; writeJSON('state.json', next);
-        return send(res, 200, { rev: next.rev });
+        const body = JSON.parse((await readBody(req, 20e6)).toString());
+        if (!body || !body.data || !Array.isArray(body.data.reports)) return send(res, 400, { error: 'Bad state' });
+        const r = await store.put(body.rev, body.data);
+        if (r.conflict) return send(res, 409, r.conflict); // someone else saved first: hand back the newer copy
+        return send(res, 200, { rev: r.next.rev });
       }
+    }
+    // every change ever saved, oldest first (the newest 5000 lines at most)
+    if (p === '/api/journal') {
+      if (req.method !== 'GET') return send(res, 405, { error: 'Use GET' }, { allow: 'GET' });
+      const q = url.searchParams.get('since'); const since = q ? Date.parse(q) : null;
+      if (q && !Number.isFinite(since)) return send(res, 400, { error: '"since" must be an ISO time' });
+      return send(res, 200, store.journalSince(since));
     }
 
     // judge: a structured-output call. The app builds the prompt and schema; the model and key stay here.
     if (p === '/api/llm' && req.method === 'POST') {
       const b = JSON.parse((await readBody(req, 200e3)).toString());
-      if (typeof b.system !== 'string' || typeof b.user !== 'string' || typeof b.schema !== 'object') return send(res, 400, { error: 'Bad request' });
-      const out = await openai('/responses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-        model: MODEL, max_output_tokens: 2000, store: false,
-        input: [{ role: 'system', content: b.system }, { role: 'user', content: b.user }],
-        text: { format: { type: 'json_schema', name: String(b.name || 'result').replace(/\W/g, '_').slice(0, 40), strict: true, schema: b.schema } },
-      }) });
-      if (out.status === 'incomplete') return send(res, 502, { error: 'The report was too long to judge in one go.' });
-      const parts = (out.output || []).filter(o => o.type === 'message').flatMap(o => o.content || []);
-      const refusal = parts.find(c => c.type === 'refusal'); if (refusal) return send(res, 422, { error: 'The model declined this report.' });
-      const text = parts.find(c => c.type === 'output_text')?.text; if (!text) return send(res, 502, { error: 'Empty response from the model.' });
-      return send(res, 200, { result: JSON.parse(text), model: MODEL });
+      if (!b || typeof b.system !== 'string' || typeof b.user !== 'string' || !b.schema || typeof b.schema !== 'object') return send(res, 400, { error: 'Bad request' });
+      return send(res, 200, { result: await llm.judge(b), model: cfg.model });
     }
 
     if (p === '/api/transcribe' && req.method === 'POST') {
       const audio = await readBody(req, 25e6); if (audio.length < 500) return send(res, 400, { error: 'No audio' });
-      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0]; const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
-      const fd = new FormData(); fd.append('model', STT_MODEL); fd.append('file', new Blob([audio], { type }), `report.${ext}`);
-      const out = await openai('/audio/transcriptions', { method: 'POST', body: fd });
-      return send(res, 200, { text: String(out.text || '').trim(), model: STT_MODEL });
+      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0];
+      return send(res, 200, { text: await llm.transcribe(audio, type), model: cfg.sttModel });
+    }
+
+    // automation: file a report in one request (iOS Shortcuts, Siri, scripts)
+    if (p === '/api/report') {
+      if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { allow: 'POST' });
+      try { const out = await auto.report(await readBody(req, 8192), req.headers['content-type']); return send(res, out.status, out.body); }
+      catch (e) { if (e.status !== 400) throw e; return send(res, 400, { ok: false, reason: e.reason, error: e.message, ...(e.extra || {}) }); }
+    }
+    if (p === '/api/sitrep') {
+      if (req.method !== 'GET') return send(res, 405, { error: 'Use GET' }, { allow: 'GET' });
+      return send(res, 200, await auto.sitrep());
     }
     if (p.startsWith('/api/')) return send(res, 404, { error: 'Not found' });
 
@@ -139,8 +152,9 @@ const server = http.createServer(async (req, res) => {
     }
     send(res, 404, 'Not found');
   } catch (e) {
-    if (!res.headersSent) send(res, e.status || (e instanceof SyntaxError ? 400 : 500), { error: e.status ? e.message : e instanceof SyntaxError ? 'Bad JSON' : 'Server error' });
-    if (!e.status && !(e instanceof SyntaxError)) console.error(e);
+    const badInput = e instanceof SyntaxError || e instanceof URIError;
+    if (!res.headersSent) send(res, e.status || (badInput ? 400 : 500), { error: e.status ? e.message : e instanceof SyntaxError ? 'Bad JSON' : badInput ? 'Bad request' : 'Server error' });
+    if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => console.log(`ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${KEY ? MODEL : 'offline (no key)'}, transcription ${KEY ? STT_MODEL : 'off'}`));
+server.listen(PORT, HOST, () => console.log(`ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`));
