@@ -65,7 +65,7 @@ export function EventRow({ item: i, ts }) {
     i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label,
     i.unit ? i.unit.replace(/ (Division|Brigade).*$/, '') : '',
   ].filter(Boolean).join(' · ') + (i.reason ? ` (${i.reason})` : '') + (i.at != null ? ` at ${map.provinces[i.at].n}` : '') + (ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : '');
-  return <ListRow variant="item" data-testid="event" media={<OutcomeIcon action={i.action} outcome={i.outcome} />} title={i.headline} description={meta} />;
+  return <ListRow data-testid="event" media={<OutcomeIcon action={i.action} outcome={i.outcome} />} title={i.headline} description={meta} />;
 }
 
 // Where a front stands: left of the middle the enemy is inside the country, right of it you are pushing out.

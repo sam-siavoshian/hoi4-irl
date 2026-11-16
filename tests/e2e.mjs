@@ -140,6 +140,7 @@ try {
   });
 
   await step('map: tap a province, tap a division, layers', async () => {
+    await p.waitForTimeout(900); // the replay re-centred the map with an animation: let it finish before placing the view
     await p.evaluate(() => { const a = window.__artesh; const t = a.map.provinces[a.map.tehran]; a.view.flyTo(t.c[0], t.c[1] + 40, 1.2, false); }); await p.waitForTimeout(200);
     const pt = await p.evaluate(() => { const a = window.__artesh; const q = a.map.provinces.find(x => x.n === 'Qom'); const [x, y] = a.view.toScreen(q.c[0], q.c[1]); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + x, r.top + y]; });
     await p.mouse.click(pt[0], pt[1]); await p.waitForSelector(SHEET); assert.equal(await title(p), 'Qom'); await shut(p);

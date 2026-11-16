@@ -9,6 +9,9 @@ import { Button, ListSection, ListRow, StatusLabel } from "~/components/ui";
 <Button variant="primary" kbd="enter" loading={saving}>Save</Button>
 ```
 
+Added in ARTESH's vendored copy (not in Lanes; see `README.md` in this folder): `SheetPopup layer="panel"` and
+`SheetPanel`, `ListRowButton` and `ListRow inline`, `ProgressMeter origin="center"`, `DayGrid`, `Slider`.
+
 Three rules (also in `AGENTS.md`):
 
 1. **Use the kit.** Never hand-roll markup the kit already has: no raw

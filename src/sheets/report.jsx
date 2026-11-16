@@ -11,7 +11,7 @@ export function Orders() {
   return (
     <ListSection title="Orders of the day">
       {(live.orders || []).map((o, i) => (
-        <ListRow key={i} variant="item" data-testid="order" aria-disabled={o.done || undefined}
+        <ListRow key={i} data-testid="order" aria-disabled={o.done || undefined}
           media={o.done ? <CheckIcon className="size-4 text-success" /> : <TargetIcon className="size-4 text-muted-foreground" />}
           title={orderText(o, labels(), map)} status={<Badge variant="outline">+{o.reward} XP</Badge>} />
       ))}

@@ -36,7 +36,7 @@ export const overview = {
         <Orders />
         {a ? (
           <ListSection title="Chief of staff" description={a.assessment}>
-            {a.orders.map((o, i) => <ListRow key={i} variant="item" media={<TargetIcon className="size-4 text-muted-foreground" />} title={o.order} description={L[o.front]} />)}
+            {a.orders.map((o, i) => <ListRow key={i} media={<TargetIcon className="size-4 text-muted-foreground" />} title={o.order} description={L[o.front]} />)}
           </ListSection>
         ) : null}
         <ListSection title={`Decorations · ${earned.length}`}>
@@ -174,7 +174,7 @@ export const welcome = {
           {map.fronts.map(f => <ListRow key={`${map.id}-${f.id}`} inline data-testid="front-setting" title={f.name} control={<LabelInput f={f} />} />)}
         </ListGroup>
         {cur ? <p className="text-xs text-muted-foreground">Try saying: “{cur.examples[0]}”</p> : null}
-        <Button size="lg" data-testid="begin" onClick={closeSheet}>Begin</Button>
+        <Button size="lg" className="w-full" data-testid="begin" onClick={closeSheet}>Begin</Button>
       </>
     );
   },
