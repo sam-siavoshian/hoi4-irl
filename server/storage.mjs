@@ -9,9 +9,24 @@ export const localDay = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// what changed between two saved states, as journal lines
+// A saved state holds the campaign of the country being played at the top level (reports, labels, notes, off) and every
+// other country's campaign under campaigns[<id>]. A state from before there was a choice is Iran's.
+const DEFAULT_SCENARIO = 'iran';
+const scenarioOf = d => (d && typeof d.scenario === 'string' ? d.scenario : DEFAULT_SCENARIO);
+const campaignOf = (d, id) => (!d ? null : scenarioOf(d) === id ? d : obj(d.campaigns)[id] || null);
+
+// what changed between two saved states, as journal lines. Each country's campaign is compared with itself, wherever it sits,
+// so changing country is one "scenario" line and not a campaign deleted and another added. Lines about a country other than
+// the first carry its id.
 export function diffState(prev, next, t, src) {
   const lines = []; const tag = src ? { src } : {};
+  if (prev && scenarioOf(prev) !== scenarioOf(next)) lines.push({ t, op: 'scenario', from: scenarioOf(prev), to: scenarioOf(next), ...tag });
+  const ids = new Set([...(prev ? [scenarioOf(prev)] : []), scenarioOf(next), ...Object.keys(obj(prev?.campaigns)), ...Object.keys(obj(next?.campaigns))]);
+  for (const id of ids) lines.push(...diffCampaign(campaignOf(prev, id), campaignOf(next, id), t, id === DEFAULT_SCENARIO ? tag : { scenario: id, ...tag }));
+  return lines;
+}
+function diffCampaign(prev, next, t, tag) {
+  const lines = [];
   const index = d => { const m = new Map(); for (const r of Array.isArray(d?.reports) ? d.reports : []) if (r && typeof r === 'object') m.set(r.id != null ? String(r.id) : `ts:${r.ts}`, r); return m; };
   const a = index(prev), b = index(next);
   for (const [id, r] of a) if (!b.has(id)) lines.push({ t, op: 'delete', id, report: r, ...tag });

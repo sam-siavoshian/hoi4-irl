@@ -784,7 +784,7 @@ export function simulate(map, reports, now = Date.now(), opts = {}) {
       if (x.kind === 'city_liberated') st.ach.phoenix ??= rep.ts;
       else if (x.kind === 'city_captured') {
         st.ach.abroad ??= rep.ts; const n = map.provinces[x.city].n; st.stats.taken[n] = rep.ts;
-        // the scenario's two landmark cities (the ids are the ones Iran's Babylon and Sardis had)
+        // the scenario's two landmark cities (META.landmarks); the decorations keep the ids they have always had
         const [la, lb] = V.landmarks, tk = st.stats.taken;
         if (la && n === la.city) st.ach.babylon ??= rep.ts; if (lb && n === lb.city) st.ach.sardis ??= rep.ts;
         if (la && lb && (n === la.city || n === lb.city) && tk[la.city] != null && tk[lb.city] != null && Math.abs(tk[la.city] - tk[lb.city]) <= 7 * DAY) st.ach.cyrus ??= rep.ts;
