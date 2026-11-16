@@ -143,7 +143,7 @@ the network. Tailscale gives you HTTPS on a private address in one command; see
 ### Is there a native app?
 
 No. It is a web app that installs to the Home Screen and behaves like one. That is what keeps it to one
-codebase with no build step.
+codebase.
 
 ### Can I run it without the server at all?
 
@@ -182,11 +182,12 @@ in stay logged in. To log every device out, delete `sessions.json` from the data
 
 ## The project
 
-### Why no framework or build step?
+### What is it built with?
 
-So that it stays easy to run, read and change. Cloning the repository and running one Node file is the
-whole installation. The server has no dependencies to audit or update, and the browser runs the source
-files as they are written.
+The engine, the map renderer and the server are plain JavaScript with no runtime dependencies, so the
+rules are easy to read and the server has nothing to audit. The interface is a small React app built
+with Vite on a design system kept in `vendor/design-system`. `npm install && npm start` builds it and
+starts the server.
 
 ### How can I help?
 

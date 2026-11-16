@@ -1,6 +1,6 @@
 # Architecture
 
-ARTESH has four parts and no build step between them.
+ARTESH has four parts. The engine, map and server run as written; only the interface in `src/` is built (Vite, into `dist/`).
 
 ```
             build time                               run time
@@ -198,7 +198,7 @@ offline.
 
 ## 7. The interface
 
-`js/app.js` is a thin layer: it calls `simulate`, hands the state to `MapView` (`js/map.js`), renders
+`src/` (a React app; `src/core.js` holds the state and actions) is a thin layer: it calls `simulate`, hands the state to `MapView` (`js/map.js`), renders
 the current sheet as HTML, and turns taps and reports into changes to the report list. `MapView` draws
 everything on one canvas: provinces by map mode, front lines, divisions with their arm's silhouette,
 strikes at the place they hit, and the replay.
@@ -212,5 +212,5 @@ strikes at the place they hit, and the replay.
 | What the offline judge recognises | keyword and rule tables in `js/classify.js` |
 | Cities, terrain, fronts, railways | `tools/seeds.mjs`, then `npm run build:map` |
 | How anything is drawn | `js/map.js` |
-| Screens and flows | `js/app.js`, `css/style.css` |
+| Screens and flows | `src/App.jsx`, `src/sheets/`, `src/core.js`; components and tokens from `vendor/design-system` |
 | Login, storage, model calls | `server.mjs` |

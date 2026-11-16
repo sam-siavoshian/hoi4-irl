@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 The step from a personal tool to something anyone can self-host.
 
+### Changed
+
+- **New interface.** Rebuilt as a React app on a vendored design system (`vendor/design-system`): light,
+  dark and automatic appearance, a side panel on desktop, bottom sheets on a phone. The engine, map and
+  server are unchanged. There is now a build step: `npm start` builds `dist/` when needed.
+
 ### Added
 
 - **Eight countries.** Iran, Turkey, Greece, France, Ethiopia, Siam, Peru and Mexico, each with its own

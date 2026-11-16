@@ -25,8 +25,8 @@ Eight countries ship with it, each with its own map, army, navy, air force, comm
 You can change country at any time; each keeps its own campaign. Adding one is a single file:
 see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
-No build step, no framework, no database. Vanilla ES modules, one canvas, and one dependency-free Node
-server that holds your API key, puts a password in front of the app and stores the campaign.
+No database. The engine and the map are plain ES modules on one canvas; the interface is a small React
+app built with Vite on a vendored design system; and one dependency-free Node server that holds your API key, puts a password in front of the app and stores the campaign.
 
 <p align="center">
   <img src="docs/img/map.png" width="19%" alt="The war map: Iran and its seven fronts, with divisions on the border and the front lines drawn province by province">
@@ -309,7 +309,7 @@ Playwright is not a dependency. For the browser tests, run `npm i --no-save play
 
 - `js/engine.js`: the deterministic war engine. The whole state is replayed from the list of reports.
 - `js/map.js`: the canvas renderer. `js/classify.js`: prompts, schema and the offline judge.
-  `js/voice.js`: recording. `js/store.js`: local storage and sync. `js/app.js`: the interface.
+  `js/voice.js`: recording. `js/store.js`: local storage and sync. `src/`: the interface (React, built into `dist/`).
 - `server.mjs`: login, model proxy (`/api/llm`, `/api/transcribe`), storage (`/api/state`), automation API.
 - `tools/seeds.mjs`: cities, states, fronts, terrain, rivers, railways.
 

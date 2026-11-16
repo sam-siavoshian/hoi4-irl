@@ -1,4 +1,4 @@
-/* ARTESH landing page. Same tokens as the app (css/style.css): one typeface, one accent, flat surfaces, hairlines.
+/* ARTESH landing page. Its own small token set: one typeface, one accent, flat surfaces, hairlines.
    Spacing 4 · 8 · 12 · 16 · 24 · 32 · 48 · 72 · 112. */
 :root {
   --bg: #0b0e10; --surface: #14181b; --raised: #1b2024; --hover: #22282d;
