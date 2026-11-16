@@ -1,7 +1,8 @@
 # Writing a scenario (a playable country)
 
 A scenario is one file, `tools/scenarios/<id>.mjs`. `npm run build:map` turns every scenario into
-`data/maps/<id>.json` and lists them in `data/scenarios.json`. Borders come from Natural Earth (modern admin-0
+`data/maps/<id>.json` and lists them in `data/scenarios.json` (the country picker reads that list; building a single
+scenario updates just its entry). Borders come from Natural Earth (modern admin-0
 countries, via `world-atlas`); everything else is authored in the scenario file. `tools/scenarios/iran.mjs` together
 with `tools/seeds.mjs` is the reference implementation: read both before you start.
 
@@ -27,6 +28,8 @@ every front touching the home country where it should, objective zones a sensibl
   `subs`. Choose `subs` so that taking all of them roughly reproduces that empire at its height.
 - Coordinates are `[lon, lat]` in degrees. Be accurate to about 0.1°. A city that falls in the sea or the wrong
   country is reported as a PROBLEM.
+- **Keep city names unique** across the whole scenario, home and foreign together: railways, air bases, fleet bases, battle
+  names and the landmark decorations all find a city by its name.
 - Keep everything factual and neutral in tone. No real living people. Commanders and officers get plausible
   period names for the country, not the names of real historical figures.
 
@@ -60,7 +63,9 @@ node -e "const t=require('world-atlas/countries-10m.json');const {feature}=requi
 
 ## META
 
-Everything the engine and interface say about the country. All fields are required unless marked optional.
+Everything the engine and interface say about the country. All fields are required unless marked optional. The runtime
+(`flavor(map)` in `js/engine.js`) fills anything missing with a plain generic default, so a gap never breaks the game, but
+the result reads as generic: a complete META is what makes a country feel like itself.
 
 ```js
 export const META = {
@@ -83,20 +88,22 @@ export const META = {
   officerNames: { first: [16 given names], last: [16 surnames], ranks: { div: 'Brig. Gen.', bde: 'Col.', guard: 'Maj. Gen.' } },   // invented, period-plausible
   wings: [{ name: '1st Air Regiment', type: 'fighter', model: 'Hawker Fury', base: 'Tehran', planes: 24 }, …4],   // type: fighter | cas | bomber; real aircraft the country flew in 1936; base is a home city with an airbase
   newWingModels: { fighter: 'Hawker Hurricane', cas: 'Hawker Hind', bomber: 'Bristol Blenheim' },
-  fleets: [{ id: 'south', name: 'Southern Fleet', base: 'Khorramshahr', sea: 'Persian Gulf', fronts: ['glf', 'irq', 'raj'], ships: [['Babr', 'Sloop'], …] }, …],   // 1–2 fleets; `fronts` lists which fronts' naval events use this fleet; real 1936 ship names where the navy had them; a landlocked country still needs one small river or lake flotilla
+  fleets: [{ id: 'south', name: 'Southern Fleet', base: 'Khorramshahr', sea: 'Persian Gulf', fronts: ['glf'], ships: [['Babr', 'Sloop'], …] }, { id: 'north', name: 'Caspian Flotilla', base: 'Bandar Pahlavi', sea: 'Caspian Sea', fronts: ['cau', 'tks'], ships: […] }],   // 1–2 fleets; `fronts` lists the fronts this fleet serves. A front listed here "has a fleet": naval victories and defeats can be fought on it, even if it is a land front (Iran's two Caspian fronts). A land front that is NOT listed never has naval battles. Every naval front should be listed by exactly one fleet (one fleet may serve several); an unlisted front falls back to the first fleet. `base` is a home city. Real 1936 ship names where the navy had them; a landlocked country still needs one small river or lake flotilla
   shipNames: [24 names for ships commissioned later],
   operations: [16 codenames for the player's operations],        // drawn from the country's history and myth
   enemyOperations: [12 codenames for enemy operations],
   nicknames: ['Lions', 'Falcons', …8],                            // veteran divisions earn "Lions of Khorasan"
   stateStart: { 'Tehran': [3, 3, 2, 0], … },                      // per HOME state: [infrastructure 0–5, civilian factories, military factories, dockyards]; modest totals for a regional power (about 8–20 civilian, 3–8 military), more for a great power
-  weather: { cau: 'snow', glf: 'heat', … },                       // per front, optional: 'snow' (hard winters, Dec–Feb in the north) or 'heat' (hard summers, Jun–Aug). Southern-hemisphere scenarios add `south: true` to flip the months.
+  weather: { cau: 'snow', glf: 'heat', … },                       // per front, optional: 'snow' (hard winters, Dec–Feb in the north) or 'heat' (hard summers, Jun–Aug). Southern-hemisphere scenarios add `south: true` inside this object (`weather: { and: 'snow', south: true }`) to move the seasons six months; left out, it is taken from the capital's latitude.
   enemyAdjectives: { AFG: 'Afghan', SOV: 'Soviet', … },           // per enemy tag, for unit names
-  ranks: [['Sarbaz', 'Private'], … 12 pairs],                     // the player's own rank ladder, lowest to highest, in the country's language with an English gloss
-  landmarks: [{ city: 'Babylon', medal: 'Cyrus Cylinder', desc: 'Enter Babylon' }, { city: 'Sardis', medal: 'Royal Road', desc: 'Reach Sardis, the western end of the Royal Road' }],   // exactly two foreign objective cities with a decoration each
+  enemyArmour: ['SOV'],                                           // optional: enemy tags that field a tank division from the first day
+  ranks: [['Sarbaz', 'Private'], … 12 pairs],                     // the player's own rank ladder, lowest to highest, in the country's language with an English gloss. Exactly twelve: a longer list is thinned and a shorter one stretched ("Senior …")
+  landmarks: [{ city: 'Babylon', medal: 'Cyrus Cylinder', desc: 'Enter Babylon' }, { city: 'Sardis', medal: 'Royal Road', desc: 'Reach Sardis, the western end of the Royal Road' }],   // exactly two foreign objective cities with a decoration each. Each must be a city in FOREIGN with victoryPoints of 3 or more that lies inside some front's objective zone, spelled exactly as there
   medalNames: { week: 'Order of Homayoun', ten: 'Order of the Lion and Sun', … },   // optional: country-flavoured names for decorations, by id (see MEDALS in js/engine.js)
+  medalDescs: { hotgates: 'Three defeats on one front, then a decisive victory — Xerxes at Thermopylae' },   // optional: a country-flavoured description for a decoration, by id; the condition itself cannot change
   masthead: "ETTELA'AT-E ARTESH",        // newspaper share card masthead, in the spirit of a period paper
   calendar: 'persian',                   // optional: an Intl calendar id to show a second date ('persian', 'hebrew', 'islamic-umalqura', 'ethiopic', 'japanese', 'buddhist'…)
-  days: [{ month: 3, day: 21, text: 'Nowruz Pirouz. A new year on every front.' }, …],   // optional: 2–4 greetings on Gregorian dates
+  days: [{ month: 3, day: 21, text: 'Nowruz Pirouz. A new year on every front.' }, …],   // optional: 2–4 greetings on Gregorian dates. Put the most important day first: a dispatch filed on it (or its eve) earns the secret decoration with id `nowruz`, which you can name in medalNames
   motto: 'adam Kūruš, xšāyaθiya — “I am Cyrus, the king.”',   // easter egg line
 };
 ```

@@ -8,21 +8,55 @@ import { pathToFileURL } from 'node:url';
 const DAY = 86400000;
 const bad = (message, reason = 'bad_request') => Object.assign(new Error(message), { status: 400, reason });
 const uid = () => Date.now().toString(36) + crypto.randomBytes(4).toString('hex').slice(0, 6);
-const blank = () => ({ v: 2, reports: [], labels: {}, notes: {}, off: [], ops: [], seen: [], mode: 'political' });
+const DEFAULT_SCENARIO = 'iran'; // a state saved before there was a choice of country is Iran's
+const blank = () => ({ v: 3, scenario: DEFAULT_SCENARIO, reports: [], labels: {}, notes: {}, off: [], campaigns: {}, ops: [], seen: [], mode: 'political' });
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const sentence = s => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return !t ? '' : /[.!?…]$/.test(t) ? t : t + '.'; };
 
-export function createAutomation({ root, store, llm, judgeOn }) {
-  // the engine, the classifier and the map are loaded once, on first use (the app's own modules: no DOM in them)
-  let libs = null;
+// Test hook (ARTESH_EXTRA_SCENARIOS): a directory of extra built maps, <id>.json, offered next to data/maps/.
+// Ids are checked before they touch the file system, and only files directly inside the directory are ever read.
+export function scenarioDir(dir) {
+  if (!dir) return null;
+  dir = path.resolve(dir);
+  const file = id => (/^[\w-]+$/.test(id) && fs.existsSync(path.join(dir, `${id}.json`)) ? path.join(dir, `${id}.json`) : null);
+  return {
+    file: p => { const m = /^\/data\/maps\/([\w-]+)\.json$/.exec(p); return m ? file(m[1]) : null; },
+    path: file,
+    // the picker's index with the extra maps appended (a map already listed is left alone)
+    index(list) {
+      const out = Array.isArray(list) ? list.slice() : [];
+      for (const f of fs.readdirSync(dir).filter(f => /^[\w-]+\.json$/.test(f)).sort()) {
+        let m; try { m = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { continue; }
+        const id = f.replace(/\.json$/, ''); if (!m || m.id !== id || !Array.isArray(m.fronts) || out.some(x => x.id === id)) continue;
+        const t = m.meta || {}; out.push({ id, name: t.name || id, long: t.long || t.name || id, empire: t.empire || '', year: t.year || 1936, blurb: t.blurb || '', flag: t.flag || null });
+      }
+      return out;
+    },
+  };
+}
+
+export function createAutomation({ root, store, llm, judgeOn, extraScenarios = null }) {
+  // the engine and the classifier are loaded once, on first use (the app's own modules: no DOM in them); each country's map
+  // is loaded the first time the stored state asks for it
+  const extra = scenarioDir(extraScenarios);
+  let libs = null; const maps = new Map();
   const load = () => libs ??= (async () => {
-    const [engine, cls, raw] = await Promise.all([import(pathToFileURL(path.join(root, 'js/engine.js')).href), import(pathToFileURL(path.join(root, 'js/classify.js')).href), fs.promises.readFile(path.join(root, 'data/map.json'), 'utf8')]);
-    return { engine, cls, map: JSON.parse(raw) };
+    const [engine, cls] = await Promise.all([import(pathToFileURL(path.join(root, 'js/engine.js')).href), import(pathToFileURL(path.join(root, 'js/classify.js')).href)]);
+    return { engine, cls };
   })().catch(e => { libs = null; throw new Error(`Could not load the engine: ${e?.message || e}`); }); // a plain Error → 500, logged
+  const mapOf = id => {
+    if (typeof id !== 'string' || !/^[\w-]+$/.test(id)) id = DEFAULT_SCENARIO;
+    if (!maps.has(id)) {
+      const own = path.join(root, 'data/maps', `${id}.json`), file = fs.existsSync(own) ? own : extra?.path(id);
+      if (!file) throw bad(`The saved campaign is for a country this server does not have a map of ("${id}").`, 'no_scenario');
+      maps.set(id, fs.promises.readFile(file, 'utf8').then(JSON.parse).catch(e => { maps.delete(id); throw new Error(`Could not load the map of ${id}: ${e?.message || e}`); }));
+    }
+    return maps.get(id);
+  };
 
   const shape = d => { const b = blank(), x = d && typeof d === 'object' ? d : {}; return { ...b, ...x, reports: Array.isArray(x.reports) ? x.reports : [], labels: x.labels && typeof x.labels === 'object' ? x.labels : {}, notes: x.notes && typeof x.notes === 'object' ? x.notes : {}, off: Array.isArray(x.off) ? x.off : [] }; };
   async function situation(now) {
-    const { engine, cls, map } = await load(); const data = shape(store.read().data);
+    const { engine, cls } = await load(); const data = shape(store.read().data); const map = await mapOf(data.scenario); // the country being played
     const labels = Object.fromEntries(map.fronts.map(f => [f.id, data.labels[f.id] || f.defaultLabel]));
     const active = map.fronts.filter(f => !data.off.includes(f.id));
     const st = engine.simulate(map, data.reports, now, { off: data.off });

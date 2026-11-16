@@ -6,6 +6,8 @@
 // "ill" does not match "skill"). A trailing * marks a stem ("procrastinat*"). Entries with a space or a
 // hyphen are phrases and win over the single words inside them ("blood test" is health, not school).
 
+// Presets are written for the seven front slots, in the order a scenario lists its fronts. These are the first scenario's ids,
+// kept so a preset can still be read by them (labels.afg and so on).
 const FRONT_IDS = ['afg', 'cau', 'tks', 'irq', 'raj', 'tur', 'glf'];
 
 // `match` decides which areas a label belongs to (a label may belong to several: "Gym & Health").
@@ -115,12 +117,13 @@ export const AREAS = [
 
 const P = (id, name, blurb, rows, examples, off = []) => ({
   id, name, blurb,
+  slots: rows.map(r => r[0]), slotNotes: rows.map(r => r[1]), // seven labels and notes, by slot
   labels: Object.fromEntries(FRONT_IDS.map((f, i) => [f, rows[i][0]])),
   notes: Object.fromEntries(FRONT_IDS.map((f, i) => [f, rows[i][1]])),
   off, examples,
 });
 
-// rows are in front order: afg, cau, tks, irq, raj, tur, glf
+// rows are in slot order: the scenario's first front to its seventh
 export const PRESETS = [
   P('general', 'General', 'A bit of everything: work, people, health, money, yourself.', [
     ['Money', 'income, spending, saving, bills, debt'],
@@ -244,6 +247,14 @@ export const PRESETS = [
 export const DEFAULT_PRESET = 'general';
 export const presetById = id => PRESETS.find(p => p.id === id) || null;
 // Fresh copies, so the caller can edit them without touching the preset.
-export const applyPreset = preset => { const p = typeof preset === 'string' ? presetById(preset) : preset; if (!p) throw new Error('Unknown preset'); return { labels: { ...p.labels }, notes: { ...p.notes }, off: [...(p.off || [])] }; };
+// With a map: keyed by that map's front ids, slot by slot. Without one: keyed by the first scenario's ids, as before.
+// `off` entries may be slot numbers or the first scenario's ids.
+export const applyPreset = (preset, map = null) => {
+  const p = typeof preset === 'string' ? presetById(preset) : preset; if (!p) throw new Error('Unknown preset');
+  const ids = map ? map.fronts.map(f => f.id) : FRONT_IDS;
+  const slot = x => (typeof x === 'number' ? x : FRONT_IDS.indexOf(x));
+  const by = list => Object.fromEntries(ids.map((id, i) => [id, list[i]]).filter(([, v]) => v != null));
+  return { labels: by(p.slots), notes: by(p.slotNotes), off: (p.off || []).map(x => ids[slot(x)]).filter(Boolean) };
+};
 // Which life areas a label belongs to, e.g. "Gym & Health" → ['health', 'fitness'].
 export const areasForLabel = label => AREAS.filter(a => a.match.test(String(label || ''))).map(a => a.id);

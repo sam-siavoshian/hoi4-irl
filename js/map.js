@@ -1,9 +1,12 @@
 // Canvas map renderer: provinces, borders, front lines, counters, buildings, battles.
-import { ACTIONS, DAY, mapMeta, statusOf } from './engine.js';
+import { ACTIONS, DAY, mapMeta, statusOf, flavor, capitalOf, capKm } from './engine.js';
 import { UNIT_PATHS } from './icons.js';
 
-export const FRONT_COLORS = { afg: '#4aa3c7', cau: '#d0604e', tks: '#dc8f3f', irq: '#c2aa3e', raj: '#cf5d84', tur: '#a195dc', glf: '#3fc0ab' };
-const IRAN = '#3d8573';
+// One colour per front slot, in the order the scenario lists its fronts.
+export const FRONT_PALETTE = ['#4aa3c7', '#d0604e', '#dc8f3f', '#c2aa3e', '#cf5d84', '#a195dc', '#3fc0ab'];
+export function frontColor(map, fid) { const i = map.fronts.findIndex(f => f.id === fid); return FRONT_PALETTE[(i < 0 ? 0 : i) % FRONT_PALETTE.length]; }
+// the same colours under the original scenario's front ids (kept for anything that still looks them up by id)
+export const FRONT_COLORS = Object.fromEntries(['afg', 'cau', 'tks', 'irq', 'raj', 'tur', 'glf'].map((id, i) => [id, FRONT_PALETTE[i]]));
 const TERRAIN_COL = { plains: '#7f9a5a', hills: '#8c8a5c', mountain: '#6f6558', desert: '#c9b27a', forest: '#4f7d4d', marsh: '#5b8a86', urban: '#a8a39a' };
 
 const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -20,7 +23,7 @@ export class MapView {
     this.mode = 'political'; this.showEmpire = false;
     this.st = null; this.labels = {}; this.selected = null; this.off = []; this.pins = [];
     this.hits = []; this.onTap = () => {}; this.onView = () => {};
-    this.meta = mapMeta(map);
+    this.hitCtx = document.createElement('canvas').getContext('2d'); this.patterns = new Map();
     this._prep(); this._bind();
     this.resize();
     this._tick = this._tick.bind(this);
@@ -32,8 +35,17 @@ export class MapView {
     return [(lon - e.lon0) * k, (merc(e.lat1) - merc(lat)) * k];
   }
 
+  // Show another scenario in the same view: every cache derived from the map is rebuilt, the camera goes home, and nothing
+  // of the old map is kept. The caller follows with setState().
+  setMap(map) {
+    this.map = map; this.st = null; this.selected = null; this.pins = []; this.hits = []; this.anim = null;
+    this._prep(); this._inited = false; this.resize();
+  }
+
   _prep() {
-    const m = this.map;
+    const m = this.map; const F = this.flavor = flavor(m); this.meta = mapMeta(m);
+    this.homeTag = F.home; this.capital = capitalOf(m); this.fcol = Object.fromEntries(m.fronts.map(f => [f.id, frontColor(m, f.id)]));
+    this.homeRgb = hex(m.countries[F.home].color); this.homeTok = rgb(shade(this.homeRgb, -0.3));
     const ringPath = (path, r) => { path.moveTo(r[0], r[1]); for (let i = 2; i < r.length; i += 2) path.lineTo(r[i], r[i + 1]); path.closePath(); };
     for (const p of m.provinces) {
       const path = new Path2D(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -42,7 +54,7 @@ export class MapView {
       const base = hex(m.countries[p.t].color);
       const tk = { mountain: -0.2, hills: -0.1, desert: 0.1, forest: -0.14, marsh: -0.06, urban: 0.16, plains: 0 }[p.tr] + (hash(p.id) - 0.5) * 0.07;
       const lum = base[0] * 0.3 + base[1] * 0.59 + base[2] * 0.11;
-      p.col = shade(mix(base, [lum, lum, lum], p.t === 'IRN' ? 0.05 : 0.3), tk * 0.8 - (p.t === 'IRN' ? 0 : 0.1));
+      p.col = shade(mix(base, [lum, lum, lum], p.t === F.home ? 0.05 : 0.3), tk * 0.8 - (p.t === F.home ? 0 : 0.1));
     }
     for (const [tag, c] of Object.entries(m.countries)) { const path = new Path2D(); for (const poly of c.shape) for (const r of poly) ringPath(path, r); c.path = path; c.rgb = hex(c.color); }
     const line = pts => { const p = new Path2D(); p.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) p.lineTo(pts[i], pts[i + 1]); return p; };
@@ -50,16 +62,16 @@ export class MapView {
     for (const r of m.rivers) r.path = smooth(r.p);
     for (const r of m.railways) r.path = line(r.p);
     for (const l of m.lakes) { l.path = smooth([...l.p, l.p[0], l.p[1], l.p[2], l.p[3]]); l.path.closePath(); }
-    this.empirePath = line(m.achaemenid); this.empirePath.closePath();
-    // which front each Iranian province "belongs" to (life-area map mode)
+    const emp = m.achaemenid || []; this.empirePath = emp.length >= 6 ? line(emp) : new Path2D(); this.empirePath.closePath(); // the old empire's outline (the key keeps its first name)
+    // which front each home province "belongs" to (life-area map mode)
     this.sector = new Map();
-    for (const f of m.fronts) for (const [id, d] of f.iranOrder) { const v = d / f.dTehran; const cur = this.sector.get(id); if (!cur || v < cur.v) this.sector.set(id, { f: f.id, v }); }
-    this.hitCtx = document.createElement('canvas').getContext('2d');
-    this.patterns = new Map();
-    this.countryLabels = [['TUR', 'TURKEY', 34.2, 39.0, 15], ['SOV', 'SOVIET UNION', 61.5, 41.6, 19], ['IRQ', 'IRAQ', 43.3, 32.9, 13], ['AFG', 'AFGHANISTAN', 65.6, 33.3, 13],
-      ['RAJ', 'BRITISH RAJ', 70.6, 27.4, 15], ['SAU', 'SAUDI ARABIA', 44.5, 24.6, 14], ['EGY', 'EGYPT', 29.2, 27.2, 14], ['FRA', 'SYRIA', 38.4, 35.0, 10], ['GBR', 'OMAN', 57.2, 22.6, 9]]
-      .map(([t, n, lon, lat, sz]) => ({ t, n, c: this.proj(lon, lat), sz }));
-    this.iranLabel = this.proj(54.6, 32.7);
+    for (const f of m.fronts) for (const [id, d] of f.iranOrder) { const v = d / capKm(f); const cur = this.sector.get(id); if (!cur || v < cur.v) this.sector.set(id, { f: f.id, v }); }
+    this.countryLabels = (m.labels && m.labels.countries) || [];
+    this.homeLabel = (m.labels && m.labels.home) || m.provinces[this.capital].c;
+    // the home country's box, for framing
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of m.provinces) if (p.t === F.home) { x0 = Math.min(x0, p.bb[0]); y0 = Math.min(y0, p.bb[1]); x1 = Math.max(x1, p.bb[2]); y1 = Math.max(y1, p.bb[3]); }
+    this.homeBox = [x0, y0, x1, y1];
   }
 
   pattern(a, b) {
@@ -78,15 +90,15 @@ export class MapView {
     const r = this.base.parentElement.getBoundingClientRect();
     this.w = Math.max(50, r.width); this.h = Math.max(50, r.height); this.dpr = dpr;
     for (const c of [this.base, this.over]) { c.width = Math.round(this.w * dpr); c.height = Math.round(this.h * dpr); c.style.width = this.w + 'px'; c.style.height = this.h + 'px'; }
-    this.minS = Math.min(Math.max(this.w / this.map.w, this.h / this.map.h), this.w / 1640);
+    const hb = this.homeBox; this.minS = Math.min(Math.max(this.w / this.map.w, this.h / this.map.h), this.w / ((hb[2] - hb[0]) * 1.1));
     if (!this._inited) { this._inited = true; this.home(false); }
     this._clamp(); this.dirty = true;
   }
 
   home(animate = true) {
-    const [cx, cy] = this.proj(53.7, 32.5);
-    const s = Math.max(this.minS, Math.min(this.w / 1600, this.h / 1250));
-    this.flyTo(cx, cy, s, animate);
+    const [x0, y0, x1, y1] = this.homeBox; // the whole home country, with a little room
+    const s = Math.max(this.minS, Math.min(this.w / ((x1 - x0) * 1.08), this.h / ((y1 - y0) * 0.97)));
+    this.flyTo((x0 + x1) / 2, (y0 + y1) / 2, s, animate);
   }
   flyTo(cx, cy, s, animate = true) {
     s = Math.max(this.minS, Math.min(8, s ?? this.view.s));
@@ -166,17 +178,18 @@ export class MapView {
   // ---------------- base layer ----------------
   provFill(p) {
     const st = this.st, t = st.terr, m = this.map;
-    const occBy = p.t === 'IRN' ? t.occ.get(p.id) : null, libBy = p.t !== 'IRN' ? t.lib.get(p.id) : null;
-    const iranCol = shade(hex(IRAN), { mountain: -0.2, hills: -0.1, desert: 0.1, forest: -0.14, marsh: -0.06, urban: 0.16, plains: 0 }[p.tr] + (hash(p.id) - 0.5) * 0.07);
+    const ours = p.t === this.homeTag;
+    const occBy = ours ? t.occ.get(p.id) : null, libBy = !ours ? t.lib.get(p.id) : null;
+    const iranCol = shade(this.homeRgb, { mountain: -0.2, hills: -0.1, desert: 0.1, forest: -0.14, marsh: -0.06, urban: 0.16, plains: 0 }[p.tr] + (hash(p.id) - 0.5) * 0.07);
     switch (this.mode) {
-      case 'terrain': return rgb(shade(hex(TERRAIN_COL[p.tr]), (hash(p.id) - 0.5) * 0.1 - (p.t === 'IRN' ? 0 : 0.25)));
+      case 'terrain': return rgb(shade(hex(TERRAIN_COL[p.tr]), (hash(p.id) - 0.5) * 0.1 - (ours ? 0 : 0.25)));
       case 'life': case 'supply': case 'air': case 'infra': {
-        if (p.t !== 'IRN') { if (libBy) return rgb(mix(hex(FRONT_COLORS[libBy]), [30, 34, 38], 0.35)); return rgb(mix(p.col, [38, 42, 46], 0.72)); }
+        if (!ours) { if (libBy) return rgb(mix(hex(this.fcol[libBy]), [30, 34, 38], 0.35)); return rgb(mix(p.col, [38, 42, 46], 0.72)); }
         if (occBy) return this.pattern(rgb(mix(hex(m.countries[m.fronts.find(f => f.id === occBy).enemy].color), [20, 20, 20], 0.35)), 'rgba(0,0,0,0.45)');
         if (this.mode === 'infra') { const S = st.states[this.meta.stateName(p.s)]; const v = Math.max(0, S.infra - S.infraDmg) / 5; return rgb(shade(mix([92, 70, 52], [90, 190, 120], v), (hash(p.id) - 0.5) * 0.08)); }
         const sec = this.sector.get(p.id); if (!sec) return rgb(iranCol);
         const fr = st.fronts[sec.f];
-        if (this.mode === 'life') return rgb(shade(hex(FRONT_COLORS[sec.f]), -0.12 - sec.v * 0.3 + (hash(p.id) - 0.5) * 0.08));
+        if (this.mode === 'life') return rgb(shade(hex(this.fcol[sec.f]), -0.12 - sec.v * 0.3 + (hash(p.id) - 0.5) * 0.08));
         if (this.mode === 'supply') return rgb(shade(mix([170, 60, 50], [70, 170, 95], fr.supply / 100), -sec.v * 0.25 + (hash(p.id) - 0.5) * 0.06));
         return rgb(shade(mix(mix([175, 60, 55], [110, 110, 110], 0.5 + Math.min(0, fr.air) / 200 + 0.5), [70, 130, 200], Math.max(0, fr.air) / 100), -sec.v * 0.25 + (hash(p.id) - 0.5) * 0.06));
       }
@@ -200,8 +213,9 @@ export class MapView {
     const vis = p => !(p.bb[2] < vx0 || p.bb[0] > vx1 || p.bb[3] < vy0 || p.bb[1] > vy1);
     // graticule
     ctx.strokeStyle = 'rgba(140,180,210,0.07)'; ctx.lineWidth = px; ctx.beginPath();
-    for (let lon = 25; lon < 76; lon += 5) { const [x] = this.proj(lon, 30); ctx.moveTo(x, 0); ctx.lineTo(x, m.h); }
-    for (let lat = 25; lat < 47; lat += 5) { const [, y] = this.proj(30, lat); ctx.moveTo(0, y); ctx.lineTo(m.w, y); }
+    const ex = m.extent;
+    for (let lon = Math.ceil(ex.lon0 / 5) * 5; lon < ex.lon1; lon += 5) { const [x] = this.proj(lon, ex.lat0); ctx.moveTo(x, 0); ctx.lineTo(x, m.h); }
+    for (let lat = Math.ceil(ex.lat0 / 5) * 5; lat < ex.lat1; lat += 5) { const [, y] = this.proj(ex.lon0, lat); ctx.moveTo(0, y); ctx.lineTo(m.w, y); }
     ctx.stroke();
     // coastal glow
     ctx.save(); ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(120,170,200,0.10)'; ctx.lineWidth = 9 * px; for (const c of Object.values(m.countries)) ctx.stroke(c.path);
@@ -209,9 +223,13 @@ export class MapView {
     // provinces
     const visible = m.provinces.filter(vis);
     for (const p of visible) { ctx.fillStyle = this.provFill(p); ctx.fill(p.path); }
-    // snow on the mountains in winter
-    const mon = new Date(st.now).getMonth();
-    if ((mon === 11 || mon <= 1) && this.mode === 'political') { ctx.fillStyle = 'rgba(235,242,248,0.16)'; for (const p of visible) if (p.tr === 'mountain' && p.ll[1] > 31) ctx.fill(p.path); ctx.fillStyle = 'rgba(235,242,248,0.07)'; for (const p of visible) if (p.tr === 'hills' && p.ll[1] > 34) ctx.fill(p.path); }
+    // snow on the mountains in winter: December to February north of the equator, June to August south of it, and only far enough from it
+    const mon = new Date(st.now).getMonth(); const north = mon === 11 || mon <= 1, south = mon >= 5 && mon <= 7;
+    if ((north || south) && this.mode === 'political') {
+      const snowy = (p, lat) => (p.ll[1] > 0 ? north && p.ll[1] > lat : south && p.ll[1] < -lat);
+      ctx.fillStyle = 'rgba(235,242,248,0.16)'; for (const p of visible) if (p.tr === 'mountain' && snowy(p, 31)) ctx.fill(p.path);
+      ctx.fillStyle = 'rgba(235,242,248,0.07)'; for (const p of visible) if (p.tr === 'hills' && snowy(p, 34)) ctx.fill(p.path);
+    }
     // seam filler + province borders
     const ba = Math.max(0, Math.min(0.5, (v.s - 0.22) * 1.2));
     ctx.lineJoin = 'round'; ctx.lineWidth = Math.min(1.1 * px, 1.6); ctx.strokeStyle = `rgba(12,16,20,${0.12 + ba})`;
@@ -277,14 +295,14 @@ export class MapView {
     for (const s of m.seas) this._spaced(s.n, s.c[0], s.c[1], Math.max(9, 13 * s.sz * Math.min(1.6, 0.6 + v.s)), 'rgba(150,190,215,0.5)', 3 * s.sz, px, -s.rot, true);
     const fade = Math.max(0.15, Math.min(0.6, 0.75 - v.s * 0.35));
     for (const l of this.countryLabels) this._spaced(l.n, l.c[0], l.c[1], l.sz * Math.min(2.2, 0.7 + v.s * 1.2), `rgba(8,10,12,${fade})`, 5, px);
-    this._spaced(st.empire ? 'ACHAEMENID EMPIRE' : 'IRAN', this.iranLabel[0], this.iranLabel[1], (st.empire ? 15 : 22) * Math.min(2.2, 0.7 + v.s * 1.2), `rgba(240,250,245,${fade * 0.75})`, st.empire ? 6 : 16, px);
+    this._spaced((st.empire ? this.flavor.empire : this.flavor.name).toUpperCase(), this.homeLabel[0], this.homeLabel[1], (st.empire ? 15 : 22) * Math.min(2.2, 0.7 + v.s * 1.2), `rgba(240,250,245,${fade * 0.75})`, st.empire ? 6 : 16, px);
     // cities
     const minVp = v.s > 1.5 ? 1 : v.s > 0.95 ? 3 : v.s > 0.55 ? 5 : v.s > 0.3 ? 10 : 15;
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     for (const p of visible) {
       if (!p.city || p.vp < minVp) continue;
-      const [x, y] = p.city; const cap = p.id === m.tehran; const r = (p.vp >= 15 ? 3.6 : p.vp >= 5 ? 2.8 : 2.2) * px;
-      const lost = p.t === 'IRN' ? st.terr.occ.has(p.id) : false;
+      const [x, y] = p.city; const cap = p.id === this.capital; const r = (p.vp >= 15 ? 3.6 : p.vp >= 5 ? 2.8 : 2.2) * px;
+      const lost = p.t === this.homeTag ? st.terr.occ.has(p.id) : false;
       ctx.fillStyle = '#0d1114'; ctx.beginPath(); ctx.arc(x, y, r + 1.2 * px, 0, 7); ctx.fill();
       ctx.fillStyle = cap ? '#f2cf6b' : lost ? '#ff8a75' : '#f4f1e6';
       if (cap) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = (i % 2 ? 2.6 : 6) * px; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#0d1114'; ctx.lineWidth = px; ctx.stroke(); }
@@ -347,7 +365,7 @@ export class MapView {
   }
 
   _slots(ids, n) { // pick n spread-out provinces along the line
-    const P = this.map.provinces; const teh = P[this.map.tehran].c;
+    const P = this.map.provinces; const teh = P[this.capital].c;
     const sorted = ids.slice().sort((a, b) => Math.atan2(P[a].c[1] - teh[1], P[a].c[0] - teh[0]) - Math.atan2(P[b].c[1] - teh[1], P[b].c[0] - teh[0]));
     // rotate so the largest angular gap is at the ends
     let gi = 0, gmax = -1; for (let i = 0; i < sorted.length; i++) { const a = P[sorted[i]].c, b = P[sorted[(i + 1) % sorted.length]].c; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d > gmax) { gmax = d; gi = i; } }
@@ -379,18 +397,19 @@ export class MapView {
       if (this.off.includes(f.id)) continue;
       const L = st.lines[f.id]; const fr = st.fronts[f.id]; const data = { kind: 'front', id: f.id };
       const ecol = rgb(shade(m.countries[f.enemy].rgb, -0.3));
-      const eN = far ? 1 : Math.max(2, Math.min(8, Math.round(2 + fr.enemyStr / 30 + Math.max(0, fr.pos) / 25))); const arm = Math.min(eN - 1, Math.round(fr.enemyArmor + (f.enemy === 'SOV' ? 1 : 0)));
+      const eN = far ? 1 : Math.max(2, Math.min(8, Math.round(2 + fr.enemyStr / 30 + Math.max(0, fr.pos) / 25))); const arm = Math.min(eN - 1, Math.round(fr.enemyArmor + (this.flavor.enemyArmour.has(f.enemy) ? 1 : 0)));
       deploy(L.theirs, Array.from({ length: eN }, (_, i) => ({ type: (far ? fr.enemyArmor > 0.5 : i < arm) ? 'arm' : f.naval && i % 2 ? 'ship' : i === eN - 1 && eN > 3 ? 'art' : 'inf', color: ecol, str: Math.min(100, fr.enemyStr * 0.8), enemy: true })), data);
       const divs = st.divisions.filter(d => d.front === f.id);
       const label = (this.labels[f.id] || f.defaultLabel).toUpperCase(); const mid = Math.floor((divs.length - 1) / 2);
-      deploy(L.ours, divs.map((d, i) => ({ type: d.type, color: '#2c6557', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name), led: !!d.led && st.now - d.led < 3 * DAY, data: { kind: 'division', id: d.id }, tag: i === mid ? { text: label, color: FRONT_COLORS[f.id] } : null, star: st.focus === f.id })), data);
+      deploy(L.ours, divs.map((d, i) => ({ type: d.type, color: this.homeTok, str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name), led: !!d.led && st.now - d.led < 3 * DAY, data: { kind: 'division', id: d.id }, tag: i === mid ? { text: label, color: this.fcol[f.id] } : null, star: st.focus === f.id })), data);
     }
-    const t = P[m.tehran].city;
-    if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k) => place(t[0] + (k - 0.5) * step, t[1] - 28 * px, { type: d.type, color: '#8a6a2a', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name) }, { kind: 'division', id: d.id }));
-    const seaPos = { south: this.proj(50.6, 28.1), north: this.proj(50.8, 38.4) };
-    for (const fl of st.fleets) { const [x, y] = seaPos[fl.id]; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
-    if (!this.off.includes('glf')) { const es = this.proj(57.2, 25.5); place(es[0], es[1], { type: 'ship', color: rgb(shade(m.countries.GBR.rgb, -0.3)), str: 90, enemy: true }, { kind: 'front', id: 'glf' }); }
-    if (v.s > 0.55 || this.mode === 'air') for (const w of st.wings) { const p = this.meta.byName[w.base]; if (!p) continue; const k = st.wings.filter(x => x.base === w.base).indexOf(w); place(p.city[0] + (p.id === m.tehran ? 62 : 34) * px + k * step, p.city[1] - 28 * px, { type: 'air', color: '#4a5f8a', str: (w.planes / w.max) * 100 }, { kind: 'wing', id: w.id }); }
+    const t = P[this.capital].city;
+    if (!st.tehranFallen) st.divisions.filter(d => !d.front).forEach((d, k, g) => place(t[0] + (k - (g.length - 1) / 2) * step, t[1] - 28 * px, { type: d.type, color: '#8a6a2a', str: d.str, num: d.n, rank: RANK(d.xp), brigade: /Brigade/.test(d.name) }, { kind: 'division', id: d.id }));
+    // fleets sit where the scenario put them (FLEET_AT); one without a place lies off its base if that is on the coast, and is not drawn otherwise
+    const seaPos = m.fleetAt || {};
+    for (const fl of st.fleets) { const base = this.meta.byName[fl.base]; const at = seaPos[fl.id] || (base && base.co ? [base.c[0] + 40, base.c[1] + 40] : null); if (!at) continue; const [x, y] = at; const hp = fl.ships.reduce((a, s) => a + s.hp, 0) / fl.ships.length; place(x, y, { type: 'ship', color: '#28587a', str: hp }, { kind: 'fleet', id: fl.id }); }
+    for (const f of m.fronts) { const es = f.naval && !this.off.includes(f.id) && seaPos['enemy:' + f.id]; if (es) place(es[0], es[1], { type: 'ship', color: rgb(shade(m.countries[f.enemy].rgb, -0.3)), str: 90, enemy: true }, { kind: 'front', id: f.id }); }
+    if (v.s > 0.55 || this.mode === 'air') for (const w of st.wings) { const p = this.meta.byName[w.base]; if (!p) continue; const k = st.wings.filter(x => x.base === w.base).indexOf(w); place(p.city[0] + (p.id === this.capital ? 62 : 34) * px + k * step, p.city[1] - 28 * px, { type: 'air', color: '#4a5f8a', str: (w.planes / w.max) * 100 }, { kind: 'wing', id: w.id }); }
   }
 
   // ---------------- animated overlay ----------------
@@ -402,7 +421,7 @@ export class MapView {
       const fr = st.fronts[f.id]; if (this.off.includes(f.id) || !fr.last || st.now - fr.last.t > 3 * DAY || fr.last.side === 'neutral') continue;
       const L = st.lines[f.id]; const mean = ids => { let x = 0, y = 0; for (const id of ids) { x += P[id].c[0]; y += P[id].c[1]; } return [x / ids.length, y / ids.length]; };
       const win = fr.last.side === 'win'; const A = ACTIONS[fr.last.action];
-      // pick the contact point nearest to Tehran for losses / deepest for wins
+      // pick the contact point nearest to the middle of our line
       if (!L.theirs.length) continue;
       let o = mean(L.ours), e = mean(L.theirs);
       let best = null; for (const a of L.ours) for (const b of P[a].adj) if (L.theirs.includes(b)) { const d = Math.hypot(P[a].c[0] - o[0], P[a].c[1] - o[1]); if (!best || d < best.d) best = { d, a, b }; }
@@ -451,8 +470,8 @@ export class MapView {
       ctx.fillStyle = `rgba(40,40,44,${0.35 * fl})`; ctx.beginPath(); ctx.arc(x + Math.sin(t + b.prov) * 2 * px, y - s * 2.2, s * 1.1, 0, 7); ctx.fill();
       ctx.fillStyle = `rgba(255,${120 + 60 * fl | 0},40,0.9)`; ctx.beginPath(); ctx.moveTo(x - s * 0.6, y); ctx.quadraticCurveTo(x - s * 0.8, y - s, x, y - s * (1.6 + 0.4 * fl)); ctx.quadraticCurveTo(x + s * 0.8, y - s, x + s * 0.6, y); ctx.closePath(); ctx.fill();
     }
-    // Tehran threat ring
-    if (st.terr.threat && st.terr.threat.km < 300 && !st.tehranFallen) { const c = P[m.tehran].city; const pulse = (t * 0.7) % 1; ctx.beginPath(); ctx.arc(c[0], c[1], (10 + pulse * 26) * px, 0, 7); ctx.strokeStyle = `rgba(255,80,60,${0.8 * (1 - pulse)})`; ctx.lineWidth = 2.2 * px; ctx.stroke(); }
+    // threat ring around the capital
+    if (st.terr.threat && st.terr.threat.km < 300 && !st.tehranFallen) { const c = P[this.capital].city; const pulse = (t * 0.7) % 1; ctx.beginPath(); ctx.arc(c[0], c[1], (10 + pulse * 26) * px, 0, 7); ctx.strokeStyle = `rgba(255,80,60,${0.8 * (1 - pulse)})`; ctx.lineWidth = 2.2 * px; ctx.stroke(); }
   }
 }
 MapView.prototype.snapshot = function (lines = []) {

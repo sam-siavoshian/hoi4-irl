@@ -34,6 +34,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 #top > * { pointer-events: auto; }
 .ident { display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-radius: 999px; min-width: 0; text-align: left; }
 .ident svg { width: 30px; height: 30px; flex: none; }
+#nation-flag { display: flex; flex: none; width: 30px; height: 30px; }
 .ident b { display: block; font-weight: 650; font-size: 14px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ident span { display: block; font-size: 11.5px; line-height: 1.2; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ident > div { min-width: 0; }
@@ -105,6 +106,10 @@ button.row:active { background: var(--hover); }
 .row .main { flex: 1; min-width: 0; } .row .t { font-weight: 550; line-height: 1.3; } .row .d { font-size: 13px; color: var(--text-2); line-height: 1.35; }
 .row .end { flex: none; color: var(--text-3); display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .row img.cnt { width: 44px; height: 29px; flex: none; }
+/* country picker: a round flag, the name, the empire to restore, one line about it */
+.row svg.flag.lead { background: none; border-radius: 50%; padding: 0; }
+.countries .row { align-items: flex-start; } .countries .row .end { align-self: center; }
+.countries .d span { display: block; } .countries .d .gold { color: var(--accent); font-weight: 550; }
 
 .front { display: block; width: 100%; text-align: left; padding: 14px 8px; position: relative; border-radius: var(--r-m); }
 .front + .front::before { content: ""; position: absolute; top: 0; left: 8px; right: 8px; border-top: 1px solid var(--line); }

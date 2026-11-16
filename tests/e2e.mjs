@@ -6,13 +6,15 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
+import { testland, FIXTURES } from './fixtures/build.mjs';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
 const PORT = 8123, URL_ = `http://localhost:${PORT}/`;
 const shots = new URL('./shots/', import.meta.url).pathname; fs.rmSync(shots, { recursive: true, force: true }); fs.mkdirSync(shots, { recursive: true });
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-e2e-'));
 const mock = await mockOpenAI(8124);
-const server = spawn('node', ['server.mjs'], { env: { ...process.env, PORT, HOST: '127.0.0.1', ARTESH_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ARTESH_DATA_DIR: dataDir }, stdio: 'ignore' });
+const TL = (await testland()).fronts.map(f => f.id); // a second country, served through the test hook, to prove the app is scenario-driven
+const server = spawn('node', ['server.mjs'], { env: { ...process.env, PORT, HOST: '127.0.0.1', ARTESH_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ARTESH_DATA_DIR: dataDir, ARTESH_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
 const login = async p => { await p.goto(URL_); if (await p.locator('#p').count()) { await p.fill('#p', 'open sesame'); await p.click('button'); } await p.waitForFunction(() => window.__artesh?.st); };
 await new Promise(r => setTimeout(r, 700));
 const browser = await chromium.launch();
@@ -45,8 +47,17 @@ try {
     await c0.close();
   }
   let { ctx, p } = await open();
+  await step('first run: choose your country', async () => {
+    assert.equal(await p.textContent('#sheet-title'), 'Choose your country');
+    assert.deepEqual(await p.evaluate(() => window.__artesh.scenarios.map(s => s.id).filter(id => id === 'iran' || id === 'testland')), ['iran', 'testland']);
+    assert.equal(await p.locator('[data-act=country]').count(), await p.evaluate(() => window.__artesh.scenarios.length)); assert.equal(await p.locator('[data-act=country] svg.flag').count(), await p.locator('[data-act=country]').count());
+    assert.match(await p.textContent('[data-act=country][data-id=iran]'), /Iran.*Achaemenid Empire.*Restore the empire of Cyrus/s); assert.match(await p.textContent('[data-act=country][data-id=testland]'), /Testland.*Platine Confederation/s);
+    await shot(p, '00-country');
+    await p.click('[data-act=country][data-id=iran]'); await p.waitForFunction(() => document.querySelector('#sheet-title').textContent === 'Your fronts');
+    assert.equal(await p.evaluate(() => window.__artesh.data.scenario), 'iran'); assert.equal(await p.textContent('#nation-name'), 'Iran'); assert.equal(await p.locator('#nation-flag svg').count(), 1);
+  });
   await step('first run: name your fronts', async () => {
-    assert.equal(await p.textContent('#sheet-title'), 'Your fronts');
+    assert.equal(await p.textContent('#sheet-title'), 'Your fronts'); assert.match(await body(p), /Each border of Iran/);
     assert.ok(await p.locator('[data-act=preset]').count() >= 7); await p.click('[data-act=preset][data-id=founder]');
     assert.notEqual(await p.inputValue('input[data-id=afg]'), 'School'); await shot(p, '00-welcome');
     await p.evaluate(() => { const a = window.__artesh; a.data.labels = {}; a.data.notes = {}; a.data.off = []; a.save(); a.refresh(); });
@@ -169,6 +180,56 @@ try {
     const o = await open(); const s2 = await o.p.evaluate(() => ({ n: window.__artesh.data.reports.length, off: window.__artesh.data.off, tur: window.__artesh.data.labels.tur }));
     assert.equal(s2.n, 2); assert.deepEqual(s2.off, ['raj']); assert.equal(s2.tur, 'Guitar'); await o.ctx.close();
     assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'))).data.reports.length, 2);
+  });
+  await ctx.close();
+
+  // ---- another country: its own map, its own campaign, and the way back ----
+  ({ ctx, p } = await open());
+  await step('settings → country: Testland has its own map and an empty campaign', async () => {
+    await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); assert.match(await body(p), /Change country/);
+    await p.click('.row[data-sheet=country]'); assert.equal(await p.textContent('#sheet-title'), 'Country'); assert.match(await p.textContent('[data-act=country][data-id=iran]'), /playing/); await shot(p, '21-country');
+    await p.click('[data-act=country][data-id=testland]'); await p.waitForFunction(() => window.__artesh.map.id === 'testland' && window.__artesh.st?.fronts.lit);
+    assert.equal(await p.textContent('#sheet-title'), 'Settings'); assert.equal(await p.textContent('#nation-name'), 'Testland'); assert.match(await p.textContent('#toast'), /Now playing Testland/);
+    const d = await p.evaluate(() => { const a = window.__artesh; return { scenario: a.data.scenario, n: a.data.reports.length, iran: a.data.campaigns.iran, labels: a.data.labels, off: a.data.off, fronts: Object.keys(a.live.fronts), log: a.live.log.length, view: a.view.map.id, home: a.view.homeTag }; });
+    assert.equal(d.scenario, 'testland'); assert.equal(d.n, 0); assert.equal(d.log, 0); assert.deepEqual(d.fronts, TL); assert.equal(d.view, 'testland'); assert.equal(d.home, 'URU');
+    assert.equal(d.iran.reports.length, 2, 'the Iranian campaign is put away whole'); assert.equal(d.iran.labels.tur, 'Guitar'); assert.deepEqual(d.iran.off, ['raj']);
+    assert.equal(d.labels[TL[5]], 'Guitar', 'life areas carry over slot by slot'); assert.deepEqual(d.off, [TL[4]]);
+    assert.equal(await p.inputValue(`input[data-id=${TL[5]}]`), 'Guitar'); assert.equal(await p.locator('.frow input[data-bind=label]').count(), 7);
+    await p.click('#sheet .x'); await p.evaluate(() => window.__artesh.view.home(false)); await shot(p, '22-testland-map');
+    const n = await p.evaluate(() => { const a = window.__artesh; return { tokens: a.view.hits.filter(h => h.data.kind === 'division').length, divs: a.live.divisions.length, fleets: a.view.hits.filter(h => h.data.kind === 'fleet').length, squadrons: a.view.hits.filter(h => h.data.kind === 'front' && !h.data.battle).length }; });
+    assert.equal(n.fleets, 1); assert.ok(n.tokens > 10 && n.tokens <= n.divs); assert.ok(n.squadrons >= 1);
+  });
+  await step('a report on Testland moves Testland\'s fronts and nobody else\'s', async () => {
+    await p.click('#nav .report'); await p.fill('#rtext', 'Finished the thesis chapter after the river patrol. Friends cancelled again.'); await p.click('[data-act=send]'); await p.waitForSelector('#banner:not([hidden])');
+    const req = mock.seen.filter(x => x.path === '/v1/responses').at(-1).body;
+    assert.match(req.input[0].content, /war map of Testland/); assert.match(req.input[0].content, /- lit: Littoral Front \(vs Argentina\)/); assert.match(req.input[0].content, /Only these have a fleet: pla, atl/); assert.doesNotMatch(req.input[0].content, /Iran|Afghan|Tehran/);
+    assert.deepEqual(req.text.format.schema.properties.items.items.properties.front.enum, TL.filter(id => id !== TL[4]));
+    const s = await st(p); assert.equal(s.log, 1); assert.ok(s.fronts[TL[0]].pos < -3); assert.ok(s.fronts[TL[6]].pos > 0, 'the sixth front on offer, the paused one left out, is the Atlantic'); assert.ok(s.lib > 0);
+    assert.equal(await p.evaluate(() => window.__artesh.live.log[0].items[1].action), 'naval_defeat'); assert.ok(await p.evaluate(() => window.__artesh.live.fleets[0].ships.some(x => x.hp < 100)));
+    await p.waitForTimeout(1300); await shot(p, '23-testland-after');
+    await p.click('#nav [data-sheet=fronts]'); assert.equal(await p.locator('#sheet .front').count(), 7); assert.match(await body(p), /inside Testland/);
+    await p.click(`.front[data-arg=${TL[0]}]`); assert.match(await body(p), /Littoral Front/); assert.match(await body(p), /Durazno/); assert.match(await body(p), /the Mesopotamian Littoral/); await shot(p, '24-testland-front');
+    await p.click('.units .unit >> nth=0'); assert.match(await p.textContent('#sheet-title'), /Salto|Daymán|Arapey/);
+    await p.click('[data-act=emblem]'); assert.equal(await p.textContent('#sheet-title'), 'Oriental Republic of Testland'); assert.match(await body(p), /Soldado/); assert.doesNotMatch(await body(p), /Sarbaz|\d{4} AP/); await shot(p, '25-testland-overview');
+    await p.evaluate(() => { navigator.canShare = undefined; }); await p.click('[data-sheet=share]'); await p.waitForSelector('#th-rank canvas'); assert.equal(await p.locator('.cards canvas').count(), 4); await shot(p, '26-testland-share');
+    await p.click('#sheet .x');
+    const pt = await p.evaluate(() => { const a = window.__artesh; const q = a.map.provinces[a.map.capital]; a.view.flyTo(q.c[0], q.c[1], 1.4, false); a.view._clamp(); a.view.draw(); const [x, y] = a.view.toScreen(q.c[0] + 6, q.c[1] + 14); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + x, r.top + y]; });
+    await p.mouse.click(pt[0], pt[1]); await p.waitForSelector('#sheet:not([hidden])'); assert.match(await body(p), /held by Testland/); assert.match(await body(p), /Durazno garrison/); await p.click('#sheet .x');
+  });
+  await step('demo data plays on whichever map is loaded', async () => {
+    const d = await p.evaluate(() => { const a = window.__artesh; const keep = a.data.reports; document.querySelector('[data-act=emblem]').click(); document.querySelector('[data-sheet=settings]').click(); return keep.length; });
+    await p.click('summary'); p.once('dialog', x => x.accept()); await p.click('[data-act=demo]'); await p.waitForTimeout(600);
+    const s = await st(p); assert.equal(s.log, 8); assert.ok(s.occ > 0 && s.lib > 0); assert.equal(d, 1);
+    assert.ok(await p.evaluate(() => { const a = window.__artesh; const ids = a.map.fronts.map(f => f.id); return a.data.reports.every(r => r.items.every(i => ids.includes(i.front))); }));
+    await p.evaluate(() => window.__artesh.view.home(false)); await shot(p, '27-testland-demo');
+  });
+  await step('back to Iran: the old campaign is exactly as it was left', async () => {
+    await p.click('[data-act=emblem]'); await p.click('[data-sheet=settings]'); await p.click('.row[data-sheet=country]'); await p.click('[data-act=country][data-id=iran]'); await p.waitForFunction(() => window.__artesh.map.id === 'iran' && window.__artesh.st?.fronts.afg);
+    const d = await p.evaluate(() => { const a = window.__artesh; return { scenario: a.data.scenario, n: a.data.reports.length, tur: a.data.labels.tur, off: a.data.off, tl: a.data.campaigns.testland.reports.length, iran: a.data.campaigns.iran, name: document.querySelector('#nation-name').textContent }; });
+    assert.equal(d.scenario, 'iran'); assert.equal(d.n, 2); assert.equal(d.tur, 'Guitar'); assert.deepEqual(d.off, ['raj']); assert.equal(d.tl, 8); assert.equal(d.iran, undefined); assert.equal(d.name, 'Iran');
+    const s = await st(p); assert.equal(s.log, 2); assert.ok(s.fronts.irq.pos < -6); await p.click('#sheet .x'); await shot(p, '28-iran-again');
+    await p.waitForTimeout(900); const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'state.json'))).data;
+    assert.equal(saved.scenario, 'iran'); assert.equal(saved.reports.length, 2); assert.equal(saved.campaigns.testland.reports.length, 8); assert.equal(saved.v, 3);
   });
   await ctx.close();
 

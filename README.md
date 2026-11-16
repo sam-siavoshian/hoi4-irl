@@ -278,7 +278,7 @@ Ideas and pull requests are welcome; open an issue first for anything large.
 npm install
 npm test             # engine, classifier and server tests (the model API is mocked)
 npm run test:e2e     # headless-browser tests at iPhone size (needs Playwright's Chromium)
-npm run build:map    # regenerate data/map.json from Natural Earth + tools/seeds.mjs
+npm run build:map    # regenerate data/maps/*.json and data/scenarios.json from Natural Earth + tools/scenarios/
 node tools/build-icons-js.mjs   # regenerate js/icons.js from the icon sets
 npm run serve        # plain static server, no login and no model: development only
 ```

@@ -120,7 +120,7 @@ function variants(map) {
 const root = document.getElementById('root'), status = document.getElementById('status');
 const cards = {};
 async function boot() {
-  let map = null; try { map = await (await fetch('../data/map.json')).json(); } catch { /* fall back to the procedural blob */ }
+  let map = null; try { map = await (await fetch('../data/maps/iran.json')).json(); } catch { /* fall back to the procedural blob */ }
   const img = fakeMap(map);
   const t0 = performance.now();
   for (const [title, items] of variants(img)) {

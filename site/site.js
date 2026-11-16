@@ -43,7 +43,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function hero() {
   const frame = $('#hero-map'); if (!frame) return;
   const [{ MapView }, { simulate, ACTIONS }, map] = await Promise.all([
-    import('./demo/js/map.js'), import('./demo/js/engine.js'), fetch('./demo/data/map.json').then(r => { if (!r.ok) throw new Error('map ' + r.status); return r.json(); }),
+    import('./demo/js/map.js'), import('./demo/js/engine.js'), fetch('./demo/data/maps/iran.json').then(r => { if (!r.ok) throw new Error('map ' + r.status); return r.json(); }),
   ]);
   const labels = Object.fromEntries(map.fronts.map(f => [f.id, f.defaultLabel]));
   const reports = reportsAt(Date.now());

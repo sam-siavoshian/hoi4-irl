@@ -183,7 +183,7 @@ Body limit: 25 MB.
 
 ### Static files (login required)
 
-`/`, `/index.html`, `/sw.js`, `/css/*.css`, `/js/*.js`, `/data/map.json`. Nothing else on disk is
+`/`, `/index.html`, `/sw.js`, `/css/*.css`, `/js/*.js`, `/data/scenarios.json`, `/data/maps/<id>.json`. Nothing else on disk is
 reachable.
 
 ---
