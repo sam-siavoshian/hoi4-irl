@@ -101,10 +101,10 @@ export const HOME_STATES = {
   'Van': [
     ['Van', 43.38, 38.5, 5, 'S'], ['Bitlis', 42.11, 38.4, 1], ['Muş', 41.49, 38.73, 1], ['Hakkâri', 43.74, 37.57, 1],
     ['Siirt', 41.94, 37.93, 3], ['Başkale', 44.02, 38.05, 1, 'F'], ['Erciş', 43.36, 39.03, 1], ['Yüksekova', 44.28, 37.57, 1],
-    ['Malazgirt', 42.54, 39.15, 1], ['Şemdinli', 44.57, 37.31, 1, 'F'],
+    ['Malazgirt', 42.54, 39.15, 1], ['Şemdinli', 44.57, 37.31, 1],
   ],
   'Diyarbakır': [
-    ['Diyarbakır', 40.23, 37.91, 10, 'ASF'], ['Mardin', 40.74, 37.31, 3], ['Urfa', 38.79, 37.16, 5], ['Gaziantep', 37.38, 37.07, 5],
+    ['Diyarbakır', 40.23, 37.91, 10, 'AS'], ['Mardin', 40.74, 37.31, 3], ['Urfa', 38.79, 37.16, 5], ['Gaziantep', 37.38, 37.07, 5],
     ['Malatya', 38.31, 38.35, 5], ['Elazığ', 39.22, 38.67, 3], ['Adıyaman', 38.28, 37.76, 1], ['Nusaybin', 41.22, 37.07, 1, 'F'],
     ['Cizre', 42.19, 37.33, 1, 'F'], ['Kilis', 37.12, 36.72, 1, 'F'], ['Birecik', 37.98, 37.03, 1], ['Ergani', 39.76, 38.27, 1],
     ['Tunceli', 39.55, 39.11, 1], ['Bingöl', 40.5, 38.89, 1],
@@ -260,7 +260,7 @@ export const FRONTS = [
   { id: 'aeg', name: 'Aegean Theatre', enemy: 'GRC', enemyName: 'Royal Hellenic Navy', naval: true, coast: AEGEAN_COAST, coastKm: 60,
     subs: ['Greece', 'Cyprus', 'N. Cyprus', 'Cyprus U.N. Buffer Zone', 'Dhekelia', 'Akrotiri', 'Libya'], box: [13, 20, 35, 39.25],
     defaultLabel: 'Friends', satrapy: 'the Archipelago, the Morea, Crete, Cyprus & Tripoli', hq: 'İzmir' },
-  { id: 'bla', name: 'Black Sea Theatre', enemy: 'SOV', enemyName: 'Black Sea Fleet', naval: true, coast: BLACK_SEA_COAST, coastKm: 60,
+  { id: 'bla', name: 'Black Sea Theatre', enemy: 'SOV', enemyName: 'Black Sea Fleet', naval: true, coast: BLACK_SEA_COAST, coastKm: 40,
     subs: ['Ukraine', 'Russia'], box: [28.0, 43.3, 40.6, 47.75],
     defaultLabel: 'Self', satrapy: 'the Crimea, Özi & Azov', hq: 'Samsun' },
 ];
@@ -441,7 +441,7 @@ export const META = {
     'Baghdad': 'Bağdat', 'Basra': 'Basra', 'Mosul': 'Musul', 'Shahrizor': 'Şehrizor', 'Western Desert': 'Dulaym', 'Kuwait': 'Kuveyt',
     'Aleppo': 'Halep', 'Damascus': 'Şam', 'Latakia': 'Trablusşam', 'Jazira': 'Rakka', 'Lebanon': 'Sayda', 'Palestine': 'Kudüs', 'Trans-Jordan': 'Kerek',
     'Lower Egypt': 'Mısır', 'Upper Egypt': 'Said', 'Sinai': 'Tih', 'Red Sea Coast': 'Kuseyr', 'Hejaz': 'Hicaz', 'Jabal Shammar': 'Cebel-i Şammar',
-    'Cyprus': 'Kıbrıs', 'Cyrenaica': 'Bingazi', 'Tripolitania': 'Trablusgarp', 'Fezzan': 'Fizan',
+    'Cyprus': 'Kıbrıs', 'Podolia & Bukovina': 'Podolya', 'Al-Hasa': 'Lahsa', 'Cyrenaica': 'Bingazi', 'Tripolitania': 'Trablusgarp', 'Fezzan': 'Fizan',
   },
   capitalFalls: 'The Grand National Assembly withdraws to Sivas. The war goes on.',
   capitalFreed: 'Ankara is free again. The Assembly returns to the capital.',
