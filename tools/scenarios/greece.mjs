@@ -242,7 +242,7 @@ export const FOREIGN = {
 };
 
 // Naval theatres: the stretch of the home coast (and the islands) that faces each sea
-const THRACIAN_COAST = [[25.45, 40.93], [25.9, 40.82], [26.05, 40.72], [25.6, 40.48]];
+const THRACIAN_COAST = [[25.05, 40.97], [25.45, 40.93], [25.9, 40.82], [26.05, 40.72], [25.6, 40.48]];
 const IONIAN_COAST = [[19.85, 39.75], [20.2, 39.5], [20.45, 39.25], [20.72, 38.95], [20.75, 38.6], [21.0, 38.35], [21.25, 38.15], [21.15, 37.85], [21.4, 37.6], [21.6, 37.25], [21.65, 36.85]];
 const AEGEAN_COAST = [[23.05, 39.75], [23.3, 39.3], [23.7, 39.15], [24.55, 38.9], [25.2, 39.85], [26.2, 39.25], [26.4, 39.0], [26.05, 38.4], [26.2, 37.6], [26.85, 37.72], [25.4, 37.1], [24.93, 37.44], [24.85, 37.85], [24.93, 37.44], [24.5, 37.25], [24.45, 36.72]];
 const CRETAN_COAST = [[27.1, 36.82], [28.0, 36.3], [27.15, 35.6], [26.3, 35.1], [25.0, 34.95], [23.6, 35.25], [23.0, 36.2], [23.15, 36.45], [22.6, 36.7], [22.48, 36.4]];
@@ -257,7 +257,7 @@ export const FRONTS = [
   { id: 'thr', name: 'Thracian Front', enemy: 'BUL', enemyName: 'Bulgaria', subs: ['Bulgaria'], defaultLabel: 'Partner',
     satrapy: 'Paristrion & Philippoupolis', hq: 'Serres' },
   { id: 'str', name: 'Straits Theatre', enemy: 'TUR', enemyName: 'Turkey', naval: true, subs: ['Turkey'], box: [25.5, 39.45, 45.2, 42.4],
-    coast: THRACIAN_COAST, coastKm: 40, defaultLabel: 'Work', satrapy: 'Thrace, Bithynia & Pontus', hq: 'Alexandroupoli' },
+    coast: THRACIAN_COAST, coastKm: 30, defaultLabel: 'Work', satrapy: 'Thrace, Bithynia & Pontus', hq: 'Alexandroupoli' },
   // the Catepanate (Apulia, Lucania, Calabria), the Lombard principalities that acknowledged Basil, and Sicily
   { id: 'ion', name: 'Ionian Sea Theatre', enemy: 'ITA', enemyName: 'Regia Marina', naval: true, subs: ['Italy'], box: [12.2, 36.4, 19.0, 41.55],
     coast: IONIAN_COAST, coastKm: 60, defaultLabel: 'Health', satrapy: 'the Catepanate of Italy & Sicily', hq: 'Patras' },
