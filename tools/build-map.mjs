@@ -4,6 +4,7 @@
 // See docs/SCENARIOS.md for the scenario file format.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { feature, merge } from 'topojson-client';
 import { presimplify, simplify, quantile } from 'topojson-simplify';
 import { Delaunay } from 'd3-delaunay';
@@ -12,8 +13,9 @@ import pc from 'polygon-clipping';
 const require = createRequire(import.meta.url);
 const topoRaw = JSON.parse(fs.readFileSync(require.resolve('world-atlas/countries-10m.json'), 'utf8'));
 
-async function build(S) {
-const HOME = S.HOME; const problems = [];
+// Builds one scenario module into a map object. Writes nothing: the command line below (and the tests) decide where it goes.
+export async function build(S, { quiet = false } = {}) {
+const HOME = S.HOME; const problems = []; const say = quiet ? () => {} : console.log;
 
 // ---------- projection (Mercator → map units) ----------
 const { lon0, lon1, lat0, lat1 } = S.EXTENT;
@@ -316,8 +318,8 @@ for (const f of S.FRONTS) {
   if (enemyOrder.length < 4) problems.push(`front ${f.id}: only ${enemyOrder.length} objective provinces`);
   if (iranOrder.length < 6) problems.push(`front ${f.id}: only ${iranOrder.length} home provinces between it and the capital`);
   const { subs, coast, box, ...rest } = f;
-  fronts.push({ ...rest, iranOrder, enemyOrder, dTehran: Math.round(dTehran), dMax: enemyOrder.length ? enemyOrder[enemyOrder.length - 1][1] : 0, border: [...iranSrc.keys()] });
-  console.log(' ', f.id.padEnd(5), 'home provs', String(iranOrder.length).padStart(3), 'dTehran', Math.round(dTehran), 'km | objectives', enemyOrder.length, 'dMax', fronts.at(-1).dMax, 'km');
+  fronts.push({ ...rest, iranOrder, enemyOrder, dTehran: Math.round(dTehran), dCap: Math.round(dTehran), dMax: enemyOrder.length ? enemyOrder[enemyOrder.length - 1][1] : 0, border: [...iranSrc.keys()] });
+  say(' ', f.id.padEnd(5), 'home provs', String(iranOrder.length).padStart(3), 'dTehran', Math.round(dTehran), 'km | objectives', enemyOrder.length, 'dMax', fronts.at(-1).dMax, 'km');
 }
 // home front per Iranian province (nearest front border by path distance) – for building damage targeting
 const homeDist = fronts.map(f => new Map(f.iranOrder));
@@ -354,22 +356,26 @@ if (isolated.length) problems.push(`home provinces with no neighbours: ${isolate
 if (iran.length < 40) problems.push(`only ${iran.length} home provinces — lower the home country's spacing`);
 if (fronts.length !== S.FRONTS.length) problems.push('some fronts could not be built');
 const json = JSON.stringify(out);
-fs.mkdirSync(new URL('../data/maps/', import.meta.url), { recursive: true });
-fs.writeFileSync(new URL(`../data/maps/${S.ID}.json`, import.meta.url), json);
-if (S.ID === 'iran') fs.writeFileSync(new URL('../data/map.json', import.meta.url), json); // legacy path
-console.log(`  ${S.ID}: ${provinces.length} provinces (${iran.length} home), ${(json.length / 1024).toFixed(0)} KB, ${W}x${H}`);
-for (const pr of problems) console.log('  PROBLEM:', pr);
-return { id: S.ID, problems, provinces: provinces.length, home: iran.length, meta: S.META || {} };
+say(`  ${S.ID}: ${provinces.length} provinces (${iran.length} home), ${(json.length / 1024).toFixed(0)} KB, ${W}x${H}`);
+for (const pr of problems) say('  PROBLEM:', pr);
+return { id: S.ID, problems, provinces: provinces.length, home: iran.length, meta: S.META || {}, map: out, json };
 }
 
+// ---------- command line ----------
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 const dir = new URL('./scenarios/', import.meta.url);
 const only = process.argv.slice(2);
 const ids = fs.readdirSync(dir).filter(f => f.endsWith('.mjs')).map(f => f.replace(/\.mjs$/, '')).filter(id => !only.length || only.includes(id)).sort((a, b) => (a === 'iran' ? -1 : b === 'iran' ? 1 : a.localeCompare(b)));
 let bad = 0; const index = [];
 for (const id of ids) {
   console.log(id);
-  try { const S = await import(new URL(`${id}.mjs`, dir)); if (S.ID !== id) throw new Error(`ID "${S.ID}" must match the file name`); const r = await build(S); bad += r.problems.length; const m = r.meta; index.push({ id, name: m.name, long: m.long, empire: m.empire, year: m.year || 1936, blurb: m.blurb || '', flag: m.flag || null }); }
+  try { const S = await import(new URL(`${id}.mjs`, dir)); if (S.ID !== id) throw new Error(`ID "${S.ID}" must match the file name`); const r = await build(S); bad += r.problems.length; fs.mkdirSync(new URL('../data/maps/', import.meta.url), { recursive: true }); fs.writeFileSync(new URL(`../data/maps/${id}.json`, import.meta.url), r.json); const m = r.meta; index.push({ id, name: m.name, long: m.long, empire: m.empire, year: m.year || 1936, blurb: m.blurb || '', flag: m.flag || null }); }
   catch (e) { console.log('  FAILED:', e.message); bad++; }
 }
-if (!only.length) fs.writeFileSync(new URL('../data/scenarios.json', import.meta.url), JSON.stringify(index, null, 1));
+// the index the app's country picker reads; building one scenario replaces just its entry
+const indexUrl = new URL('../data/scenarios.json', import.meta.url);
+let list = index;
+if (only.length) { let old = []; try { old = JSON.parse(fs.readFileSync(indexUrl, 'utf8')); } catch { /* none yet */ } list = [...old.filter(x => !index.some(y => y.id === x.id)), ...index].sort((a, b) => (a.id === 'iran' ? -1 : b.id === 'iran' ? 1 : a.id.localeCompare(b.id))); }
+fs.writeFileSync(indexUrl, JSON.stringify(list, null, 1));
 if (bad) { console.log(`\n${bad} problem(s)`); process.exit(1); }
+}

@@ -6,6 +6,14 @@
   "empire": "Achaemenid Empire",
   "year": 1936,
   "blurb": "Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.",
-  "flag": null
+  "flag": {
+   "type": "h3",
+   "colors": [
+    "#3f9467",
+    "#efeadb",
+    "#cf4a39"
+   ],
+   "disc": "#e3b85c"
+  }
  }
 ]
