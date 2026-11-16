@@ -40,6 +40,20 @@ These are embedded in files the browser loads.
   SVG bodies in `js/icons.js` (`UI_ICONS`), extracted from the `@iconify-json/lucide` package by
   `tools/build-icons-js.mjs`, remain for the canvas renderers.
 
+### Simple Icons: the marks of the model providers
+
+- Source: <https://simpleicons.org> (the `simple-icons` package)
+- Licence: [CC0 1.0](https://github.com/simple-icons/simple-icons/blob/master/LICENSE.md) for the icon
+  set. The marks themselves are trademarks of their owners.
+- Where: one path each for Anthropic, Google Gemini, Mistral AI, OpenRouter, Ollama and LM Studio in
+  `js/provider-logos.js`, extracted by `tools/build-provider-logos.mjs` and drawn unchanged, in one ink,
+  on the provider tiles in Settings.
+- **Trademarks.** The names and logos of OpenAI, Anthropic, Google Gemini, Groq, Mistral, OpenRouter,
+  Ollama and LM Studio belong to their owners. They are shown only to identify the service a key is for.
+  Home Front is not affiliated with, sponsored by or endorsed by any of them. OpenAI and Groq appear by
+  name with a plain Lucide icon and no logo: neither mark is in Simple Icons, and Groq's trademark
+  policy does not permit its logo in an interface without a licence.
+
 ### Natural Earth: country borders and coastlines
 
 - Source: <https://www.naturalearthdata.com>
@@ -51,7 +65,7 @@ These are embedded in files the browser loads.
 
 ## Used at build time only
 
-These packages run when a developer regenerates `data/maps/*.json` or `js/icons.js`. They are
+These packages run when a developer regenerates `data/maps/*.json`, `js/icons.js` or `js/provider-logos.js`. They are
 `devDependencies`; none of their code is shipped to the browser or loaded by the server.
 
 | Package | Used for | Licence |
@@ -63,6 +77,7 @@ These packages run when a developer regenerates `data/maps/*.json` or `js/icons.
 | [polygon-clipping](https://github.com/mfogel/polygon-clipping) | Clipping provinces to borders | MIT |
 | [@iconify-json/game-icons](https://github.com/iconify/icon-sets) | Game-icons.net set as JSON | CC BY 3.0 |
 | [@iconify-json/lucide](https://github.com/iconify/icon-sets) | Lucide set as JSON | ISC |
+| [simple-icons](https://github.com/simple-icons/simple-icons) | Brand marks of the model providers | CC0 1.0 |
 
 ## Used for testing only
 

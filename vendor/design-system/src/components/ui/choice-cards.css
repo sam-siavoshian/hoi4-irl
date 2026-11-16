@@ -441,6 +441,12 @@
   }
 }
 
+/* `columns={2}` (Home Front): two across at any width. The grid follows the window, not its box, so tiles in a
+ * narrow side panel on a wide screen ask for this. */
+:is([data-slot="choice-cards"], [data-slot="choice-toggles"])[data-variant="tiles"][data-columns="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .choice-tile {
   position: relative;
   display: flex;

@@ -3,10 +3,12 @@
 import { ListRow, ListRowButton, ProgressMeter, StatusLabel } from '@sam/design-system';
 import {
   AnchorIcon, ArrowLeftIcon, ArrowRightIcon, BombIcon, CastleIcon, ChevronsLeftIcon, ChevronsRightIcon, CircleDashedIcon, EyeIcon, FactoryIcon,
-  GiftIcon, HandshakeIcon, MegaphoneIcon, PackageIcon, PlaneIcon, SnowflakeIcon, SwordsIcon, TrainFrontIcon, UserMinusIcon, UsersIcon, WindIcon,
+  GiftIcon, HandshakeIcon, MegaphoneIcon, PackageIcon, PlaneIcon, ServerIcon, SnowflakeIcon, SparklesIcon, SwordsIcon, TrainFrontIcon, UserMinusIcon, UsersIcon, WifiOffIcon, WindIcon,
+  ZapIcon,
 } from 'lucide-react';
 import { ACTIONS } from '../js/engine.js';
 import { UNIT_PATHS } from '../js/icons.js';
+import { PROVIDER_LOGOS } from '../js/provider-logos.js';
 import { app, fmtDate, labels, openSheet, statusOf } from './core.js';
 
 // engine tones → the kit's status tones
@@ -51,6 +53,17 @@ export function UnitIcon({ type, size = 'md' }) {
       </svg>
     </span>
   );
+}
+
+// A model provider's mark, in the ink of whatever holds it. The real brand marks are Simple Icons' (CC0; the paths are
+// in js/provider-logos.js, written by tools/build-provider-logos.mjs). OpenAI and Groq are not in that set and their
+// own terms do not let this project ship their logos, so they wear a plain Lucide icon, as do "another server" and
+// the offline judge. Nothing here is drawn by hand. Names and logos belong to their owners (NOTICE.md).
+const PLAIN_MARK = { openai: SparklesIcon, groq: ZapIcon, custom: ServerIcon, offline: WifiOffIcon };
+export function ProviderLogo({ id, className = 'size-4' }) {
+  const mark = PROVIDER_LOGOS[id];
+  if (!mark) { const Icon = PLAIN_MARK[id] || ServerIcon; return <Icon data-provider-logo={id} data-mark="plain" aria-hidden="true" className={`${className} shrink-0`} />; }
+  return <svg data-provider-logo={id} data-mark="brand" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" className={`${className} shrink-0`}><path d={mark.path} /></svg>;
 }
 
 // One paint from the map's legend. The colour is the renderer's (js/map.js), so the swatch matches the canvas.

@@ -24,6 +24,7 @@ A look the kit lacked was added to the kit, not to a screen. Each file's header 
 | `src/components/ui/day-grid.tsx` | new `DayGrid` | History's calendar: a square a day, tinted by how the day went. |
 | `src/components/ui/slider.tsx` | new `Slider` (Base UI) | The replay's date. The kit had no slider. |
 | `src/components/ui/choice-cards.tsx`, `choice-cards.css` | `ChoiceCards variant="thumbs" flow="scroll" \| "column"` | The country picker's nations: one line of flags that scrolls sideways on a phone, a stacked column (flag, name, a line under it) on a wide screen. |
+| `src/components/ui/choice-cards.tsx`, `choice-cards.css` | `ChoiceCards variant="tiles" columns={2}` | The provider tiles in Settings: two across at any width. The tiles' grid follows the window, so three across in a narrow side panel on a wide screen cut the names. |
 | `src/components/ui/index.ts` | exports `DayGrid` and `Slider` | |
 
 ## Updating
