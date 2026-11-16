@@ -39,7 +39,7 @@ export function Picker({ wide }) {
         <Card as="aside" padding="none" radius="panel" className="pointer-events-auto absolute inset-y-4 start-4 flex w-68 flex-col">
           <div className="space-y-1 px-5 pt-4 pb-2">
             <div className="flex min-h-8 items-center justify-between gap-2">{heading}{close}</div>
-            <p className="text-xs text-muted-foreground">{first ? '7 borders, 7 parts of your life. Pick the map you want to fight on. You can change it later.' : 'Each country keeps its own campaign. Nothing is lost by switching.'}</p>
+            <p className="text-xs text-muted-foreground">{first ? 'A journal you read as a map. Each of a country’s 7 borders is one part of your life. Pick the map you want; you can change it later.' : 'Each country keeps its own campaign. Nothing is lost by switching.'}</p>
           </div>
           <div className="min-h-0 flex-1"><ScrollArea scrollFade><div className="p-3">{nations}</div></ScrollArea></div>
         </Card>

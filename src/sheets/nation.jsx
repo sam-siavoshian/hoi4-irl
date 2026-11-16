@@ -167,7 +167,7 @@ export const welcome = {
     const { map, ui, cfg } = app; const cur = PRESETS.find(p => p.id === ui.preset);
     return (
       <>
-        <p className={quiet}>Each border of {F().name} is one part of your life. Pick a starting point, rename anything, then tell the staff what happened each day.</p>
+        <p className={quiet}>Each border of {F().name} is one part of your life. Once a day, say what happened in a sentence. A good day pushes that front out, a neglected one lets the enemy in, and the map shows you what needs attention. Name the borders below; you can rename them later.</p>
         <div className="space-y-2">
           <ChoiceCards variant="chips" label="Starting point" value={ui.preset} options={PRESETS.map(p => ({ value: p.id, label: p.name }))} onChange={choosePreset} />
           {cur ? <p className="text-xs text-muted-foreground">{cur.blurb}</p> : null}
