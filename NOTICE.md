@@ -1,6 +1,6 @@
 # Third-party notices
 
-ARTESH is released under the MIT licence (see [LICENSE](LICENSE)). It includes or is built from the
+Home Front is released under the MIT licence (see [LICENSE](LICENSE)). It includes or is built from the
 following third-party work. Thank you to everyone who made it.
 
 ## Shipped with the app
@@ -72,5 +72,5 @@ These packages run when a developer regenerates `data/maps/*.json` or `js/icons.
 ## A note on the setting
 
 The map, the 1936 borders, the place names and the Old Persian satrapy names are used as a historical
-backdrop for a personal metaphor. ARTESH is not affiliated with, and does not use any assets from,
+backdrop for a personal metaphor. Home Front is not affiliated with, and does not use any assets from,
 any commercial strategy game.

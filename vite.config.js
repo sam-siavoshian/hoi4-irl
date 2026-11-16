@@ -15,7 +15,7 @@ const BOOT = path.join(root, 'vendor/design-system/boot/theme-boot.js');
 // first paint) and the service worker, which is sw.js with the names of the built files written in.
 function shellFiles() {
   return {
-    name: 'artesh-shell-files',
+    name: 'homefront-shell-files',
     configureServer(server) {
       server.middlewares.use('/theme-boot.js', (req, res) => { res.setHeader('content-type', 'text/javascript'); res.end(fs.readFileSync(BOOT)); });
     },

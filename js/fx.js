@@ -1,4 +1,4 @@
-// ARTESH fx — the "juice" layer: synthesized sound, particles, flashes, shakes and haptics.
+// Home Front fx — the "juice" layer: synthesized sound, particles, flashes, shakes and haptics.
 // No dependencies, no assets. Importable under Node (everything is then a no-op).
 //
 //   import { fx } from './fx.js';

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Keeps ARTESH running on a Mac. Build the interface once first (npm install && npm run build, and again after
+<!-- Keeps Home Front running on a Mac. Build the interface once first (npm install && npm run build, and again after
      each update). Replace /PATH/TO with real paths, then:
-     cp deploy/com.artesh.server.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.artesh.server.plist -->
+     cp deploy/com.homefront.server.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.homefront.server.plist -->
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.artesh.server</string>
+  <key>Label</key><string>com.homefront.server</string>
   <key>ProgramArguments</key>
   <array><string>/PATH/TO/node</string><string>/PATH/TO/hoi4-irl/server.mjs</string></array>
   <key>WorkingDirectory</key><string>/PATH/TO/hoi4-irl</string>

@@ -55,7 +55,7 @@ const fingerprint = () => {
     assert.equal(head.card, 'summary_large_image'); assert.ok(head.alt.length > 20); assert.equal(head.og, head.tw);
     const og = await p.evaluate(async src => { const i = new Image(); i.src = src; await i.decode(); return [i.naturalWidth, i.naturalHeight].join('x'); }, new URL(head.og, base).href);
     assert.equal(og, `${head.w}x${head.h}`, `${name}: og.png is not the size the page declares`);
-    const ld = JSON.parse(head.ld); assert.equal(ld['@type'], 'SoftwareApplication'); assert.equal(ld.name, 'ARTESH'); assert.equal(String(ld.offers.price), '0');
+    const ld = JSON.parse(head.ld); assert.equal(ld['@type'], 'SoftwareApplication'); assert.equal(ld.name, 'Home Front'); assert.equal(String(ld.offers.price), '0');
     assert.doesNotMatch(head.text, /hearts of iron/i);
     // every image is the size its tag declares, so nothing shifts as it loads
     const sizes = await p.evaluate(() => [...document.images].filter(i => i.naturalWidth && (i.naturalWidth !== Number(i.getAttribute('width')) || i.naturalHeight !== Number(i.getAttribute('height')))).map(i => `${i.getAttribute('src')} is ${i.naturalWidth}x${i.naturalHeight}`));
@@ -66,8 +66,8 @@ const fingerprint = () => {
 
     // the demo link opens the app with a campaign in progress
     await Promise.all([p.waitForURL(/\/demo\/\?demo=1/), p.click('.hero a[data-demo]')]);
-    await p.waitForFunction(() => window.__artesh?.st, null, { timeout: 15000 });
-    const demo = await p.evaluate(() => ({ reports: window.__artesh.data.reports.length, sheet: window.__artesh.ui.sheet, canvases: document.querySelectorAll('#mapwrap canvas').length, bar: document.querySelectorAll('nav[aria-label=Main] button').length }));
+    await p.waitForFunction(() => window.__homefront?.st, null, { timeout: 15000 });
+    const demo = await p.evaluate(() => ({ reports: window.__homefront.data.reports.length, sheet: window.__homefront.ui.sheet, canvases: document.querySelectorAll('#mapwrap canvas').length, bar: document.querySelectorAll('nav[aria-label=Main] button').length }));
     assert.ok(demo.reports > 5, `${name}: the demo opened without a campaign`);
     assert.equal(demo.sheet, null, `${name}: the demo opened on a sheet (${demo.sheet}), not the map`);
     assert.equal(demo.canvases, 2, `${name}: the map's two canvases`);

@@ -11,4 +11,4 @@ http.createServer((req, res) => {
   const file = [path.join(root, 'dist', p), path.join(root, p)].find(f => f.startsWith(root) && fs.existsSync(f) && !fs.statSync(f).isDirectory());
   if (!file) { res.writeHead(404); res.end('Not found'); return; }
   res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' }); fs.createReadStream(file).pipe(res);
-}).listen(port, () => console.log(`ARTESH on http://localhost:${port}`));
+}).listen(port, () => console.log(`Home Front on http://localhost:${port}`));

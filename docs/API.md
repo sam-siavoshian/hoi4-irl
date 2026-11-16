@@ -53,7 +53,7 @@ Content-Type: application/json
 { "password": "..." }
 ```
 
-- `200 {"ok": true}` and a `Set-Cookie: artesh_session=...; HttpOnly; SameSite=Lax; Max-Age=31536000`
+- `200 {"ok": true}` and a `Set-Cookie: homefront_session=...; HttpOnly; SameSite=Lax; Max-Age=31536000`
   (plus `Secure` when the request arrived over HTTPS or with `X-Forwarded-Proto: https`).
 - `401 {"error": "Wrong password"}` after a short delay.
 - `429 {"error": "Too many attempts"}` after eight failures from one address within ten minutes.
@@ -190,10 +190,10 @@ reachable.
 
 ## Automation API
 
-For iOS Shortcuts, Siri, scripts and cron. Set `ARTESH_TOKEN` (16+ characters) in `.env`, then send
-`Authorization: Bearer $ARTESH_TOKEN`. The token works for `/api/report`, `/api/sitrep` and `/api/journal` only;
+For iOS Shortcuts, Siri, scripts and cron. Set `HOMEFRONT_TOKEN` (16+ characters) in `.env`, then send
+`Authorization: Bearer $HOMEFRONT_TOKEN`. The token works for `/api/report`, `/api/sitrep` and `/api/journal` only;
 everything else needs a logged-in browser session. These endpoints share a per-address rate limit
-(`ARTESH_RATE_LIMIT`, default 60 per minute; `429` with `Retry-After` when exceeded).
+(`HOMEFRONT_RATE_LIMIT`, default 60 per minute; `429` with `Retry-After` when exceeded).
 
 ### `POST /api/report`
 
@@ -204,7 +204,7 @@ Body: `text/plain`, or JSON `{ "text": "...", "when"?: ISO time | ms | "YYYY-MM-
 
 ```bash
 curl -X POST http://localhost:8080/api/report \
-  -H "Authorization: Bearer $ARTESH_TOKEN" -H "Content-Type: text/plain" \
+  -H "Authorization: Bearer $HOMEFRONT_TOKEN" -H "Content-Type: text/plain" \
   --data "Failed the calculus midterm, but hit a PR at the gym."
 ```
 
@@ -233,7 +233,7 @@ Errors: `400` `{ok:false, reason:"empty"|"bad_request"|"bad_front"|"bad_outcome"
 The situation report as `text/plain`, using your front names.
 
 ```bash
-curl -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
+curl -H "Authorization: Bearer $HOMEFRONT_TOKEN" http://localhost:8080/api/sitrep
 ```
 
 ### `GET /api/journal?since=<ISO time>`
@@ -248,14 +248,14 @@ No authentication. Returns `200` with the plain text `ok`.
 
 ## Command line
 
-`bin/artesh.mjs` wraps the automation API. It reads `ARTESH_URL` and `ARTESH_TOKEN` from the environment or from
-`~/.config/artesh/config.json` (`{"url": "...", "token": "..."}`).
+`bin/homefront.mjs` wraps the automation API. It reads `HOMEFRONT_URL` and `HOMEFRONT_TOKEN` from the environment or from
+`~/.config/homefront/config.json` (`{"url": "...", "token": "..."}`).
 
 ```bash
-node bin/artesh.mjs report "Shipped the onboarding flow"
-node bin/artesh.mjs sitrep
-node bin/artesh.mjs journal --since 2026-11-01
-node bin/artesh.mjs --help
+node bin/homefront.mjs report "Shipped the onboarding flow"
+node bin/homefront.mjs sitrep
+node bin/homefront.mjs journal --since 2026-11-01
+node bin/homefront.mjs --help
 ```
 
 Exit codes: `0` done, `1` error, `2` the judge found the report unclear.
@@ -272,5 +272,5 @@ Say "Hey Siri, report to the staff" and it files the report and reads the result
 ## A nightly situation report by cron
 
 ```cron
-0 21 * * *  curl -s -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
+0 21 * * *  curl -s -H "Authorization: Bearer $HOMEFRONT_TOKEN" http://localhost:8080/api/sitrep
 ```

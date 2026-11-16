@@ -1,9 +1,9 @@
 {
-  "name": "artesh",
+  "name": "homefront",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ARTESH: a self-hosted life tracker and journal drawn as a 1936 grand-strategy war map. Say what happened today, an AI general staff judges it, and the front lines of your life move.",
+  "description": "Home Front: a self-hosted life tracker and journal drawn as a 1936 grand-strategy war map. Say what happened today, an AI general staff judges it, and the front lines of your life move.",
   "license": "MIT",
   "homepage": "https://sam-siavoshian.github.io/hoi4-irl/",
   "repository": {
@@ -36,7 +36,7 @@
     "nodejs"
   ],
   "bin": {
-    "artesh": "bin/artesh.mjs"
+    "homefront": "bin/homefront.mjs"
   },
   "scripts": {
     "dev": "vite",
@@ -51,7 +51,7 @@
     "pretest": "node tools/ensure-build.mjs",
     "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "docker": "docker build -t artesh .",
+    "docker": "docker build -t homefront .",
     "test:all": "npm test && sam-design-check src && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
   },
   "devDependencies": {
@@ -74,5 +74,5 @@
   "engines": {
     "node": ">=20"
   },
-  "author": "ARTESH contributors"
+  "author": "Home Front contributors"
 }

@@ -105,14 +105,14 @@ try {
   });
   await step('shareCanvas falls back to a download and copies the text', async () => {
     await page.evaluate(() => { Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); });
-    const [download, result] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.evaluate(() => window.__share.api.shareCanvas(window.__share.cards['rankup-rank'].canvas, { filename: 'artesh-test.png', text: 'copied sitrep' }))]);
-    assert.equal(result, 'downloaded'); assert.equal(download.suggestedFilename(), 'artesh-test.png');
+    const [download, result] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.evaluate(() => window.__share.api.shareCanvas(window.__share.cards['rankup-rank'].canvas, { filename: 'homefront-test.png', text: 'copied sitrep' }))]);
+    assert.equal(result, 'downloaded'); assert.equal(download.suggestedFilename(), 'homefront-test.png');
     const file = await download.path(), buf = fs.readFileSync(file); assert.equal(buf.subarray(1, 4).toString(), 'PNG'); assert.equal(buf.readUInt32BE(16), 1080); assert.equal(buf.readUInt32BE(20), 1080);
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'copied sitrep');
   });
   await step('the Share button on the demo page works', async () => {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.click('button[data-share="bulletin-bad"]')]);
-    assert.equal(download.suggestedFilename(), 'artesh-bulletin-bad.png');
+    assert.equal(download.suggestedFilename(), 'homefront-bulletin-bad.png');
   });
   await step('shareCanvas uses the share sheet when it can, reports a cancel, and never throws', async () => {
     const r = await page.evaluate(async () => {

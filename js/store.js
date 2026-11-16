@@ -4,7 +4,9 @@
 // `scenario` is the country being played; reports, labels, notes and off at the top level are ITS campaign. Every other
 // country that has been played keeps its own campaign under campaigns[<scenario id>] = { reports, labels, notes, off },
 // so changing country never destroys anything. A save from before scenarios (v2, no `scenario`) is Iran's campaign.
-const KEY = 'artesh.v1';
+const KEY = 'homefront.v1';
+// a browser that used the project under its earlier name keeps its campaign
+try { const old = localStorage.getItem('artesh.v1'); if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old); } catch { /* no storage */ }
 export const DEFAULT_SCENARIO = 'iran';
 const CAMPAIGN_KEYS = ['reports', 'labels', 'notes', 'off'];
 const blank = () => ({ v: 3, scenario: DEFAULT_SCENARIO, reports: [], labels: {}, notes: {}, off: [], campaigns: {}, ops: [], seen: [], settings: {}, mode: 'political', onboarded: false });
@@ -45,11 +47,11 @@ export function load() {
 export function save(data) { try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch { return false; } }
 export function exportData(data) {
   const d = JSON.parse(JSON.stringify(data)); d.settings = {};
-  return JSON.stringify({ app: 'artesh', exported: new Date().toISOString(), ...d }, null, 2);
+  return JSON.stringify({ app: 'homefront', exported: new Date().toISOString(), ...d }, null, 2);
 }
 export function importData(text) {
   const d = JSON.parse(text);
-  if (!d || !Array.isArray(d.reports)) throw new Error('This file is not an ARTESH backup.');
+  if (!d || !Array.isArray(d.reports)) throw new Error('This file is not a Home Front backup.');
   const check = list => { for (const r of list) if (!r || typeof r.ts !== 'number' || (!r.kind && !Array.isArray(r.items))) throw new Error('Backup is damaged.'); };
   check(d.reports); for (const c of Object.values(obj(d.campaigns))) check(Array.isArray(c?.reports) ? c.reports : []);
   const m = migrate(d);

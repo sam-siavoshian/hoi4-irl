@@ -16,7 +16,7 @@ import * as store from '../js/store.js';
 import { UNIT_PATHS } from '../js/icons.js';
 
 // ---------- state ----------
-// `app` is one mutable object, as the old interface kept it; window.__artesh points into it for the tests.
+// `app` is one mutable object, as the old interface kept it; window.__homefront points into it for the tests.
 export const app = {
   ready: false, error: null, demo: false,
   map: null, view: null, data: null, st: null, live: null, scenarios: [],
@@ -89,12 +89,12 @@ export async function boot(base, over, wrap) {
   app.ready = true;
   refresh();
   if (firstRun()) openSheet(app.scenarios.length > 1 ? 'country' : 'welcome'); else greet();
-  if (app.demo) { try { ui.demoNote = !sessionStorage.getItem('artesh.demo-note'); } catch { ui.demoNote = true; } change(); }
+  if (app.demo) { try { ui.demoNote = !sessionStorage.getItem('homefront.demo-note'); } catch { ui.demoNote = true; } change(); }
   if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__artesh = { save: persist, get cfg() { return app.cfg; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry };
+  window.__homefront = { save: persist, get cfg() { return app.cfg; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry };
 }
 let fxRoot = null;
-export function closeDemoNote() { ui.demoNote = false; try { sessionStorage.setItem('artesh.demo-note', '1'); } catch { /* fine */ } change(); }
+export function closeDemoNote() { ui.demoNote = false; try { sessionStorage.setItem('homefront.demo-note', '1'); } catch { /* fine */ } change(); }
 
 // ---------- the country ----------
 // the map on screen follows data.scenario: called after anything that may have changed it
@@ -353,7 +353,7 @@ const cardCache = {};
 export function card(kind) { try { return (cardCache[kind] = cardData(kind)); } catch (err) { console.error(err); return null; } }
 export function shareCard(kind) {
   const c = cardCache[kind]; if (!c) return;
-  shareCanvas(c, { filename: `artesh-${kind}.png`, text: sitrep(app.map, app.live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved.', 3200, null, 'The report is copied too.'); });
+  shareCanvas(c, { filename: `homefront-${kind}.png`, text: sitrep(app.map, app.live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved.', 3200, null, 'The report is copied too.'); });
 }
 
 // ---------- settings ----------
@@ -372,7 +372,7 @@ export function toggleFx(k) {
 }
 export function exportBackup() {
   const blob = new Blob([store.exportData(app.data)], { type: 'application/json' }); const url = URL.createObjectURL(blob);
-  const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  const el = Object.assign(document.createElement('a'), { href: url, download: `homefront-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 export function importBackup(file) {
   if (!file) return;

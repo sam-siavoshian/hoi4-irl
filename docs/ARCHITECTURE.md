@@ -1,6 +1,6 @@
 # Architecture
 
-ARTESH has four parts. The engine, map and server run as written; only the interface in `src/` is built (Vite, into `dist/`).
+Home Front has four parts. The engine, map and server run as written; only the interface in `src/` is built (Vite, into `dist/`).
 
 ```
             build time                               run time
@@ -166,7 +166,7 @@ ones and use a bearer token instead of a cookie. See [API.md](API.md).
 
 ## 5. Sync
 
-`js/store.js` keeps the campaign in `localStorage` (key `artesh.v1`) so the app works with no server at
+`js/store.js` keeps the campaign in `localStorage` (key `homefront.v1`) so the app works with no server at
 all, and mirrors it to the server when there is one.
 
 - On start, the app asks `/api/config` whether a server is present, then pulls `/api/state`. A server

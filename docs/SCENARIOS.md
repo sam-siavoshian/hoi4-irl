@@ -104,7 +104,7 @@ export const META = {
   landmarks: [{ city: 'Babylon', medal: 'Cyrus Cylinder', desc: 'Enter Babylon' }, { city: 'Sardis', medal: 'Royal Road', desc: 'Reach Sardis, the western end of the Royal Road' }],   // exactly two foreign objective cities with a decoration each. Each must be a city in FOREIGN with victoryPoints of 3 or more that lies inside some front's objective zone, spelled exactly as there
   medalNames: { week: 'Order of Homayoun', ten: 'Order of the Lion and Sun', … },   // optional: country-flavoured names for decorations, by id (see MEDALS in js/engine.js)
   medalDescs: { hotgates: 'Three defeats on one front, then a decisive victory — Xerxes at Thermopylae' },   // optional: a country-flavoured description for a decoration, by id; the condition itself cannot change
-  masthead: "ETTELA'AT-E ARTESH",        // newspaper share card masthead, in the spirit of a period paper
+  masthead: "ETTELA'AT-E Home Front",        // newspaper share card masthead, in the spirit of a period paper
   calendar: 'persian',                   // optional: an Intl calendar id to show a second date ('persian', 'hebrew', 'islamic-umalqura', 'ethiopic', 'japanese', 'buddhist'…)
   days: [{ month: 3, day: 21, text: 'Nowruz Pirouz. A new year on every front.' }, …],   // optional: 2–4 greetings on Gregorian dates. Put the most important day first: a dispatch filed on it (or its eve) earns the secret decoration with id `nowruz`, which you can name in medalNames
   motto: 'adam Kūruš, xšāyaθiya — “I am Cyrus, the king.”',   // easter egg line

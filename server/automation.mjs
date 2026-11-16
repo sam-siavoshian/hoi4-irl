@@ -13,7 +13,7 @@ const blank = () => ({ v: 3, scenario: DEFAULT_SCENARIO, reports: [], labels: {}
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const sentence = s => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return !t ? '' : /[.!?…]$/.test(t) ? t : t + '.'; };
 
-// Test hook (ARTESH_EXTRA_SCENARIOS): a directory of extra built maps, <id>.json, offered next to data/maps/.
+// Test hook (HOMEFRONT_EXTRA_SCENARIOS): a directory of extra built maps, <id>.json, offered next to data/maps/.
 // Ids are checked before they touch the file system, and only files directly inside the directory are ever read.
 export function scenarioDir(dir) {
   if (!dir) return null;

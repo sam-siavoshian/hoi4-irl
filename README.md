@@ -1,4 +1,4 @@
-<h1 align="center">ARTESH</h1>
+<h1 align="center">Home Front</h1>
 
 <p align="center">
   <b>A self-hosted life tracker and journal, drawn as a 1936 grand-strategy war map.</b><br>
@@ -22,12 +22,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.png" alt="ARTESH on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
+  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
 </p>
 
 ## What it is
 
-ARTESH is a personal tracker for people who give up on habit trackers. You pick a country. It sits in
+Home Front is a personal tracker for people who give up on habit trackers. You pick a country. It sits in
 the middle of a 1936 map, and each of its seven border fronts stands for one area of your life: school,
 family, work, health, friends. Once a day you say or type what happened, in your own words. A language
 model acting as your general staff decides which front each event belongs to, whether it was a win or a
@@ -78,7 +78,7 @@ Want another one? A country is a single file: see [docs/SCENARIOS.md](docs/SCENA
 Most trackers ask you to fill in forms: tick the habit, rate the day, pick a tag. That is work, so you
 stop doing it.
 
-ARTESH asks for one thing: tell it what happened, in your own words, once a day. "Aced the chemistry
+Home Front asks for one thing: tell it what happened, in your own words, once a day. "Aced the chemistry
 midterm, skipped the gym again, had a fight with my brother." Everything else is derived. The judge
 sorts each event to the right front, decides whether it was a win or a loss and how big, and picks a
 battle type that matches the cause. A week of flu is a blizzard that closes the passes. Sleeping
@@ -143,10 +143,10 @@ needs you this week.
 You need Node 20 or newer.
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
-cd artesh
+git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+cd homefront
 npm install               # the build tools for the interface
-cp .env.example .env      # set ARTESH_PASSWORD; add OPENAI_API_KEY if you have one
+cp .env.example .env      # set HOMEFRONT_PASSWORD; add OPENAI_API_KEY if you have one
 npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
@@ -155,8 +155,8 @@ Open the address, type the password, pick a country and a persona, and file your
 With Docker:
 
 ```bash
-cp .env.example .env      # set ARTESH_PASSWORD
-docker compose up -d      # http://localhost:8080, data in the artesh-data volume
+cp .env.example .env      # set HOMEFRONT_PASSWORD
+docker compose up -d      # http://localhost:8080, data in the homefront-data volume
 ```
 
 No API key? Leave `OPENAI_API_KEY` empty. The offline keyword judge takes over, and you can add a key
@@ -208,17 +208,17 @@ precedence over the file.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `ARTESH_PASSWORD` | none, required | The password you type once per device. The server refuses to start without it. |
+| `HOMEFRONT_PASSWORD` | none, required | The password you type once per device. The server refuses to start without it. |
 | `OPENAI_API_KEY` | empty | Key for the judge and transcription. Stays on the host. Empty means the offline keyword judge. |
 | `OPENAI_MODEL` | `gpt-6-luna` | Model that judges reports. |
 | `OPENAI_TRANSCRIBE_MODEL` | `gpt-transcribe` | Model that transcribes voice. |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Point this at any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, Groq). |
 | `LLM_API` | `responses` | Set to `chat` to use chat completions on servers that do not offer the Responses API. |
-| `ARTESH_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
+| `HOMEFRONT_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
 | `PORT` | `8080` | Port to listen on. |
 | `HOST` | `0.0.0.0` | Interface to bind. Use `127.0.0.1` when a tunnel or reverse proxy sits in front. |
-| `ARTESH_DATA_DIR` | `./private` | Where the campaign, sessions, journal and backups are stored. |
-| `ARTESH_OPEN` | unset | `1` starts the server with no login at all. Only for a machine nobody else can reach. |
+| `HOMEFRONT_DATA_DIR` | `./private` | Where the campaign, sessions, journal and backups are stored. |
+| `HOMEFRONT_OPEN` | unset | `1` starts the server with no login at all. Only for a machine nobody else can reach. |
 
 ## Local models
 
@@ -230,7 +230,7 @@ ollama pull llama3.1
 
 ```ini
 # .env
-ARTESH_PASSWORD=choose-something-long
+HOMEFRONT_PASSWORD=choose-something-long
 OPENAI_BASE_URL=http://localhost:11434/v1
 OPENAI_API_KEY=ollama            # any non-empty value; Ollama ignores it
 OPENAI_MODEL=llama3.1
@@ -252,7 +252,7 @@ Notes:
   small models sometimes choose odd battle types.
 - Voice transcription needs an endpoint with `/audio/transcriptions`. If yours has none, use the
   keyboard's dictation key instead.
-- Running ARTESH in Docker and Ollama on the host? Use `http://host.docker.internal:11434/v1`.
+- Running Home Front in Docker and Ollama on the host? Use `http://host.docker.internal:11434/v1`.
 
 ## On your iPhone
 
@@ -269,7 +269,7 @@ To file a report without opening the app, see the Shortcuts and Siri recipe in [
 
 ## Privacy
 
-ARTESH is built for one person on a machine they control.
+Home Front is built for one person on a machine they control.
 
 - **Your key stays on the host.** The browser talks to your server; your server talks to the model. The
   key is never sent to the browser.
@@ -360,9 +360,9 @@ problems go through [private advisories](SECURITY.md), not public issues.
 
 Full attributions are in [NOTICE.md](NOTICE.md).
 
-ARTESH is an original project inspired by grand-strategy games such as Hearts of Iron IV. It is not
+Home Front is an original project inspired by grand-strategy games such as Hearts of Iron IV. It is not
 affiliated with or endorsed by Paradox Interactive, and it uses none of their code, art or data.
 
 ## Licence
 
-[MIT](LICENSE) © 2026 ARTESH contributors.
+[MIT](LICENSE) © 2026 Home Front contributors.

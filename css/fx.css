@@ -1,4 +1,4 @@
-/* ARTESH fx layer — see js/fx.js. Everything here is namespaced fx-. */
+/* Home Front fx layer — see js/fx.js. Everything here is namespaced fx-. */
 .fx-canvas { position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 2147483000; pointer-events: none; display: none; }
 .fx-canvas.fx-live { display: block; }
 

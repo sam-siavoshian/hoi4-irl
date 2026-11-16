@@ -17,7 +17,7 @@ const base = (process.argv[2] || 'http://localhost:8153/').replace(/\/*$/, '/');
 const only = (process.argv[3] || 'site,docs,hero,countries,cards').split(',');
 const root = path.join(__dirname, '..', '..');
 const SITE = path.join(root, 'site', 'img'), DOCS = path.join(root, 'docs', 'img');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-shots-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-shots-'));
 const scenarios = JSON.parse(fs.readFileSync(path.join(root, 'data', 'scenarios.json'), 'utf8'));
 
 const APPEARANCE = 'dark'; // one appearance for every image, so they sit together; Settings stores it under this key
@@ -44,11 +44,11 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await p.addInitScript(([key, appearance, scenario]) => {
       localStorage.setItem(key, appearance);
       // an empty campaign in this country; ?demo=1 fills it with the demo reports
-      if (!localStorage.getItem('artesh.v1')) localStorage.setItem('artesh.v1', JSON.stringify({ v: 3, scenario, reports: [], labels: {}, notes: {}, off: [], campaigns: {} }));
-      sessionStorage.setItem('artesh.demo-note', '1');
+      if (!localStorage.getItem('homefront.v1')) localStorage.setItem('homefront.v1', JSON.stringify({ v: 3, scenario, reports: [], labels: {}, notes: {}, off: [], campaigns: {} }));
+      sessionStorage.setItem('homefront.demo-note', '1');
     }, [APPEARANCE_KEY, APPEARANCE, scenario]);
     await p.goto(base + 'demo/?demo=1');
-    await p.waitForFunction(() => window.__artesh?.st && window.__artesh.data.reports.length);
+    await p.waitForFunction(() => window.__homefront?.st && window.__homefront.data.reports.length);
     await p.addStyleTag({ content: css });
     await p.evaluate(() => document.fonts.ready);
     await p.waitForTimeout(1200); // the first frame, the map's opening move
@@ -57,7 +57,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     return { ctx, p };
   }
   const settle = p => p.waitForTimeout(1100); // sheets slide and the map flies: wait them out
-  const sheetOpen = p => p.evaluate(() => window.__artesh.ui.sheet != null);
+  const sheetOpen = p => p.evaluate(() => window.__homefront.ui.sheet != null);
   const shut = async p => { for (let i = 0; i < 3 && await sheetOpen(p); i++) { await p.click(`${SHEET} [aria-label=Close]`); await p.waitForTimeout(150); } await p.waitForSelector(SHEET, { state: 'detached' }); };
   const nav = async (p, name) => { await shut(p); await p.click(T(`nav-${name}`)); await p.waitForSelector(SHEET); };
   const front = async (p, id) => { await nav(p, 'fronts'); await p.click(`${T('front')}[data-front=${id}]`); await p.waitForSelector(T('sheet-back')); };
@@ -74,10 +74,10 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await front(p, 'irq');
     await shot('front');
     // the division with the best record, reached the way a person would: its front, then its row
-    const best = await p.evaluate(() => { const d = window.__artesh.live.divisions.filter(d => d.front).sort((a, b) => b.honours.filter(h => h.win).length - a.honours.filter(h => h.win).length || b.honours.length - a.honours.length)[0]; return { front: d.front, name: d.name }; });
+    const best = await p.evaluate(() => { const d = window.__homefront.live.divisions.filter(d => d.front).sort((a, b) => b.honours.filter(h => h.win).length - a.honours.filter(h => h.win).length || b.honours.length - a.honours.length)[0]; return { front: d.front, name: d.name }; });
     await front(p, best.front);
     await p.click(`${T('division')}:has-text(${JSON.stringify(best.name)})`);
-    await p.waitForFunction(() => window.__artesh.ui.sheet === 'division');
+    await p.waitForFunction(() => window.__homefront.ui.sheet === 'division');
     await shot('division');
     await nav(p, 'history');
     await shot('history');
@@ -87,10 +87,10 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
   if (only.includes('site')) {
     await phoneSet(664, SITE, n => 'shot-' + n, async (p, shot) => {
       // step 3 illustration: the eastern front, cropped
-      await p.evaluate(() => window.__artesh.view.flyToFront('afg'));
+      await p.evaluate(() => window.__homefront.view.flyToFront('afg'));
       await shot('step-map', { x: 35, y: 150, width: 320, height: 200 });
       fs.renameSync(path.join(SITE, 'shot-step-map.png'), path.join(SITE, 'step-map.png'));
-      await p.evaluate(() => window.__artesh.view.home(false));
+      await p.evaluate(() => window.__homefront.view.home(false));
     });
     // the still behind the live hero map: the landing page's own embed, at the end of its story
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
@@ -121,7 +121,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     // one phone map per country, then a 4×2 sheet of them
     for (const s of scenarios) {
       const { ctx, p } = await app({ width: 390, height: 664, scenario: s.id, css: QUIET + NO_ALERT });
-      const got = await p.evaluate(() => window.__artesh.map.id);
+      const got = await p.evaluate(() => window.__homefront.map.id);
       if (got !== s.id) throw new Error(`wanted ${s.id}, the app loaded ${got}`);
       await settle(p);
       await p.screenshot({ path: path.join(tmp, s.id + '.png') });
@@ -157,7 +157,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await ctx.close();
     // social-preview.png for the repository: the bare map at exactly the card's size, then social.html over it
     const bare = await app({ width: 1280, height: 640, scale: 1, phone: false, css: QUIET + BARE });
-    await bare.p.evaluate(() => { const v = window.__artesh.view; v.home(false); });
+    await bare.p.evaluate(() => { const v = window.__homefront.view; v.home(false); });
     await settle(bare.p);
     await bare.p.screenshot({ path: path.join(tmp, 'social-map.png') });
     await bare.ctx.close();

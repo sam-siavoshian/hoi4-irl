@@ -11,18 +11,18 @@ const PORT = 8141, MOCK = 8142, U = `http://127.0.0.1:${PORT}`;
 // 8143: servers that must refuse to start
 const CHAT = 8144, UC = `http://127.0.0.1:${CHAT}`;   // chat-completions provider with a key (same mock as the main server)
 const MOCK2 = 8145;                                   // a keyless local provider (Ollama-like)
-const LOCAL = 8146, UL = `http://127.0.0.1:${LOCAL}`; // keyless + ARTESH_OPEN + tight rate limit + short provider timeout
+const LOCAL = 8146, UL = `http://127.0.0.1:${LOCAL}`; // keyless + HOMEFRONT_OPEN + tight rate limit + short provider timeout
 const TOKEN = 'test-token-0123456789abcdef';
 const DAY = 86400000;
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-'));
 const dir = tmp(), dirChat = tmp(), dirLocal = tmp(), home = tmp();
 let mock, mock2, cookie = ''; const procs = [];
 // every variable the server reads is pinned, so neither the caller's environment nor a local .env leaks into the tests
-const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(OPENAI_|ARTESH_|LLM_)/.test(k)));
-const base = { ...clean, HOST: '127.0.0.1', ARTESH_OPEN: '', ARTESH_TOKEN: '', ARTESH_RATE_LIMIT: '', LLM_API: '', LLM_TIMEOUT_MS: '', OPENAI_MODEL: '', OPENAI_TRANSCRIBE_MODEL: '', OPENAI_TRANSCRIBE_BASE_URL: '' };
-const env = { ...base, PORT, ARTESH_PASSWORD: 'open sesame', ARTESH_TOKEN: TOKEN, OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, ARTESH_DATA_DIR: dir };
-const envChat = { ...base, PORT: CHAT, ARTESH_PASSWORD: 'pw', LLM_API: 'chat', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, OPENAI_TRANSCRIBE_BASE_URL: `http://127.0.0.1:${MOCK2}/v1`, ARTESH_DATA_DIR: dirChat };
-const envLocal = { ...base, PORT: LOCAL, ARTESH_PASSWORD: '', ARTESH_OPEN: '1', LLM_API: 'chat', OPENAI_API_KEY: '', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK2}/v1/`, OPENAI_MODEL: 'llama3.2', OPENAI_TRANSCRIBE_MODEL: 'off', ARTESH_RATE_LIMIT: '6', LLM_TIMEOUT_MS: '400', ARTESH_DATA_DIR: dirLocal };
+const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(OPENAI_|HOMEFRONT_|LLM_)/.test(k)));
+const base = { ...clean, HOST: '127.0.0.1', HOMEFRONT_OPEN: '', HOMEFRONT_TOKEN: '', HOMEFRONT_RATE_LIMIT: '', LLM_API: '', LLM_TIMEOUT_MS: '', OPENAI_MODEL: '', OPENAI_TRANSCRIBE_MODEL: '', OPENAI_TRANSCRIBE_BASE_URL: '' };
+const env = { ...base, PORT, HOMEFRONT_PASSWORD: 'open sesame', HOMEFRONT_TOKEN: TOKEN, OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, HOMEFRONT_DATA_DIR: dir };
+const envChat = { ...base, PORT: CHAT, HOMEFRONT_PASSWORD: 'pw', LLM_API: 'chat', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK}/v1`, OPENAI_TRANSCRIBE_BASE_URL: `http://127.0.0.1:${MOCK2}/v1`, HOMEFRONT_DATA_DIR: dirChat };
+const envLocal = { ...base, PORT: LOCAL, HOMEFRONT_PASSWORD: '', HOMEFRONT_OPEN: '1', LLM_API: 'chat', OPENAI_API_KEY: '', OPENAI_BASE_URL: `http://127.0.0.1:${MOCK2}/v1/`, OPENAI_MODEL: 'llama3.2', OPENAI_TRANSCRIBE_MODEL: 'off', HOMEFRONT_RATE_LIMIT: '6', LLM_TIMEOUT_MS: '400', HOMEFRONT_DATA_DIR: dirLocal };
 
 const req = (p, init = {}) => fetch(U + p, { ...init, headers: { ...(init.headers || {}), ...(cookie ? { cookie } : {}) }, redirect: 'manual' });
 const bearer = (p, init = {}, token = TOKEN) => fetch(U + p, { ...init, headers: { ...(init.headers || {}), authorization: `Bearer ${token}` }, redirect: 'manual' });
@@ -36,7 +36,7 @@ const schema = { type: 'object', properties: { summary: { type: 'string' }, item
 const llm = (u, user, headers = {}) => fetch(u + '/api/llm', { method: 'POST', headers, body: JSON.stringify({ name: 'battle_report', system: 'sys', user, schema }) });
 const start = async (e, url) => { procs.push(spawn('node', ['server.mjs'], { env: e, stdio: 'ignore' })); for (let i = 0; i < 60; i++) { try { await fetch(url + '/healthz'); return; } catch { await new Promise(r => setTimeout(r, 100)); } } throw new Error('server did not start: ' + url); };
 const exitCode = e => new Promise(r => spawn('node', ['server.mjs'], { env: { ...e, PORT: 8143 }, stdio: 'ignore' }).on('exit', r));
-const cli = (args, e = {}, input) => new Promise(r => { const c = spawn('node', ['bin/artesh.mjs', ...args], { env: { ...clean, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), ...e }, stdio: ['pipe', 'pipe', 'pipe'] }); let out = '', err = ''; c.stdout.on('data', d => out += d); c.stderr.on('data', d => err += d); c.on('exit', code => r({ code, out, err })); c.stdin.end(input || ''); });
+const cli = (args, e = {}, input) => new Promise(r => { const c = spawn('node', ['bin/homefront.mjs', ...args], { env: { ...clean, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), ...e }, stdio: ['pipe', 'pipe', 'pipe'] }); let out = '', err = ''; c.stdout.on('data', d => out += d); c.stderr.on('data', d => err += d); c.on('exit', code => r({ code, out, err })); c.stdin.end(input || ''); });
 
 test.before(async () => {
   mock = await mockOpenAI(MOCK); mock2 = await mockOpenAI(MOCK2, { key: null });
@@ -74,7 +74,7 @@ test('secrets and private files are never served, even when signed in', async ()
   for (const a of assets) { const r = await req(a); assert.equal(r.status, 200, a); assert.match(r.headers.get('cache-control'), /immutable/); assert.equal(r.headers.get('x-content-type-options'), 'nosniff'); }
   assert.equal((await req('/theme-boot.js')).status, 200); const sw = await req('/sw.js'); assert.equal(sw.status, 200); assert.match(await sw.text(), /assets\/index-[\w-]+\.js/);
   for (const p of ['/assets/', '/assets/%2e%2e/%2e%2e/.env', '/assets/..%2f..%2fserver.mjs', '/dist/index.html', '/src/main.jsx', '/src/core.js', '/js/engine.js', '/vendor/design-system/package.json', '/vite.config.js', '/node_modules/vite/package.json']) assert.equal((await req(p)).status, 404, p);
-  for (const p of ['/.env', '/.env.example', '/server.mjs', '/server/llm.mjs', '/server/storage.mjs', '/bin/artesh.mjs', '/private/state.json', '/private/sessions.json', '/private/journal.ndjson', '/journal.ndjson', '/backups/state-2020-02-01.json', '/package.json', '/js/../.env', '/tests/e2e.mjs', '/.git/config']) assert.equal((await req(p)).status, 404, p);
+  for (const p of ['/.env', '/.env.example', '/server.mjs', '/server/llm.mjs', '/server/storage.mjs', '/bin/homefront.mjs', '/private/state.json', '/private/sessions.json', '/private/journal.ndjson', '/journal.ndjson', '/backups/state-2020-02-01.json', '/package.json', '/js/../.env', '/tests/e2e.mjs', '/.git/config']) assert.equal((await req(p)).status, 404, p);
   const cfg = await (await req('/api/config')).json();
   assert.deepEqual(cfg, { server: true, judge: 'gpt-6-luna', transcribe: 'gpt-transcribe', login: true, provider: '127.0.0.1', api: 'responses' });
   assert.doesNotMatch(JSON.stringify(cfg), /sk-|test-token/);
@@ -152,7 +152,7 @@ test('the automation token opens /api/report, /api/sitrep and /api/journal — a
   for (const t of ['wrong-token-0123456789abcdef', TOKEN + 'x', TOKEN.slice(0, -1), 'open sesame']) { assert.equal((await bearer('/api/sitrep', {}, t)).status, 401); assert.equal((await report('I failed my exam', t)).status, 401); }
   assert.equal((await fetch(U + '/api/sitrep', { headers: { authorization: `Basic ${TOKEN}` } })).status, 401);
   assert.equal((await fetch(U + '/api/sitrep?token=' + TOKEN)).status, 401, 'the token is only read from the header');
-  // with no ARTESH_TOKEN on the server, bearer auth is off altogether
+  // with no HOMEFRONT_TOKEN on the server, bearer auth is off altogether
   assert.equal((await fetch(UC + '/api/sitrep', { headers: { authorization: `Bearer ${TOKEN}` } })).status, 401);
   assert.equal((await fetch(UC + '/api/sitrep', { headers: { authorization: 'Bearer ' } })).status, 401);
   assert.equal((await state()).rev, 5, 'nothing was written by any refused request');
@@ -233,9 +233,9 @@ test('GET /api/sitrep is a plain-text situation report in the user\'s own labels
   assert.equal((await bearer('/api/sitrep', { method: 'POST' })).status, 405);
   assert.equal(await (await req('/api/sitrep')).text(), t);
 });
-test('the artesh command line files reports and reads the situation', async () => {
-  const e = { ARTESH_URL: U + '/', ARTESH_TOKEN: TOKEN };
-  const help = await cli(['--help']); assert.equal(help.code, 0); assert.match(help.out, /artesh report/); assert.match(help.out, /ARTESH_TOKEN/);
+test('the homefront command line files reports and reads the situation', async () => {
+  const e = { HOMEFRONT_URL: U + '/', HOMEFRONT_TOKEN: TOKEN };
+  const help = await cli(['--help']); assert.equal(help.code, 0); assert.match(help.out, /homefront report/); assert.match(help.out, /HOMEFRONT_TOKEN/);
   const sit = await cli(['sitrep'], e); assert.equal(sit.code, 0, sit.err); assert.match(sit.out, /Uni/);
   const rep = await cli(['report', 'I failed my exam'], e); assert.equal(rep.code, 0, rep.err); assert.match(rep.out, /The line bends\./); assert.match(rep.out, /- Uni · loss 3 · Exam failed/);
   const piped = await cli(['report', '--json'], e, 'we closed the round\n'); assert.equal(piped.code, 0, piped.err); assert.equal(JSON.parse(piped.out).items[0].front, 'irq');
@@ -244,13 +244,13 @@ test('the artesh command line files reports and reads the situation', async () =
   const since = new Date(Date.now() - 60e3).toISOString(); const jr = await cli(['journal', '--since', since], e); assert.equal(jr.code, 0, jr.err);
   const jl = jr.out.trim().split('\n').map(l => JSON.parse(l)); assert.ok(jl.length >= 10); assert.equal(jl.at(-1).op, 'add'); assert.deepEqual(jl, lines().filter(l => l.t >= since));
   // clear errors
-  const none = await cli(['sitrep']); assert.equal(none.code, 1); assert.match(none.err, /ARTESH_URL/);
-  const noTok = await cli(['sitrep'], { ARTESH_URL: U }); assert.equal(noTok.code, 1); assert.match(noTok.err, /ARTESH_TOKEN/);
-  const wrong = await cli(['sitrep'], { ARTESH_URL: U, ARTESH_TOKEN: 'nope-nope-nope-nope-nope' }); assert.equal(wrong.code, 1); assert.match(wrong.err, /refused the token/); assert.doesNotMatch(wrong.err, /at .*artesh\.mjs/);
-  const dead = await cli(['sitrep'], { ARTESH_URL: 'http://127.0.0.1:8149', ARTESH_TOKEN: TOKEN }); assert.equal(dead.code, 1); assert.match(dead.err, /cannot reach/);
+  const none = await cli(['sitrep']); assert.equal(none.code, 1); assert.match(none.err, /HOMEFRONT_URL/);
+  const noTok = await cli(['sitrep'], { HOMEFRONT_URL: U }); assert.equal(noTok.code, 1); assert.match(noTok.err, /HOMEFRONT_TOKEN/);
+  const wrong = await cli(['sitrep'], { HOMEFRONT_URL: U, HOMEFRONT_TOKEN: 'nope-nope-nope-nope-nope' }); assert.equal(wrong.code, 1); assert.match(wrong.err, /refused the token/); assert.doesNotMatch(wrong.err, /at .*homefront\.mjs/);
+  const dead = await cli(['sitrep'], { HOMEFRONT_URL: 'http://127.0.0.1:8149', HOMEFRONT_TOKEN: TOKEN }); assert.equal(dead.code, 1); assert.match(dead.err, /cannot reach/);
   const bad = await cli(['frobnicate'], e); assert.equal(bad.code, 1); assert.match(bad.err, /unknown command/);
   // the config file is used when the environment is silent
-  fs.mkdirSync(path.join(home, '.config', 'artesh'), { recursive: true }); fs.writeFileSync(path.join(home, '.config', 'artesh', 'config.json'), JSON.stringify({ url: U, token: TOKEN }));
+  fs.mkdirSync(path.join(home, '.config', 'homefront'), { recursive: true }); fs.writeFileSync(path.join(home, '.config', 'homefront', 'config.json'), JSON.stringify({ url: U, token: TOKEN }));
   const viaFile = await cli(['sitrep']); assert.equal(viaFile.code, 0, viaFile.err); assert.match(viaFile.out, /Uni/);
 });
 
@@ -309,7 +309,7 @@ test('the costly endpoints are rate limited per address', async () => {
 test('logging out ends the session; the server will not start without a password', async () => {
   assert.equal((await req('/api/logout', { method: 'POST' })).status, 200); assert.equal((await req('/api/state')).status, 401);
   assert.equal((await bearer('/api/sitrep')).status, 200, 'the automation token is separate from browser sessions');
-  assert.equal(await exitCode({ ...env, ARTESH_PASSWORD: '' }), 1);
-  assert.equal(await exitCode({ ...env, ARTESH_TOKEN: 'short' }), 1, 'a guessable token is refused');
+  assert.equal(await exitCode({ ...env, HOMEFRONT_PASSWORD: '' }), 1);
+  assert.equal(await exitCode({ ...env, HOMEFRONT_TOKEN: 'short' }), 1, 'a guessable token is refused');
   assert.equal(await exitCode({ ...env, LLM_API: 'telepathy' }), 1);
 });

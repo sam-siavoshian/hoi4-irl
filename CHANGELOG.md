@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to ARTESH. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+Notable changes to Home Front. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
@@ -30,7 +30,7 @@ The step from a personal tool to something anyone can self-host.
   backups of the campaign.
 - **Automation API.** Token-authenticated `POST /api/report` (plain text in, judged on the server, map
   updated) for iOS Shortcuts, Siri, scripts and cron; `GET /api/sitrep`; `GET /healthz`. A small
-  command-line client, `bin/artesh.mjs`.
+  command-line client, `bin/homefront.mjs`.
 - **Progress.** Commander XP and ranks, three daily "orders of the day", combos for reporting several
   fronts in one day, 30+ decorations and a weekly recap.
 - **Feedback.** Synthesised sound effects, confetti and sparks, screen shake, haptics and number

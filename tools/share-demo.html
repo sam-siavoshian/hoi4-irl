@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ARTESH — share cards</title>
+<title>Home Front — share cards</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; padding: 24px 16px 64px; background: #07090a; color: #eceae5; font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif; }
@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<h1>ARTESH share cards</h1>
+<h1>Home Front share cards</h1>
 <p>Every card from <code>js/share.js</code> in several variants: short and long headlines, each tone, sparse and dense data, with and without a map. The map is drawn here from <code>data/map.json</code>. <span id="status">Rendering…</span></p>
 <div id="root"></div>
 <script type="module">
@@ -86,14 +86,14 @@ function variants(map) {
       ['bulletin-bad', 'Disaster, 7 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Zabol has fallen', sub: 'School · Second Battle of Zabol', tone: 'bad', stability: 53, streak: 12, rank: 'Sarvan', fronts: FRONTS, footer: 'your life as a war map' })],
       ['bulletin-good', 'Advance, 5 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Baghdad road open after breakthrough at Khanaqin', sub: 'Startup · First pilot customer signed', tone: 'good', stability: 71, streak: 31, rank: 'Sargord', fronts: FRONTS.slice(0, 5) })],
       ['bulletin-gold', 'Triumph, 3 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Satrapy of Babylonia restored', sub: 'Startup · The empire grows', tone: 'gold', stability: 88, streak: 104, rank: 'Sepahbod', fronts: FRONTS.slice(1, 4) })],
-      ['bulletin-long', 'Very long headline, long labels', () => api.renderBulletin({ map, nation: 'Imperial State of Iran', date: NOW, headline: 'Heavy armoured assault on the school front leaves the enemy two hundred kilometres from Tehran as the Seventh Mountain Division is encircled near Birjand and reserves run dry', sub: 'School · Third Battle of Birjand, with the Seventh Mountain Division “Damavand” leading a doomed counter-attack', tone: 'bad', stability: 9, streak: 0, rank: 'Sarlashkar-e Artesh-e Shahanshahi', fronts: FRONTS.map((f, i) => ({ ...f, label: i % 2 ? f.label : f.label + ' and everything around it', status: i % 2 ? f.status + ' — reserves committed' : f.status })) })],
+      ['bulletin-long', 'Very long headline, long labels', () => api.renderBulletin({ map, nation: 'Imperial State of Iran', date: NOW, headline: 'Heavy armoured assault on the school front leaves the enemy two hundred kilometres from Tehran as the Seventh Mountain Division is encircled near Birjand and reserves run dry', sub: 'School · Third Battle of Birjand, with the Seventh Mountain Division “Damavand” leading a doomed counter-attack', tone: 'bad', stability: 9, streak: 0, rank: 'Sarlashkar-e Home Front-e Shahanshahi', fronts: FRONTS.map((f, i) => ({ ...f, label: i % 2 ? f.label : f.label + ' and everything around it', status: i % 2 ? f.status + ' — reserves committed' : f.status })) })],
       ['bulletin-nomap', 'No map', () => api.renderBulletin({ map: null, nation: 'Iran', date: NOW, headline: 'The Aras is crossed', sub: 'Family · Long talk with dad', tone: 'good', stability: 64, streak: 5, rank: 'Sotvan', fronts: FRONTS.slice(0, 4) })],
       ['bulletin-sparse', 'Sparse: headline only', () => api.renderBulletin({ map, headline: 'Quiet day', tone: 'gold' })],
       ['bulletin-empty', 'Empty data, no map', () => api.renderBulletin({})],
     ]],
     ['Front page', [
       ['frontpage-bad', 'Disaster', () => api.renderFrontPage({ map, date: NOW, persianDate: true, headline: 'Zabol has fallen', deck: 'Eastern line broken on the School front; High Command orders three evenings of study', tone: 'bad', body: BODY, sidebar: ['Startup: columns 60 km past Khanaqin', 'Family: the Aras is crossed', 'Gym & Health: all quiet', 'Girlfriend: line restored after Thursday'], caption: 'The situation on the evening of the 14th. Occupied districts are shaded.' })],
-      ['frontpage-gold', 'Triumph', () => api.renderFrontPage({ map, date: NOW, persianDate: '23 Aban 1405', masthead: "Ettela'at-e Artesh", headline: 'Babylonia restored', deck: 'After 104 days without a missed report, the western satrapy returns to the empire', tone: 'gold', body: BODY.slice(2).concat(BODY.slice(0, 1)), sidebar: ['School: enemy held at Birjand', 'Friends & Social: advancing', 'Personal Life: enemy at the gates'] })],
+      ['frontpage-gold', 'Triumph', () => api.renderFrontPage({ map, date: NOW, persianDate: '23 Aban 1405', masthead: "Ettela'at-e Home Front", headline: 'Babylonia restored', deck: 'After 104 days without a missed report, the western satrapy returns to the empire', tone: 'gold', body: BODY.slice(2).concat(BODY.slice(0, 1)), sidebar: ['School: enemy held at Birjand', 'Friends & Social: advancing', 'Personal Life: enemy at the gates'] })],
       ['frontpage-good', 'Long headline, no sidebar', () => api.renderFrontPage({ map, date: NOW, headline: 'Enemy thrown back across the frontier on three fronts in a single week', deck: 'A good week by any measure: nine reports, seven victories, and the first promotion since the summer', tone: 'good', body: BODY })],
       ['frontpage-nomap', 'No map, two paragraphs', () => api.renderFrontPage({ map: null, date: NOW, persianDate: true, headline: 'Tehran holds', deck: 'The capital stands after a hard night', tone: 'bad', body: BODY.slice(0, 2), sidebar: ['Startup: quiet', 'Family: quiet'] })],
       ['frontpage-dense', 'Everything long', () => api.renderFrontPage({ map, date: NOW, persianDate: true, masthead: 'The Imperial Gazette of the General Staff', kicker: 'Second extra of the evening', headline: 'Heavy armoured assault on the school front leaves the enemy two hundred kilometres from Tehran as reserves run dry', deck: 'The Seventh Mountain Division is encircled near Birjand; the Minister of War promises that the passes will be held whatever the cost, and that the reserves are on the march', tone: 'bad', body: BODY.map(p => p + ' ' + p), sidebar: FRONTS.map(f => `${f.label}: ${f.status.toLowerCase()} after a week of heavy fighting`), caption: 'The situation map issued by the General Staff this evening, with occupied districts shaded and the line of the front marked as it stood at dusk on Saturday.' })],
@@ -129,7 +129,7 @@ async function boot() {
       const canvas = render(); canvas.id = id; cards[id] = { canvas, render, label };
       const fig = document.createElement('figure'), cap = document.createElement('figcaption'), name = document.createElement('span'), btn = document.createElement('button');
       name.textContent = `${label} · ${canvas.width}×${canvas.height}`; btn.textContent = 'Share'; btn.dataset.share = id;
-      btn.onclick = async () => { const r = await api.shareCanvas(canvas, { filename: `artesh-${id}.png`, text: `${label} — made with ARTESH` }); status.textContent = `${id}: ${r}`; };
+      btn.onclick = async () => { const r = await api.shareCanvas(canvas, { filename: `homefront-${id}.png`, text: `${label} — made with Home Front` }); status.textContent = `${id}: ${r}`; };
       cap.append(name, btn); fig.append(canvas, cap); grid.append(fig);
     }
   }

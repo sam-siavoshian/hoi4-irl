@@ -155,7 +155,7 @@ real use. The hosted [demo](https://sam-siavoshian.github.io/hoi4-irl/) works th
 
 ### Where is my data?
 
-In one folder on your host: `private/` (or wherever `ARTESH_DATA_DIR` points). `state.json` is the
+In one folder on your host: `private/` (or wherever `HOMEFRONT_DATA_DIR` points). `state.json` is the
 campaign, `journal.ndjson` is an append-only record of every change, and the server keeps daily backups
 beside them. Each device also holds a copy in the browser's storage so it can work offline.
 
@@ -177,7 +177,7 @@ server and remove the data folder, then clear the site's data in each browser.
 
 ### I forgot my password.
 
-Change `ARTESH_PASSWORD` in `.env` and restart. Your data is untouched; devices that were already logged
+Change `HOMEFRONT_PASSWORD` in `.env` and restart. Your data is untouched; devices that were already logged
 in stay logged in. To log every device out, delete `sessions.json` from the data folder as well.
 
 ## The project

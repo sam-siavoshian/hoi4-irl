@@ -34,7 +34,7 @@ export function App() {
       </main>
       {a.error ? (
         <div className="absolute inset-0 grid place-items-center bg-background p-4">
-          <ScreenError title="ARTESH couldn’t start" doing="Your reports are safe." ask="Try again. If it keeps happening, copy the details." details={String(a.error.stack || a.error)} onRetry={() => location.reload()} />
+          <ScreenError title="Home Front couldn’t start" doing="Your reports are safe." ask="Try again. If it keeps happening, copy the details." details={String(a.error.stack || a.error)} onRetry={() => location.reload()} />
         </div>
       ) : a.ready ? <><Chrome /><Panel /><Confirm /></> : (
         <div className="absolute inset-0 grid place-items-center"><Spinner size="lg" tone="muted" /></div>

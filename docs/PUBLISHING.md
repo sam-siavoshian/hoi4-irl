@@ -8,12 +8,12 @@ in the order that avoids a half-finished public page.
 1. **Decide the design system's licence.** `vendor/design-system/` is a copy of a private package
    (`"private": true`, no licence file of its own). Once this repository is public, so is that source.
    Either add a licence file to that folder (MIT, to match the rest), or say in its README that it is
-   included for building ARTESH only and is not licensed for reuse.
+   included for building Home Front only and is not licensed for reuse.
 2. **Merge the working branch into `main`.** GitHub shows the default branch's README, and the Pages
    workflow deploys from `main`.
 3. **Check the first CI run is green** (Actions tab). The workflows have not run yet.
 4. **Consider the name.** The repository is called `hoi4-irl`, which contains another company's
-   trademark. `artesh` is safer and matches the product. GitHub redirects the old URL after a rename;
+   trademark. `homefront` is safer and matches the product. GitHub redirects the old URL after a rename;
    then replace `sam-siavoshian/hoi4-irl` across the repository (README, `package.json`, `site/`,
    issue-template links).
 
@@ -57,7 +57,7 @@ without.
 
 ## Where to post it
 
-- Hacker News, as "Show HN: ARTESH – my life as a 1936 war map (self-hosted)". Link the repository; put
+- Hacker News, as "Show HN: Home Front – my life as a 1936 war map (self-hosted)". Link the repository; put
   the demo link in the first comment.
 - r/selfhosted (flair: Release), r/hoi4 and r/paradoxplaza (lead with the map image; say plainly that it
   is a tracker and not a mod), r/productivity, r/QuantifiedSelf.

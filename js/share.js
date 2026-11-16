@@ -186,13 +186,13 @@ function icon(ctx, path, cx, cy, size, fill) {
   if (!path) return false;
   try { const p = new Path2D(path); ctx.save(); ctx.translate(cx - size / 2, cy - size / 2); ctx.scale(size / 512, size / 512); ctx.fillStyle = fill; ctx.fill(p); ctx.restore(); return true; } catch { return false; }
 }
-// The wordmark: a small sun-star and ARTESH in wide tracking. Returns its width.
+// The wordmark: a small sun-star and HOME FRONT in wide tracking. Returns its width.
 function wordmark(cv, x, y, size, color = C.accent, align = 'left', role = 'wordmark') {
   const ctx = cv.getContext('2d'), o = { size, weight: 800, tracking: size * 0.3, color, role };
-  setFont(ctx, o); const tw = mw(ctx, 'ARTESH', o), mark = size * 0.86, gap = size * 0.5, total = mark + gap + tw;
+  setFont(ctx, o); const tw = mw(ctx, 'HOME FRONT', o), mark = size * 0.86, gap = size * 0.5, total = mark + gap + tw;
   const left = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
   starPath(ctx, left + mark / 2, y - size * 0.36, mark / 2, mark * 0.2, 8); ctx.fillStyle = color; ctx.fill();
-  draw(cv, 'ARTESH', left + mark + gap, y, o); return total;
+  draw(cv, 'HOME FRONT', left + mark + gap, y, o); return total;
 }
 // The app's centre-zero front bar. pos > 0: enemy inside the country, red from centre toward the capital (left).
 // pos < 0: we are advancing, green from centre toward the objective (right).
@@ -423,7 +423,7 @@ export function renderFrontPage(d = {}) {
   draw(cv, caps(d.edition || 'Late War Edition'), M, 84, { ...ear, maxWidth: 300 });
   draw(cv, caps(d.price || 'One Report a Day'), W - M, 84, { ...ear, align: 'right', maxWidth: 300 });
   hline(ctx, M, W - M, 62, INK, 2);
-  const mast = caps(curly(d.masthead || "Ettela'at-e Artesh")), mo = { weight: 700, family: SERIF, sx: 0.86, color: INK, role: 'masthead', box: [0.74, 0.04] };
+  const mast = caps(curly(d.masthead || "The Army Gazette")), mo = { weight: 700, family: SERIF, sx: 0.86, color: INK, role: 'masthead', box: [0.74, 0.04] };
   let ms = 112; for (; ms > 40; ms -= 2) { setFont(ctx, { ...mo, size: ms, tracking: ms * 0.03 }); if (mw(ctx, mast, { ...mo, tracking: ms * 0.03 }) <= CW - 8) break; }
   const mastY = 100 + ms * 0.86;
   draw(cv, mast, W / 2, mastY, { ...mo, size: ms, tracking: ms * 0.03, align: 'center', maxWidth: CW });
@@ -447,9 +447,9 @@ export function renderFrontPage(d = {}) {
   // ── footer (fixed) ──
   const footRule = H - 78; hline(ctx, M, W - M, footRule, INK, 1.5); hline(ctx, M, W - M, footRule + 5, INK, 4);
   const fo = { size: 17.5, weight: 700, family: SERIF, tracking: 2.6, color: INK, role: 'footer', box: [0.74, 0.06] };
-  const fl = draw(cv, 'ARTESH', M, H - 40, { ...fo, weight: 700, tracking: 6 });
+  const fl = draw(cv, 'HOME FRONT', M, H - 40, { ...fo, weight: 700, tracking: 6 });
   const frw = draw(cv, caps(d.footerRight || 'Printed by hand, daily'), W - M, H - 40, { ...fo, align: 'right', maxWidth: 300 });
-  draw(cv, str(d.footer ?? 'artesh — your life as a war map'), W / 2, H - 40, { size: 21, italic: true, family: SERIF, color: INK, align: 'center', role: 'footer', maxWidth: CW - 2 * Math.max(fl, frw) - 50 });
+  draw(cv, str(d.footer ?? 'homefront — your life as a war map'), W / 2, H - 40, { size: 21, italic: true, family: SERIF, color: INK, align: 'center', role: 'footer', maxWidth: CW - 2 * Math.max(fl, frw) - 50 });
   const zoneBottom = footRule - 20;
 
   // ── headline, deck, photo + sidebar and two columns of copy are solved together: the headline gives way
@@ -782,7 +782,7 @@ export function renderRankUp(d = {}) {
 /* ═════════════════════════ 5. Sharing ═════════════════════════ */
 /** Share a canvas as a PNG. Uses the system share sheet when files can be shared, otherwise downloads the image and
  *  copies `text` to the clipboard. Resolves 'shared' | 'downloaded' | 'cancelled'. Never throws. */
-export async function shareCanvas(canvas, { filename = 'artesh.png', text = '' } = {}) {
+export async function shareCanvas(canvas, { filename = 'homefront.png', text = '' } = {}) {
   try {
     const blob = await new Promise(res => { try { canvas.toBlob(b => res(b), 'image/png'); } catch { res(null); } });
     if (!blob) return 'cancelled';

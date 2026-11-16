@@ -1,6 +1,6 @@
-// ARTESH landing page. No dependencies; the hero imports the app's own renderer and engine from ./demo/.
+// Home Front landing page. No dependencies; the hero imports the app's own renderer and engine from ./demo/.
 const DAY = 86400000;
-const KEY = 'artesh.v1';
+const KEY = 'homefront.v1';
 const FRONT_COLORS = { afg: '#4aa3c7', cau: '#d0604e', tks: '#dc8f3f', irq: '#c2aa3e', raj: '#cf5d84', tur: '#a195dc', glf: '#3fc0ab' };
 const $ = (s, el = document) => el.querySelector(s);
 

@@ -1,6 +1,6 @@
-# Contributing to ARTESH
+# Contributing to Home Front
 
-Thanks for considering it. ARTESH is small on purpose, and most of this document explains how to keep it
+Thanks for considering it. Home Front is small on purpose, and most of this document explains how to keep it
 that way while still adding things.
 
 For anything larger than a bug fix, open an issue first so we can agree on the shape before you write
@@ -11,10 +11,10 @@ code. By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md).
 You need Node 20 or newer (CI runs Node 22).
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
-cd artesh
+git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+cd homefront
 npm install                  # the interface build (Vite, React, the vendored design system) and the map tools
-cp .env.example .env         # set ARTESH_PASSWORD; OPENAI_API_KEY is optional
+cp .env.example .env         # set HOMEFRONT_PASSWORD; OPENAI_API_KEY is optional
 npm start                    # builds dist/ if needed, then the real server on http://localhost:8080
 npm run dev                  # in a second terminal: Vite on http://localhost:5173 with hot reload, /api proxied to :8080
 ```
@@ -66,7 +66,7 @@ tests/server.test.mjs    Password wall, file allowlist, model proxy, storage, lo
 tests/mock-openai.mjs    A fake OpenAI endpoint used by the server and browser tests.
 tests/e2e.mjs            Headless Chromium at iPhone size against the real server.
 
-bin/artesh.mjs           Command-line client for the automation API.
+bin/homefront.mjs           Command-line client for the automation API.
 site/                    Static landing page and offline demo (GitHub Pages).
 deploy/                  launchd plist for running on a Mac.
 docs/                    Architecture, self-hosting, API, FAQ.

@@ -1,5 +1,5 @@
-// ARTESH private server. No dependencies; Node 20+.
-// - serves the built app (dist/, made by `npm run build`) only to someone who has logged in with ARTESH_PASSWORD
+// Home Front private server. No dependencies; Node 20+.
+// - serves the built app (dist/, made by `npm run build`) only to someone who has logged in with HOMEFRONT_PASSWORD
 // - keeps the LLM key on this machine and proxies judging and transcription (OpenAI or any OpenAI-compatible API)
 // - stores the campaign in ./private/state.json so every device sees the same war, journals every change
 //   to ./private/journal.ndjson and keeps dated backups in ./private/backups/
@@ -23,23 +23,25 @@ try {
     if (process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
   }
 } catch { /* no .env */ }
+// installs made under the project's earlier name keep working: ARTESH_X is read as HOMEFRONT_X
+for (const k of Object.keys(process.env)) if (k.startsWith('ARTESH_') && process.env['HOMEFRONT_' + k.slice(7)] === undefined) process.env['HOMEFRONT_' + k.slice(7)] = process.env[k];
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
-const PASSWORD = process.env.ARTESH_PASSWORD || '';
-const TOKEN = (process.env.ARTESH_TOKEN || '').trim(); // optional bearer token for the automation API
-const RATE = process.env.ARTESH_RATE_LIMIT === undefined || process.env.ARTESH_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.ARTESH_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
-const PRIVATE = path.resolve(process.env.ARTESH_DATA_DIR || path.join(ROOT, 'private'));
-const COOKIE = 'artesh_session';
+const PASSWORD = process.env.HOMEFRONT_PASSWORD || '';
+const TOKEN = (process.env.HOMEFRONT_TOKEN || '').trim(); // optional bearer token for the automation API
+const RATE = process.env.HOMEFRONT_RATE_LIMIT === undefined || process.env.HOMEFRONT_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.HOMEFRONT_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
+const PRIVATE = path.resolve(process.env.HOMEFRONT_DATA_DIR || path.join(ROOT, 'private'));
+const COOKIE = 'homefront_session';
 const die = msg => { console.error(msg); process.exit(1); };
 
-if (!PASSWORD && process.env.ARTESH_OPEN !== '1') die('Refusing to start without ARTESH_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set ARTESH_OPEN=1.');
-if (TOKEN && TOKEN.length < 16) die('ARTESH_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
+if (!PASSWORD && process.env.HOMEFRONT_OPEN !== '1') die('Refusing to start without HOMEFRONT_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set HOMEFRONT_OPEN=1.');
+if (TOKEN && TOKEN.length < 16) die('HOMEFRONT_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
 let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
 const store = createStore(PRIVATE);
 const { readJSON, writeJSON } = store;
 const llm = createLLM(cfg);
-const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.ARTESH_EXTRA_SCENARIOS || null });
+const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.HOMEFRONT_EXTRA_SCENARIOS || null });
 
 // ---- sessions ----
 const sessions = new Map(Object.entries(readJSON('sessions.json', {})));
@@ -68,9 +70,9 @@ const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/
 const BUILT_FILES = /^\/(index\.html|sw\.js|theme-boot\.js|assets\/[\w-]+(\.[\w-]+)*\.(js|css|woff2|png|svg))$/;
 const DATA_FILES = /^\/(data\/scenarios\.json|data\/maps\/[\w-]+\.json)$/;
 const built = () => fs.existsSync(path.join(DIST, 'index.html'));
-const NOT_BUILT = 'The interface has not been built yet. Run `npm run build` in the ARTESH folder (or start it with `npm start`, which builds first), then reload.';
+const NOT_BUILT = 'The interface has not been built yet. Run `npm run build` in the Home Front folder (or start it with `npm start`, which builds first), then reload.';
 // Test hook: a directory of extra built maps (<id>.json) offered next to the ones in data/maps/. Never set in normal use.
-const EXTRA = process.env.ARTESH_EXTRA_SCENARIOS ? path.resolve(process.env.ARTESH_EXTRA_SCENARIOS) : null;
+const EXTRA = process.env.HOMEFRONT_EXTRA_SCENARIOS ? path.resolve(process.env.HOMEFRONT_EXTRA_SCENARIOS) : null;
 const extras = scenarioDir(EXTRA);
 const SECURITY = { 'x-robots-tag': 'noindex, nofollow, noarchive', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'cache-control': 'no-store' };
 function send(res, status, body, headers = {}) { const b = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body); res.writeHead(status, { 'content-type': typeof body === 'object' && !Buffer.isBuffer(body) ? 'application/json' : 'text/plain; charset=utf-8', ...SECURITY, ...headers }); res.end(b); }
@@ -80,10 +82,10 @@ const secure = req => req.headers['x-forwarded-proto'] === 'https' || !!req.sock
 
 // The login page stands alone (nothing from the app is served before login), so it carries the design system's
 // neutral paints by hand: light or dark with the device, no accent colour.
-const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light dark"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><title>ARTESH</title>
+const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light dark"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><title>Home Front</title>
 <style>:root{--bg:#fbfbfb;--ink:#1b1b1f;--dim:#6b6b73;--field:#fff;--line:rgba(0,0,0,.14);--lit:#1b1b1f;--on:#fff;--bad:#b3261e}@media (prefers-color-scheme:dark){:root{--bg:#141416;--ink:#f1f1f3;--dim:#9a9aa2;--field:#1e1e21;--line:rgba(255,255,255,.14);--lit:#f1f1f3;--on:#141416;--bad:#f2a199}}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}form{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;box-sizing:border-box}h1{margin:0 0 6px;font-size:20px;font-weight:600;letter-spacing:-.01em}label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}input,button{width:min(100%,300px);height:44px;box-sizing:border-box;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--field);color:inherit;font:inherit}input:focus-visible,button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}button{background:var(--lit);color:var(--on);font-weight:500;border-color:transparent;cursor:pointer}p{margin:0;min-height:20px;color:var(--bad);font-size:14px}</style></head>
-<body><form id="f"><h1>ARTESH</h1><label for="p">Password</label><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Sign in</button><p id="e" role="alert"></p></form>
+<body><form id="f"><h1>Home Front</h1><label for="p">Password</label><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Sign in</button><p id="e" role="alert"></p></form>
 <script>f.onsubmit=async e=>{e.preventDefault();const r=await fetch('api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});if(r.ok)location.replace('./');else{document.getElementById('e').textContent=r.status===429?'Too many tries. Wait a few minutes, then try again.':'Wrong password. Try again.';p.value=''}}</script></body></html>`;
 
 const server = http.createServer(async (req, res) => {
@@ -177,4 +179,4 @@ const server = http.createServer(async (req, res) => {
     if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });

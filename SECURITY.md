@@ -16,7 +16,7 @@ Only the latest release and the `main` branch are supported.
 
 ## Threat model, in plain words
 
-ARTESH is a personal app for **one person**, run on **a machine that person controls**. It is not a
+Home Front is a personal app for **one person**, run on **a machine that person controls**. It is not a
 multi-user service and was not designed to face the open internet without something in front of it.
 
 ### What the design protects
@@ -41,7 +41,7 @@ multi-user service and was not designed to face the open internet without someth
 - **The app keeps out of search engines and frames**: `X-Robots-Tag: noindex`, a deny-all `robots.txt`,
   `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
 - **The automation token is separate from the password.** `/api/report` and `/api/sitrep` accept only
-  `Authorization: Bearer $ARTESH_TOKEN`, and are disabled while no token is set. A leaked token lets
+  `Authorization: Bearer $HOMEFRONT_TOKEN`, and are disabled while no token is set. A leaked token lets
   someone file reports and read the summary; it does not open the app or reveal the key.
 
 ### What it does not protect
@@ -63,7 +63,7 @@ multi-user service and was not designed to face the open internet without someth
 - **Prompt injection through your own reports.** The judge reads what you write. Its output is forced
   into a strict schema and sanitised (unknown fronts dropped, battle types checked against the outcome),
   so the worst case is an odd battle on your map, which you can delete.
-- **`ARTESH_OPEN=1`.** This switches the login off entirely. It exists for a machine nobody else can
+- **`HOMEFRONT_OPEN=1`.** This switches the login off entirely. It exists for a machine nobody else can
   reach. Do not combine it with a public address.
 
 ### Sensible setup
@@ -71,7 +71,7 @@ multi-user service and was not designed to face the open internet without someth
 1. Choose a long password. It is typed once per device.
 2. Keep the server on a private network (a tailnet is the easy route) and serve it over HTTPS.
 3. With a proxy or tunnel in front, set `HOST=127.0.0.1` so the port is not reachable directly.
-4. Treat `ARTESH_TOKEN` like a password: generate it randomly, and rotate it if a Shortcut or script
+4. Treat `HOMEFRONT_TOKEN` like a password: generate it randomly, and rotate it if a Shortcut or script
    that holds it is shared.
 5. Keep `.env` and `private/` out of git (they are ignored by default) and out of shared folders.
 6. Back up `private/`.
@@ -82,5 +82,5 @@ In scope: anything that lets someone without the password or token read or chang
 the API key, read files outside the allowlist, or take over a session.
 
 Out of scope: attacks that need access to the host's filesystem, a deployment over plain HTTP on an
-untrusted network, `ARTESH_OPEN=1`, denial of service by flooding, and the behaviour of third-party
+untrusted network, `HOMEFRONT_OPEN=1`, denial of service by flooding, and the behaviour of third-party
 model providers.
