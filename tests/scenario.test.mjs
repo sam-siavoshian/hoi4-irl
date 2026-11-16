@@ -253,6 +253,8 @@ test('storage: switching country and back keeps both campaigns', () => {
   store.switchScenario(d, 'testland', iranIds, ids);
   assert.equal(d.reports[0].id, 't1'); assert.equal(d.labels[PLA], 'Mates'); assert.equal(d.labels[LIT], 'Studies', 'a campaign that exists is brought back as it was'); assert.equal(d.campaigns.iran.reports[0].id, 'a');
   assert.equal(store.switchScenario(d, 'testland'), d, 'choosing the current country changes nothing');
+  // picking a country on a first run leaves no empty campaign behind for the one that was never played
+  const first = store.switchScenario(store.blank(), 'testland', iranIds, ids); assert.equal(first.scenario, 'testland'); assert.deepEqual(first.campaigns, {}); assert.deepEqual(first.reports, []);
   // the whole thing survives a round trip through export and import
   const back = store.importData(store.exportData(d)); assert.equal(back.scenario, 'testland'); assert.equal(back.reports[0].id, 't1'); assert.equal(back.campaigns.iran.reports[0].id, 'a');
 });

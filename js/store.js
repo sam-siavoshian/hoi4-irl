@@ -25,7 +25,8 @@ export function migrate(d) {
 export function switchScenario(data, id, from = [], to = []) {
   if (id === data.scenario) return data;
   data.campaigns = obj(data.campaigns);
-  data.campaigns[data.scenario] = campaign(data);
+  const cur = campaign(data), untouched = !cur.reports.length && !cur.off.length && !Object.keys(cur.labels).length && !Object.keys(cur.notes).length;
+  if (!untouched) data.campaigns[data.scenario] = cur; // a country that was never played leaves nothing behind
   let next = data.campaigns[id];
   if (!next) {
     const carry = src => Object.fromEntries(from.map((f, i) => [to[i], src[f]]).filter(([k, v]) => k && v != null));
