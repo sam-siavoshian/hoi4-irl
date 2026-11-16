@@ -72,8 +72,8 @@ try {
   });
   await step('the cards carry what they were given', async () => {
     const texts = id => cards.find(c => c.id === id).boxes.map(b => b.text).join(' | ');
-    assert.match(texts('bulletin-bad'), /Zabol has fallen/); assert.match(texts('bulletin-bad'), /53%/); assert.match(texts('bulletin-bad'), /Sarvan/); assert.match(texts('bulletin-bad'), /Personal Life/);
-    assert.match(texts('frontpage-bad'), /ZABOL HAS \| FALLEN|ZABOL HAS FALLEN/); assert.match(texts('frontpage-bad'), /ETTELA’AT-E ARTESH/); assert.match(texts('frontpage-bad'), /1405/); assert.match(texts('frontpage-bad'), /garrison/);
+    assert.match(texts('bulletin-bad'), /Zabol has fallen/); assert.match(texts('bulletin-bad'), /53%/); assert.match(texts('bulletin-bad'), /Sarvan/); assert.match(texts('bulletin-bad'), /Self/);
+    assert.match(texts('frontpage-bad'), /ZABOL HAS \| FALLEN|ZABOL HAS FALLEN/); assert.match(texts('frontpage-bad'), /THE ARMY GAZETTE/); assert.match(texts('frontpage-bad'), /1405/); assert.match(texts('frontpage-bad'), /garrison/);
     assert.match(texts('recap-typical'), /9–15 November/); assert.match(texts('recap-typical'), /\+420/); assert.match(texts('recap-typical'), /Khanaqin/); assert.match(texts('recap-typical'), /Rakhsh/);
     assert.match(texts('rankup-rank'), /Sarhang/); assert.match(texts('rankup-rank'), /Colonel/); assert.match(texts('rankup-rank'), /104-day streak/);
   });

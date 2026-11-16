@@ -81,7 +81,7 @@ try {
     assert.match(await brief(), /Iran.*Imperial State of Iran · 1936.*Achaemenid Empire.*Restore the empire of Cyrus/s);
     const n = await p.evaluate(() => { const s = window.__homefront.live; return [s.divisions.length, s.fleets.reduce((a, f) => a + f.ships.length, 0), s.wings.length]; });
     assert.deepEqual(await p.locator(`${T('brief-stats')} [data-slot=stat-value]`).evaluateAll(els => els.map(e => Number(e.textContent))), n);
-    assert.equal(await p.locator(T('brief-front')).count(), 7); assert.match(await p.textContent(`${T('brief-front')}[data-front=glf]`), /Persian Gulf Theatre.*Royal Navy · Naval.*Personal Life/s); assert.match(await p.textContent(`${T('brief-front')}[data-front=afg]`), /Afghan Front.*Afghanistan · Land.*School/s);
+    assert.equal(await p.locator(T('brief-front')).count(), 7); assert.match(await p.textContent(`${T('brief-front')}[data-front=glf]`), /Persian Gulf Theatre.*Royal Navy · Naval.*Self/s); assert.match(await p.textContent(`${T('brief-front')}[data-front=afg]`), /Afghan Front.*Afghanistan · Land.*School/s);
     assert.equal(await p.textContent(T('play')), 'Play as Iran');
     // a phone: the map keeps the top of the screen, the button is in reach without scrolling
     const box = await p.evaluate(() => { const r = e => document.querySelector(e).getBoundingClientRect(); const m = r('#mapwrap'), b = r('[data-testid=play]'); return { map: m.height / innerHeight, top: m.top, play: b.bottom, h: innerHeight, w: innerWidth, right: b.right, scroll: document.documentElement.scrollWidth }; });
@@ -168,7 +168,7 @@ try {
     await p.mouse.click(pt[0], pt[1]); await p.waitForSelector(SHEET); assert.equal(await title(p), 'Qom'); await shut(p);
     await p.click(T('home')); await p.waitForTimeout(800);
     const h = await p.evaluate(() => { const a = window.__homefront; const h = a.view.hits.filter(h => h.data.kind === 'front' && h.data.id === 'irq').at(-1); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + h.x + h.w / 2, r.top + h.y + h.h / 2]; });
-    await p.mouse.click(h[0], h[1]); await p.waitForSelector(SHEET); assert.equal(await title(p), 'Startup'); await shut(p);
+    await p.mouse.click(h[0], h[1]); await p.waitForSelector(SHEET); assert.equal(await title(p), 'Work'); await shut(p);
     const dv = await p.evaluate(() => { const a = window.__homefront; const h = a.view.hits.find(h => h.data.kind === 'division'); const r = document.querySelector('#over').getBoundingClientRect(); return [r.left + h.x + h.w / 2, r.top + h.y + h.h / 2]; });
     await p.mouse.click(dv[0], dv[1]); await p.waitForSelector(SHEET); assert.match(await body(p), /Battle honours/); await shut(p);
     for (const m of ['life', 'infra', 'political']) {
@@ -203,7 +203,7 @@ try {
     const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=frontpage]')]); const f = shots + 'share-frontpage.png'; await dl.saveAs(f); assert.ok(fs.statSync(f).size > 80000);
     const [d2] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=bulletin]')]); await d2.saveAs(shots + 'share-bulletin.png');
     const [d3] = await Promise.all([p.waitForEvent('download'), p.click('[data-kind=recap]')]); await d3.saveAs(shots + 'share-recap.png');
-    await p.waitForTimeout(200); assert.match(await p.evaluate(() => navigator.clipboard.readText()), /Mesopotamian Front \(Startup\)/);
+    await p.waitForTimeout(200); assert.match(await p.evaluate(() => navigator.clipboard.readText()), /Mesopotamian Front \(Work\)/);
   });
 
   await step('ask the staff answers from history; sound can be switched off', async () => {

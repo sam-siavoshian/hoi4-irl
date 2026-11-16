@@ -71,6 +71,13 @@ Change country at any time; each keeps its own campaign.
   <img src="docs/img/countries.png" alt="The eight countries side by side: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with its own 1936 map and front lines">
 </p>
 
+You choose on a full-screen selection screen: the map changes behind as you browse the nations, with each
+one's army, navy, air force and seven fronts laid out before you commit.
+
+<p align="center">
+  <img src="docs/img/select-desktop.png" alt="The country selection screen on a desktop: a column of eight nations with their flags, the map of France in the centre, and a briefing with its divisions, ships, air wings and seven fronts above a Play as France button">
+</p>
+
 Want another one? A country is a single file: see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
 ## Why
@@ -194,10 +201,10 @@ For Iran, as an example:
 | Afghan Front | Afghanistan | School |
 | Caucasus Front | Soviet Union | Family |
 | Turkestan Front | Soviet Union | Partner |
-| Mesopotamian Front | Iraq | Startup or work |
-| Baluchistan Front | British Raj | Gym and health |
-| Anatolian Front | Turkey | Friends and social life |
-| Persian Gulf Theatre | Royal Navy | Personal life |
+| Mesopotamian Front | Iraq | Work |
+| Baluchistan Front | British Raj | Health |
+| Anatolian Front | Turkey | Friends |
+| Persian Gulf Theatre | Royal Navy | Self |
 
 The persona you pick sets the meanings; rename or pause any of them in Settings.
 
@@ -312,7 +319,7 @@ More in [docs/FAQ.md](docs/FAQ.md).
 
 ## Roadmap
 
-- More countries, and proper flags for the ones whose flag is not three stripes.
+- More countries.
 - Translations of the interface and the staff's voice.
 - Native Anthropic and Gemini providers, alongside the OpenAI-compatible route.
 - Import from other trackers and from plain-text journals.

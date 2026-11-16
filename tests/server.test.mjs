@@ -161,9 +161,9 @@ test('POST /api/report judges a plain-text report, saves it and answers for Siri
   const r = await report('we closed the round but I missed my flight'); assert.equal(r.status, 200); const j = await r.json();
   assert.equal(j.ok, true); assert.equal(j.source, 'llm'); assert.equal(j.summary, 'The Mesopotamian Front has broken open.'); assert.equal(j.warning, undefined);
   assert.deepEqual(j.items.map(({ front, label, outcome, severity, action, headline }) => ({ front, label, outcome, severity, action, headline })), [
-    { front: 'irq', label: 'Startup', outcome: 'win', severity: 5, action: 'breakthrough', headline: 'Seed round closed' },
-    { front: 'glf', label: 'Personal Life', outcome: 'loss', severity: 4, action: 'port_strike', headline: 'Missed the flight' }]);
-  assert.equal(j.speech, 'Logged 1 win and 1 loss. Startup: Seed round closed; Personal Life: Missed the flight.');
+    { front: 'irq', label: 'Work', outcome: 'win', severity: 5, action: 'breakthrough', headline: 'Seed round closed' },
+    { front: 'glf', label: 'Self', outcome: 'loss', severity: 4, action: 'port_strike', headline: 'Missed the flight' }]);
+  assert.equal(j.speech, 'Logged 1 win and 1 loss. Work: Seed round closed; Self: Missed the flight.');
   // the same prompt and schema the app sends, built from the user's own labels and the current map
   const sent = mock.seen.at(-1); assert.equal(sent.path, '/v1/responses'); assert.equal(sent.body.text.format.name, 'battle_report'); assert.equal(sent.body.text.format.strict, true);
   assert.match(sent.body.input[0].content, /afg: .*"Uni"/); assert.match(sent.body.input[0].content, /engineering degree/); assert.match(sent.body.input[1].content, /we closed the round/);
@@ -196,7 +196,7 @@ test('/api/report: an unclear report logs nothing and can be retried by hand', a
   const calls = mock.seen.length;
   const m = await (await report({ text: 'went to the dentist', front: 'raj', outcome: 'loss' })).json();
   assert.equal(m.ok, true); assert.equal(m.source, 'manual'); assert.equal(mock.seen.length, calls, 'a manual entry is not judged');
-  assert.deepEqual(m.items.map(({ days_ago, ...i }) => i), [{ front: 'raj', label: 'Gym & Health', outcome: 'loss', severity: 2, action: 'enemy_offensive', headline: 'went to the dentist' }]);
+  assert.deepEqual(m.items.map(({ days_ago, ...i }) => i), [{ front: 'raj', label: 'Health', outcome: 'loss', severity: 2, action: 'enemy_offensive', headline: 'went to the dentist' }]);
   const s = await state(); assert.equal(s.rev, rev + 1); assert.deepEqual(s.data.reports.at(-1).items, [{ front: 'raj', outcome: 'loss', severity: 2, action: 'enemy_offensive', headline: 'went to the dentist' }]); assert.equal(s.data.reports.at(-1).source, 'manual');
   const byLabel = await (await report({ text: 'Handed in the thesis', front: 'uni', outcome: 'win' })).json(); assert.equal(byLabel.items[0].front, 'afg'); assert.equal(byLabel.items[0].action, 'offensive');
   for (const body of [{ text: 'x y z', front: 'nowhere', outcome: 'win' }, { text: 'x y z', front: 'raj', outcome: 'meh' }, { text: 'x y z', front: 'raj' }]) { const r = await report(body); assert.equal(r.status, 400); const e = await r.json(); assert.equal(e.ok, false); assert.equal(e.fronts.length, 7); }
@@ -229,7 +229,7 @@ test('saves from the app and reports from the API never interleave', async () =>
 });
 test('GET /api/sitrep is a plain-text situation report in the user\'s own labels', async () => {
   const r = await bearer('/api/sitrep'); assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /^text\/plain/);
-  const t = await r.text(); assert.match(t, /Uni/); assert.match(t, /Startup/); assert.ok(t.split('\n').length >= 7);
+  const t = await r.text(); assert.match(t, /Uni/); assert.match(t, /Work/); assert.ok(t.split('\n').length >= 7);
   assert.equal((await bearer('/api/sitrep', { method: 'POST' })).status, 405);
   assert.equal(await (await req('/api/sitrep')).text(), t);
 });
@@ -239,8 +239,8 @@ test('the homefront command line files reports and reads the situation', async (
   const sit = await cli(['sitrep'], e); assert.equal(sit.code, 0, sit.err); assert.match(sit.out, /Uni/);
   const rep = await cli(['report', 'I failed my exam'], e); assert.equal(rep.code, 0, rep.err); assert.match(rep.out, /The line bends\./); assert.match(rep.out, /- Uni · loss 3 · Exam failed/);
   const piped = await cli(['report', '--json'], e, 'we closed the round\n'); assert.equal(piped.code, 0, piped.err); assert.equal(JSON.parse(piped.out).items[0].front, 'irq');
-  const unclear = await cli(['report', 'went to the dentist'], e); assert.equal(unclear.code, 2); assert.match(unclear.err, /raj\s+Gym & Health/);
-  const manual = await cli(['report', 'went to the dentist', '--front', 'raj', '--outcome=win'], e); assert.equal(manual.code, 0, manual.err); assert.match(manual.out, /\+ Gym & Health · win 2/);
+  const unclear = await cli(['report', 'went to the dentist'], e); assert.equal(unclear.code, 2); assert.match(unclear.err, /raj\s+Health/);
+  const manual = await cli(['report', 'went to the dentist', '--front', 'raj', '--outcome=win'], e); assert.equal(manual.code, 0, manual.err); assert.match(manual.out, /\+ Health · win 2/);
   const since = new Date(Date.now() - 60e3).toISOString(); const jr = await cli(['journal', '--since', since], e); assert.equal(jr.code, 0, jr.err);
   const jl = jr.out.trim().split('\n').map(l => JSON.parse(l)); assert.ok(jl.length >= 10); assert.equal(jl.at(-1).op, 'add'); assert.deepEqual(jl, lines().filter(l => l.t >= since));
   // clear errors
