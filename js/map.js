@@ -48,6 +48,9 @@ export class MapView {
     this.map = map; this.st = null; this.selected = null; this.pins = []; this.hits = []; this.anim = null;
     this._prep(); this._inited = false; this.resize();
   }
+  // `whole`: home() keeps the entire country in view and never zooms in to fill the screen (the country picker's stage)
+  frameWhole(on) { this.whole = !!on; }
+  _fitWhole() { const [x0, y0, x1, y1] = this.homeBox; return Math.min(this.w / ((x1 - x0) * 1.08), this.h / ((y1 - y0) * 1.08)); }
 
   _prep() {
     const m = this.map; const F = this.flavor = flavor(m); this.meta = mapMeta(m);
@@ -98,6 +101,7 @@ export class MapView {
     this.w = Math.max(50, r.width); this.h = Math.max(50, r.height); this.dpr = dpr;
     for (const c of [this.base, this.over]) { c.width = Math.round(this.w * dpr); c.height = Math.round(this.h * dpr); c.style.width = this.w + 'px'; c.style.height = this.h + 'px'; }
     const hb = this.homeBox; this.minS = Math.min(Math.max(this.w / this.map.w, this.h / this.map.h), this.w / ((hb[2] - hb[0]) * 1.1));
+    if (this.whole) this.minS = Math.min(this.minS, this._fitWhole());
     if (!this._inited) { this._inited = true; this.home(false); }
     this._clamp(); this.dirty = true;
   }
@@ -108,7 +112,7 @@ export class MapView {
     // a wide country on a tall screen would leave empty bands above and below the map: zoom in until the map covers
     // the screen, but by no more than half again, so most of the country stays in view
     const cover = Math.max(this.w / this.map.w, this.h / this.map.h);
-    const s = Math.max(this.minS, fit, Math.min(cover, fit * 1.5));
+    const s = this.whole ? Math.max(this.minS, this._fitWhole()) : Math.max(this.minS, fit, Math.min(cover, fit * 1.5));
     this.flyTo((x0 + x1) / 2, (y0 + y1) / 2, s, animate);
   }
   flyTo(cx, cy, s, animate = true) {

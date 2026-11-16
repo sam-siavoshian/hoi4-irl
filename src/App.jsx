@@ -1,6 +1,6 @@
 // The screen: the map, a little chrome over it, and one sheet for everything else.
 // The two canvases are created once and handed to the map renderer (js/map.js); React never re-creates them.
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import {
   AlertDialog, AlertDialogClose, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogPopup, AlertDialogTitle,
   Button, Card, CardButton, IconButton, InlineButton, Menu, MenuCheckboxItem, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger,
@@ -13,9 +13,10 @@ import { Flag, Swatch } from './parts.jsx';
 import { fronts, frontSheet, units, division, province } from './sheets/fronts.jsx';
 import { history, edit } from './sheets/history.jsx';
 import { report } from './sheets/report.jsx';
-import { overview, share, settings, country, welcome } from './sheets/nation.jsx';
+import { overview, share, settings, welcome } from './sheets/nation.jsx';
+import { Picker } from './picker.jsx';
 
-const SHEETS = { fronts, front: frontSheet, units, division, province, history, edit, report, overview, share, settings, country, welcome };
+const SHEETS = { fronts, front: frontSheet, units, division, province, history, edit, report, overview, share, settings, welcome };
 
 const WIDE = '(min-width: 768px)';
 function useWide() {
@@ -25,10 +26,17 @@ function useWide() {
 export function App() {
   const a = useApp();
   const base = useRef(null), over = useRef(null), wrap = useRef(null);
+  const wide = useWide(); const picking = a.ready && !!a.ui.picker; const was = useRef(false);
   useEffect(() => { boot(base.current, over.current, wrap.current).catch(err => { console.error(err); app.error = err; change(); }); }, []);
+  // The country picker leaves the map the top of a phone, or the middle of a wide screen: the view takes its new room
+  // and frames the country in it, on the way in and on the way out.
+  useLayoutEffect(() => {
+    if (!app.view || (!picking && !was.current)) return;
+    was.current = picking; app.view.frameWhole(picking); app.view.resize(); app.view.home(false);
+  }, [picking, wide]);
   return (
     <div className="fixed inset-0 overflow-hidden bg-background select-none">
-      <main ref={wrap} id="mapwrap" className="absolute inset-0 touch-none">
+      <main ref={wrap} id="mapwrap" className={picking ? 'absolute inset-x-0 top-0 h-12/25 touch-none md:inset-y-0 md:start-76 md:end-100 md:h-auto' : 'absolute inset-0 touch-none'}>
         <canvas ref={base} id="base" className="absolute inset-0 block touch-none" />
         <canvas ref={over} id="over" className="absolute inset-0 block touch-none" />
       </main>
@@ -36,7 +44,7 @@ export function App() {
         <div className="absolute inset-0 grid place-items-center bg-background p-4">
           <ScreenError title="Home Front couldn’t start" doing="Your reports are safe." ask="Try again. If it keeps happening, copy the details." details={String(a.error.stack || a.error)} onRetry={() => location.reload()} />
         </div>
-      ) : a.ready ? <><Chrome /><Panel /><Confirm /></> : (
+      ) : a.ready ? <>{picking ? <Picker wide={wide} /> : <Chrome />}<Panel /><Confirm /></> : (
         <div className="absolute inset-0 grid place-items-center"><Spinner size="lg" tone="muted" /></div>
       )}
     </div>
@@ -155,7 +163,7 @@ function Panel() {
   const { ui } = useApp(); const wide = useWide();
   const S = SHEETS[ui.sheet]; const popup = useRef(null);
   return (
-    <Sheet open={!!S} modal={false} disablePointerDismissal onOpenChange={open => { if (!open) closeSheet(); }}>
+    <Sheet open={!!S && !ui.picker} modal={false} disablePointerDismissal onOpenChange={open => { if (!open) closeSheet(); }}>
       <SheetPopup ref={popup} side={wide ? 'right' : 'bottom'} variant="inset" layer="panel" initialFocus={popup} data-testid="sheet" data-sheet={ui.sheet || undefined}>
         {S ? (
           <>

@@ -49,6 +49,10 @@ const settings = async p => { await overview(p); await p.click(T('open-settings'
 const toasts = p => p.textContent('[data-slot=toast-viewport]');
 const saved = p => p.waitForFunction(() => /Saved/.test(document.querySelector('[data-slot=toast-viewport]')?.textContent || ''));
 const confirmYes = p => p.click(T('confirm-yes'));
+// the country picker: a full screen over the map
+const PICKER = T('picker');
+const browse = async (p, id) => { await p.click(`${T('country')}[data-id=${id}]`); await p.waitForFunction(i => window.__homefront.view.map.id === i && !window.__homefront.ui.picker.busy && document.querySelector('[data-testid=briefing]')?.dataset.id === i, id); };
+const pickCountry = async p => { await settings(p); await p.click(T('change-country')); await p.waitForSelector(PICKER); };
 const send = async (p, text) => { await nav(p, 'report'); await p.fill('#report-text', text); await p.click(T('send')); };
 
 try {
@@ -66,13 +70,31 @@ try {
     await c0.close();
   }
   let { ctx, p } = await open();
-  await step('first run: choose your country', async () => {
-    assert.equal(await title(p), 'Choose your country');
+  await step('first run: choose your country on a full screen, the map behind it', async () => {
+    await p.waitForSelector(PICKER); assert.equal(await p.textContent(T('picker-title')), 'Choose your country'); assert.equal(await sheetOpen(p), false);
+    assert.equal(await p.locator(T('picker-close')).count(), 0, 'a first run has to choose'); assert.equal(await p.locator('nav[aria-label=Main]').count(), 0);
     assert.deepEqual(await p.evaluate(() => window.__homefront.scenarios.map(s => s.id).filter(id => id === 'iran' || id === 'testland')), ['iran', 'testland']);
     assert.equal(await p.locator(T('country')).count(), await p.evaluate(() => window.__homefront.scenarios.length)); assert.equal(await p.locator(`${T('country')} svg[data-flag]`).count(), await p.locator(T('country')).count());
-    assert.match(await p.textContent(`${T('country')}[data-id=iran]`), /Iran.*Achaemenid Empire.*Restore the empire of Cyrus/s); assert.match(await p.textContent(`${T('country')}[data-id=testland]`), /Testland.*Platine Confederation/s);
+    assert.equal(await p.getAttribute(`${T('country')}[data-id=iran]`, 'aria-checked'), 'true'); assert.match(await p.textContent(`${T('country')}[data-id=testland]`), /Testland/);
+    // the briefing: who it is, what it restores, and its real numbers on the first day
+    const brief = () => p.textContent(T('briefing'));
+    assert.match(await brief(), /Iran.*Imperial State of Iran · 1936.*Achaemenid Empire.*Restore the empire of Cyrus/s);
+    const n = await p.evaluate(() => { const s = window.__homefront.live; return [s.divisions.length, s.fleets.reduce((a, f) => a + f.ships.length, 0), s.wings.length]; });
+    assert.deepEqual(await p.locator(`${T('brief-stats')} [data-slot=stat-value]`).evaluateAll(els => els.map(e => Number(e.textContent))), n);
+    assert.equal(await p.locator(T('brief-front')).count(), 7); assert.match(await p.textContent(`${T('brief-front')}[data-front=glf]`), /Persian Gulf Theatre.*Royal Navy · Naval.*Personal Life/s); assert.match(await p.textContent(`${T('brief-front')}[data-front=afg]`), /Afghan Front.*Afghanistan · Land.*School/s);
+    assert.equal(await p.textContent(T('play')), 'Play as Iran');
+    // a phone: the map keeps the top of the screen, the button is in reach without scrolling
+    const box = await p.evaluate(() => { const r = e => document.querySelector(e).getBoundingClientRect(); const m = r('#mapwrap'), b = r('[data-testid=play]'); return { map: m.height / innerHeight, top: m.top, play: b.bottom, h: innerHeight, w: innerWidth, right: b.right, scroll: document.documentElement.scrollWidth }; });
+    assert.ok(box.map > 0.4 && box.map < 0.55 && box.top === 0, `the map has the top of the screen: ${box.map}`); assert.ok(box.play <= box.h && box.right <= box.w && box.scroll <= box.w, 'nothing is clipped');
     await shot(p, '00-country');
-    await p.click(`${T('country')}[data-id=iran]`); await p.waitForFunction(() => document.querySelector('[data-testid=sheet-title]')?.textContent === 'Your fronts');
+    // browsing another country puts its map behind the picker and chooses nothing
+    await browse(p, 'testland');
+    assert.equal(await p.getAttribute(`${T('country')}[data-id=testland]`, 'aria-checked'), 'true'); assert.match(await brief(), /Testland.*Platine Confederation/s); assert.equal(await p.textContent(T('play')), 'Play as Testland'); assert.equal(await p.locator(T('brief-front')).count(), 7);
+    const b = await p.evaluate(() => { const a = window.__homefront; return { view: a.view.map.id, home: a.view.homeTag, scenario: a.data.scenario, map: a.map.id, fronts: Object.keys(a.view.st.fronts), log: a.view.st.log.length }; });
+    assert.equal(b.view, 'testland'); assert.equal(b.home, 'URU'); assert.equal(b.scenario, 'iran'); assert.equal(b.map, 'iran'); assert.deepEqual(b.fronts, TL); assert.equal(b.log, 0);
+    assert.equal(await p.locator('#mapwrap canvas').count(), 2, 'the same two canvases'); await shot(p, '00-country-browse');
+    await browse(p, 'iran'); await p.click(T('play')); await p.waitForFunction(() => document.querySelector('[data-testid=sheet-title]')?.textContent === 'Your fronts');
+    assert.equal(await p.locator(PICKER).count(), 0); assert.equal(await p.evaluate(() => window.__homefront.view.map.id), 'iran'); assert.equal(await p.evaluate(() => document.querySelector('#mapwrap').getBoundingClientRect().height === innerHeight), true);
     assert.equal(await p.evaluate(() => window.__homefront.data.scenario), 'iran'); assert.equal(await p.textContent(T('nation-name')), 'Iran'); assert.equal(await p.locator(`${T('identity')} svg[data-flag]`).count(), 1);
   });
   await step('first run: name your fronts', async () => {
@@ -219,8 +241,20 @@ try {
   ({ ctx, p } = await open());
   await step('settings → country: Testland has its own map and an empty campaign', async () => {
     await settings(p); assert.match(await body(p), /Change country/);
-    await p.click(T('change-country')); await p.waitForSelector(T('country')); assert.equal(await title(p), 'Country'); assert.match(await p.textContent(`${T('country')}[data-id=iran]`), /Playing/); await shot(p, '21-country');
-    await p.click(`${T('country')}[data-id=testland]`); await p.waitForFunction(() => window.__homefront.map.id === 'testland' && window.__homefront.st?.fronts.lit && window.__homefront.ui.sheet === 'settings');
+    const snap = () => p.evaluate(() => { const a = window.__homefront; return JSON.stringify({ scenario: a.data.scenario, map: a.map.id, view: a.view.map.id, n: a.data.reports.length, labels: a.data.labels, off: a.data.off, campaigns: Object.keys(a.data.campaigns || {}), fronts: Object.entries(a.live.fronts).map(([k, f]) => [k, f.pos, f.wins, f.losses]), shown: Object.entries(a.view.st.fronts).map(([k, f]) => [k, f.pos, f.wins, f.losses]), log: a.view.st.log.length, occ: a.view.st.terr.occ.size, lib: a.view.st.terr.lib.size, sheet: a.ui.sheet, full: document.querySelector('#mapwrap').getBoundingClientRect().height === innerHeight }); });
+    const before = await snap();
+    await p.click(T('change-country')); await p.waitForSelector(PICKER); assert.equal(await p.textContent(T('picker-title')), 'Change country'); assert.match(await p.textContent(T('briefing')), /Iran.*Playing/s);
+    assert.equal(await p.textContent(T('play')), 'Continue as Iran', 'Iran has a campaign'); assert.equal(await p.locator(T('picker-close')).count(), 1); await p.waitForSelector(SHEET, { state: 'detached' }); await shot(p, '21-country');
+    // cancelling after a look at another country leaves the country, the campaign and the map as they were
+    await browse(p, 'testland'); assert.equal(await p.textContent(T('play')), 'Play as Testland'); assert.doesNotMatch(await p.textContent(T('briefing')), /Playing/);
+    assert.equal(await p.evaluate(() => window.__homefront.view.map.id + ' ' + window.__homefront.data.scenario + ' ' + window.__homefront.map.id), 'testland iran iran');
+    await p.click(T('picker-close')); await p.waitForSelector(PICKER, { state: 'detached' }); await p.waitForSelector(SHEET);
+    assert.equal(await snap(), before, 'nothing changed'); assert.equal(await title(p), 'Settings'); assert.doesNotMatch(await toasts(p), /Now playing/);
+    assert.equal(JSON.parse(before).view, 'iran'); assert.equal(JSON.parse(before).n, 2);
+    // "Play as" on a new country starts an empty campaign there
+    await p.click(T('change-country')); await p.waitForSelector(PICKER); await browse(p, 'testland');
+    await p.click(T('play')); await p.waitForFunction(() => window.__homefront.map.id === 'testland' && window.__homefront.st?.fronts.lit && window.__homefront.ui.sheet === 'settings' && !window.__homefront.ui.picker);
+    await p.waitForSelector(SHEET);
     assert.equal(await title(p), 'Settings'); assert.equal(await p.textContent(T('nation-name')), 'Testland'); assert.match(await toasts(p), /Now playing Testland/);
     const d = await p.evaluate(() => { const a = window.__homefront; return { scenario: a.data.scenario, n: a.data.reports.length, iran: a.data.campaigns.iran, labels: a.data.labels, off: a.data.off, fronts: Object.keys(a.live.fronts), log: a.live.log.length, view: a.view.map.id, home: a.view.homeTag }; });
     assert.equal(d.scenario, 'testland'); assert.equal(d.n, 0); assert.equal(d.log, 0); assert.deepEqual(d.fronts, TL); assert.equal(d.view, 'testland'); assert.equal(d.home, 'URU');
@@ -257,7 +291,11 @@ try {
     await p.evaluate(() => window.__homefront.view.home(false)); await shot(p, '27-testland-demo');
   });
   await step('back to Iran: the old campaign is exactly as it was left', async () => {
-    await settings(p); await p.click(T('change-country')); await p.click(`${T('country')}[data-id=iran]`); await p.waitForFunction(() => window.__homefront.map.id === 'iran' && window.__homefront.st?.fronts.afg);
+    await pickCountry(p); assert.equal(await p.textContent(T('play')), 'Continue as Testland'); assert.match(await p.textContent(T('briefing')), /Testland.*Playing/s);
+    await browse(p, 'iran'); assert.equal(await p.textContent(T('play')), 'Continue as Iran', 'the campaign put away is still there');
+    assert.ok(await p.evaluate(() => window.__homefront.view.st.log.length === 2 && window.__homefront.data.scenario === 'testland'), 'the map behind shows Iran as it was left, and nothing is chosen yet');
+    await p.click(T('play')); await p.waitForFunction(() => window.__homefront.map.id === 'iran' && window.__homefront.st?.fronts.afg && !window.__homefront.ui.picker);
+    assert.match(await toasts(p), /Now playing Iran/); assert.equal(await p.evaluate(() => window.__homefront.view.map.id), 'iran');
     const d = await p.evaluate(() => { const a = window.__homefront; return { scenario: a.data.scenario, n: a.data.reports.length, tur: a.data.labels.tur, off: a.data.off, tl: a.data.campaigns.testland.reports.length, iran: a.data.campaigns.iran, name: document.querySelector('[data-testid=nation-name]').textContent }; });
     assert.equal(d.scenario, 'iran'); assert.equal(d.n, 2); assert.equal(d.tur, 'Guitar'); assert.deepEqual(d.off, ['raj']); assert.equal(d.tl, 8); assert.equal(d.iran, undefined); assert.equal(d.name, 'Iran');
     const s = await st(p); assert.equal(s.log, 2); assert.ok(s.fronts.irq.pos < -6); await shut(p); await shot(p, '28-iran-again');
@@ -281,6 +319,11 @@ try {
   const c3 = await browser.newContext({ viewport: { width: 1440, height: 860 } }); p = await c3.newPage(); p.on('pageerror', e => errors.push('pageerror: ' + e.message));
   await login(p);
   await step('desktop: demo', async () => {
+    // the picker on a wide screen: nations in a column on the left, the map in the middle, the briefing on the right
+    await pickCountry(p);
+    const lay = await p.evaluate(() => { const r = e => document.querySelector(e).getBoundingClientRect(); const n = r('[data-testid=nations]'), m = r('#mapwrap'), b = r('[data-testid=briefing]'), k = r('[data-testid=play]'); return { n: n.right, m0: m.left, m1: m.right, b: b.left, play: k.bottom, h: innerHeight }; });
+    assert.ok(lay.n <= lay.m0 && lay.m1 <= lay.b && lay.m1 - lay.m0 > 600 && lay.play <= lay.h, JSON.stringify(lay)); await shot(p, '17a-desktop-country');
+    await p.keyboard.press('Escape'); await p.waitForSelector(PICKER, { state: 'detached' }); assert.equal(await p.evaluate(() => window.__homefront.data.scenario), 'iran');
     await settings(p); await p.click(T('demo')); await confirmYes(p); await p.waitForTimeout(900);
     const s = await st(p); assert.equal(s.log, 8); assert.ok(s.occ > 0 && s.lib > 0); await shot(p, '17-desktop');
     // on a wide screen the sheet is a panel beside the map and the bar stays in reach

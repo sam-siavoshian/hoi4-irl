@@ -36,6 +36,11 @@
 //   swatches  round paints in a row, the name under each, the chosen one
 //             ringed (the pal's colour). `swatch` is the paint.
 //
+// The thumbs' `flow` (ARTESH's vendored copy; the country picker's nations): `wrap` is the row above;
+// `scroll` keeps them on one line that scrolls sideways, each thumb one width, the chosen one brought
+// into view (a phone's strip); `column` stacks them, the picture before the name and the option's `sub`
+// under it (a wide screen's column).
+//
 // `onClear` makes the choice optional: pressing the chosen option again
 // clears it (About you, where every answer can be left out).
 //
@@ -48,7 +53,7 @@
 // focus (on chips, only the focus: Space or Enter picks).
 
 import { CheckIcon } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, type ReactNode, useId, useRef } from "react";
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useId, useRef } from "react";
 
 import { cn } from "../../lib/utils";
 import { SegmentThumb } from "./segmented";
@@ -85,6 +90,7 @@ export function ChoiceCards<T extends string>({
   onUse,
   variant = "preview",
   columns,
+  flow = "wrap",
   size = "md",
   onClear,
   disabled = false,
@@ -110,6 +116,8 @@ export function ChoiceCards<T extends string>({
   onClear?: () => void;
   /** How many across: `preview` (3 when left out), `sample` (2 or 4; five, or three in a narrow column, when left out). */
   columns?: 2 | 3 | 4;
+  /** `thumbs`: `wrap` (a row that wraps), `scroll` (one line, sideways), `column` (stacked, the picture before the name). */
+  flow?: "wrap" | "scroll" | "column";
   disabled?: boolean;
   className?: string;
 } & Record<`data-${string}`, string | undefined>) {
@@ -118,6 +126,12 @@ export function ChoiceCards<T extends string>({
   const chosen = options.findIndex((option) => option.value === value);
   // One tab stop: the chosen option, or the first.
   const stop = Math.max(0, chosen);
+
+  // A strip or a column of thumbs can be longer than its room: the chosen one stays in view.
+  const scrolls = variant === "thumbs" && flow !== "wrap";
+  useEffect(() => {
+    if (scrolls && chosen >= 0) buttons.current[chosen]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [scrolls, chosen]);
 
   const choose = (index: number) => {
     const option = options[index];
@@ -155,6 +169,7 @@ export function ChoiceCards<T extends string>({
       data-variant={variant}
       data-columns={variant === "sample" && columns ? columns : undefined}
       data-size={variant === "chips" || variant === "tiles" ? size : undefined}
+      data-flow={variant === "thumbs" && flow !== "wrap" ? flow : undefined}
       className={cn(
         variant === "preview" && "grid gap-3",
         variant === "preview" && (columns === 2 ? "grid-cols-2" : columns === 4 ? "grid-cols-4" : "grid-cols-3"),
@@ -251,7 +266,14 @@ export function ChoiceCards<T extends string>({
                 <span data-slot="choice-thumb-picture" aria-hidden="true">
                   {option.preview}
                 </span>
-                <span data-slot="choice-thumb-label">{option.label}</span>
+                {flow === "column" ? (
+                  <span data-slot="choice-thumb-text">
+                    <span data-slot="choice-thumb-label">{option.label}</span>
+                    {option.sub ? <span data-slot="choice-thumb-sub">{option.sub}</span> : null}
+                  </span>
+                ) : (
+                  <span data-slot="choice-thumb-label">{option.label}</span>
+                )}
               </>
             ) : variant === "swatches" ? (
               <>
