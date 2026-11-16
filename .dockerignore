@@ -1,0 +1,13 @@
+# Allowlist: the image contains only what server.mjs serves or imports.
+*
+
+!package.json
+!server.mjs
+!index.html
+!sw.js
+!manifest.webmanifest
+!css
+!js
+!data
+!icons
+!bin

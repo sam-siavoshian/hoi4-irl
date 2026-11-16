@@ -1,0 +1,81 @@
+name: Bug report
+description: Something is broken or behaves differently from what the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please remove anything private (your password, API keys, tokens, and report text you would not want public) before posting.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start with `npm start`
+        2. Type "..." and press Send
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Map / rendering
+        - Reporting and judging
+        - Engine (fronts, divisions, events)
+        - Server, login or sync
+        - HTTP API / CLI
+        - Voice
+        - Install to Home Screen / offline
+        - Docker / deployment
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: judge
+    attributes:
+      label: Judge
+      description: Which judge was in use?
+      options:
+        - OpenAI (default)
+        - OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, Groq, other)
+        - Offline keyword judge (no key)
+        - Not relevant
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model and endpoint
+      description: Value of OPENAI_MODEL, and the host of OPENAI_BASE_URL if you set one. Never the key.
+      placeholder: llama3.1 on Ollama, LLM_API=chat
+  - type: input
+    id: version
+    attributes:
+      label: ARTESH version or commit
+      placeholder: 1.0.0 / a1b2c3d
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Host and client
+      description: Where the server runs (OS, Node version, Docker or not) and the device and browser you use.
+      placeholder: macOS 15, Node 22, no Docker; iPhone 15, Safari, installed to Home Screen
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Server output and browser console errors, if any.
+      render: text

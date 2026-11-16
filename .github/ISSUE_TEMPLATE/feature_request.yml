@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a change or an addition.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that is hard or impossible today? Start from the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: How it would work from the user's side.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Fit with the project
+      description: ARTESH has no build step and no runtime dependencies, and the engine replays deterministically from the list of reports. See CONTRIBUTING.md.
+      options:
+        - label: This works without adding a runtime dependency or a build step.
+        - label: This keeps old campaigns replaying to the same result (or I describe the migration above).
+        - label: I am willing to open a pull request for this.
