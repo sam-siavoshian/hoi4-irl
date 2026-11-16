@@ -64,7 +64,7 @@ export const HOME_STATES = {
     ['Pucallpa', -74.55, -8.38, 3, 'S'], ['Contamana', -75.01, -7.35, 1], 
     ['Atalaya', -73.76, -10.73, 1], ['San Lorenzo', -76.56, -4.83, 1],
     ['Borja', -77.55, -4.47, 1, 'F'], ['Andoas', -76.4, -2.9, 1, 'F'], ['Santa Clotilde', -73.68, -2.49, 1],
-    ['Pantoja', -75.21, -0.97, 1, 'F'], ['Güeppí', -75.25, -0.12, 1, 'F'], ['El Estrecho', -72.67, -2.45, 1, 'F'], ['Pebas', -71.86, -3.32, 1],
+    ['Pantoja', -75.21, -0.97, 1, 'F'], ['Curaray', -75.55, -1.75, 1], ['Güeppí', -75.25, -0.12, 1, 'F'], ['El Estrecho', -72.67, -2.45, 1, 'F'], ['Pebas', -71.86, -3.32, 1],
     ['Caballococha', -70.52, -3.91, 1, 'F'], ['Esperanza', -70.72, -9.77, 1],
   ],
   'Ancash': [
@@ -116,7 +116,7 @@ export const HOME_STATES = {
   ],
   'Moquegua & Tacna': [
     ['Tacna', -70.25, -18.01, 10, 'AF'], ['Moquegua', -70.93, -17.19, 3], ['Ilo', -71.34, -17.64, 3, 'P'], ['Tarata', -70.03, -17.47, 1, 'F'],
-    ['Palca', -69.96, -17.78, 1], ['Locumba', -70.76, -17.61, 1], 
+    ['Palca', -69.96, -17.78, 1], ['Los Palos', -70.44, -18.27, 1], ['Ancomarca', -69.62, -17.56, 1], ['Locumba', -70.76, -17.61, 1], 
   ],
 };
 
@@ -215,13 +215,13 @@ export const FOREIGN = {
 // The Amazon front is the one zone the Inca never held: it stands for Antisuyu and its legends.
 // Argentina does not touch Peru, so its Inca north-west is reached through the Bolivian front.
 export const FRONTS = [
-  { id: 'ecu', name: 'Zarumilla Front', enemy: 'ECU', enemyName: 'Ecuador', subs: ['Ecuador'], box: [-82, -5.6, -74.5, -2.0], defaultLabel: 'School',
-    satrapy: 'Tumipampa & the Huancavilca coast', hq: 'Piura' },
-  { id: 'qui', name: 'Napo Front', enemy: 'ECU', enemyName: 'Ecuador', subs: ['Ecuador'], box: [-82, -2.0, -74.5, 2.0], defaultLabel: 'Family',
-    satrapy: 'Quitu, the northern seat of Chinchaysuyu', hq: 'Iquitos' },
+  { id: 'ecu', name: 'Zarumilla Front', enemy: 'ECU', enemyName: 'Ecuador', subs: ['Ecuador'], box: [-82, -5.6, -74.5, -2.45], defaultLabel: 'School',
+    satrapy: 'Tumipampa & the Cañari country', hq: 'Piura' },
+  { id: 'qui', name: 'Quito Front', enemy: 'ECU', enemyName: 'Ecuador', subs: ['Ecuador'], box: [-82, -2.45, -74.5, 2.0], defaultLabel: 'Family',
+    satrapy: 'Quitu & the Huancavilca coast', hq: 'Iquitos' },
   { id: 'col', name: 'Putumayo Front', enemy: 'COL', enemyName: 'Colombia', subs: ['Colombia'], box: [-79.6, -4.6, -69.3, 1.9], defaultLabel: 'Partner',
     satrapy: 'the land of the Pastos, to the Ancasmayu', hq: 'Pebas' },
-  { id: 'bra', name: 'Amazon Front', enemy: 'BRA', enemyName: 'Brazil', subs: ['Brazil'], box: [-74.3, -11.3, -66.2, -1.4], defaultLabel: 'Work',
+  { id: 'bra', name: 'Amazon Front', enemy: 'BRA', enemyName: 'Brazil', subs: ['Brazil'], box: [-74.3, -11.3, -67.0, -2.2], defaultLabel: 'Work',
     satrapy: 'Antisuyu beyond the Yavarí', hq: 'Pucallpa' },
   { id: 'bol', name: 'Collao Front', enemy: 'BOL', enemyName: 'Bolivia', subs: ['Bolivia', 'Argentina'], box: [-71, -33.7, -64.5, -12.3], defaultLabel: 'Health',
     satrapy: 'Collasuyu: Charcas & Tucumán', hq: 'Puno' },
@@ -269,7 +269,7 @@ export const LAKES = [
 ];
 
 export const RIVERS = [
-  { name: 'Amazon', pts: [[-73.45, -4.45], [-73.2, -3.75], [-72.7, -3.38], [-71.86, -3.36], [-70.9, -3.85], [-70.45, -3.85], [-69.95, -4.23], [-68.87, -3.42], [-67.94, -3.14], [-66.77, -2.74], [-66.09, -2.55],
+  { name: 'Amazon', pts: [[-73.45, -4.45], [-73.2, -3.75], [-72.7, -3.38], [-71.86, -3.36], [-70.95, -3.72], [-70.62, -3.66], [-70.24, -3.89], [-69.96, -4.24], [-68.87, -3.42], [-67.94, -3.14], [-66.77, -2.74], [-66.09, -2.55],
     [-64.71, -3.3], [-63.14, -4.05], [-62.06, -3.84], [-60.62, -3.3], [-60.02, -3.16], [-58.44, -3.18], [-56.74, -2.63], [-55.52, -1.94], [-55.0, -2.1]] },
   { name: 'Marañón', pts: [[-76.7, -10.3], [-76.85, -9.4], [-77.3, -8.5], [-77.75, -7.6], [-78.05, -6.8], [-78.35, -6.1], [-78.55, -5.5], [-78.2, -5.0], [-77.87, -4.62], [-77.55, -4.5], [-76.56, -4.86],
     [-75.6, -4.9], [-74.6, -4.75], [-73.58, -4.54], [-73.45, -4.45]] },
@@ -280,10 +280,10 @@ export const RIVERS = [
   { name: 'Urubamba', pts: [[-70.98, -14.48], [-71.23, -14.25], [-71.6, -13.75], [-72.12, -13.3], [-72.55, -13.18], [-72.69, -12.88], [-72.82, -12.25], [-73.05, -11.6], [-73.1, -11.15], [-73.76, -10.73]] },
   { name: 'Madre de Dios', pts: [[-71.37, -12.3], [-70.4, -12.6], [-69.18, -12.62], [-68.67, -12.5], [-67.5, -11.6], [-66.07, -11.0], [-65.35, -10.4]] },
   { name: 'Madeira', pts: [[-65.35, -10.4], [-65.3, -9.7], [-63.9, -8.76], [-63.02, -7.51], [-61.3, -5.81], [-59.6, -4.39], [-58.8, -3.4]] },
-  { name: 'Putumayo', pts: [[-76.95, 1.15], [-76.5, 0.5], [-75.87, 0.1], [-75.25, -0.12], [-74.78, -0.22], [-74.0, -1.0], [-73.2, -1.8], [-72.67, -2.42], [-71.75, -2.2], [-70.9, -2.3], [-70.05, -2.72], [-69.74, -2.92], [-68.8, -3.0], [-67.94, -3.14]] },
+  { name: 'Putumayo', pts: [[-76.95, 1.15], [-76.5, 0.5], [-75.87, 0.1], [-75.28, -0.11], [-74.84, -0.17], [-74.48, -0.5], [-74.29, -0.94], [-73.88, -1.19], [-73.5, -1.47], [-73.19, -1.8], [-73.17, -2.25], [-72.73, -2.37], [-72.28, -2.43], [-71.84, -2.19], [-71.42, -2.38], [-70.99, -2.2], [-70.61, -2.45], [-70.18, -2.62], [-69.74, -2.92], [-68.8, -3.0], [-67.94, -3.14]] },
   { name: 'Napo', pts: [[-77.8, -1.02], [-76.98, -0.47], [-76.2, -0.45], [-75.3, -0.95], [-74.6, -1.6], [-73.68, -2.52], [-73.1, -3.3], [-72.7, -3.38]] },
   { name: 'Pastaza', pts: [[-78.4, -1.4], [-77.9, -1.75], [-77.0, -2.4], [-76.4, -2.93], [-76.45, -4.0], [-76.4, -4.88]] },
-  { name: 'Yavarí', pts: [[-73.75, -7.1], [-73.6, -6.4], [-73.15, -5.7], [-72.9, -5.15], [-72.2, -4.75], [-71.3, -4.5], [-70.6, -4.2], [-70.0, -4.35]] },
+  { name: 'Yavarí', pts: [[-73.81, -7.08], [-73.51, -6.7], [-73.16, -6.3], [-73.1, -5.85], [-72.91, -5.29], [-72.56, -4.97], [-72.18, -4.71], [-71.74, -4.5], [-71.29, -4.38], [-70.86, -4.24], [-70.41, -4.13], [-69.96, -4.24]] },
   { name: 'Caquetá', pts: [[-76.6, 1.1], [-75.9, 0.95], [-75.25, 0.7], [-73.8, 0.1], [-72.4, -0.6], [-70.9, -1.1], [-69.58, -1.32], [-68.0, -1.7], [-66.5, -1.9], [-65.0, -3.1]] },
   { name: 'Juruá', pts: [[-72.7, -9.4], [-72.67, -7.63], [-71.69, -7.05], [-69.87, -6.66], [-68.3, -6.0], [-66.9, -4.88], [-66.0, -3.2], [-65.7, -2.7]] },
   { name: 'Purús', pts: [[-70.72, -9.77], [-69.6, -9.3], [-68.66, -9.0], [-67.4, -8.75], [-66.0, -7.9], [-64.8, -7.26], [-63.3, -5.6], [-62.0, -4.6], [-61.5, -3.75]] },
@@ -317,7 +317,8 @@ export const RAILWAYS = [
   { name: 'Quillabamba Extension', stage: 1, via: ['Machu Picchu', 'Quillabamba'] },
   { name: 'Northern Coast Line', stage: 2, via: ['Huacho', 'Barranca', 'Huarmey', 'Casma', 'Chimbote', [-78.75, -8.41], 'Salaverry'] },
   { name: 'Southern Coast Line', stage: 2, via: ['Lima', [-76.63, -12.66], 'Cañete', 'Chincha Alta', 'Pisco'] },
-  { name: 'Cajamarca Line', stage: 3, via: ['Ascope', 'Pacasmayo', 'Chiclayo', 'Olmos', 'Piura'] },
+  { name: 'Cajamarca Extension', stage: 1, via: ['Chepén', [-78.84, -7.22], 'Cajamarca'] },
+  { name: 'Northern Trunk Line', stage: 3, via: ['Ascope', 'Pacasmayo', 'Chiclayo', 'Olmos', 'Piura'] },
   { name: 'Pucallpa Line', stage: 3, via: ['Cerro de Pasco', 'Huánuco', 'Tingo María', [-75.3, -8.9], 'Pucallpa'] },
   { name: 'Ayacucho–Cuzco Line', stage: 4, via: ['Huancavelica', 'Ayacucho', 'Andahuaylas', 'Abancay', 'Cuzco'] },
   { name: 'Tacna Line', stage: 4, via: ['Arequipa', 'Moquegua', 'Locumba', 'Tacna'] },
