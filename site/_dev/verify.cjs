@@ -47,14 +47,31 @@ const fingerprint = () => {
     await p.screenshot({ path: path.join(out, `landing-${name}.png`), fullPage: true });
     await p.screenshot({ path: path.join(out, `landing-${name}-fold.png`) });
     assert.deepEqual(errors, [], `${name}: errors on the landing page`);
+    // head metadata: one title, a description, a canonical URL, a social card that exists, structured data that parses
+    const head = await p.evaluate(() => { const m = s => document.querySelector(s)?.getAttribute('content') || ''; return { titles: document.querySelectorAll('title').length, title: document.title, description: m('meta[name=description]'), canonical: document.querySelector('link[rel=canonical]')?.href || '', og: m('meta[property="og:image"]'), w: m('meta[property="og:image:width"]'), h: m('meta[property="og:image:height"]'), alt: m('meta[property="og:image:alt"]'), card: m('meta[name="twitter:card"]'), tw: m('meta[name="twitter:image"]'), ld: document.querySelector('script[type="application/ld+json"]')?.textContent || '', text: document.documentElement.outerHTML }; });
+    assert.equal(head.titles, 1); assert.ok(head.title.length < 60, `${name}: title is ${head.title.length} characters`);
+    assert.ok(head.description.length > 50 && head.description.length < 160, `${name}: description is ${head.description.length} characters`);
+    assert.match(head.canonical, /^https?:\/\//, `${name}: canonical URL`);
+    assert.equal(head.card, 'summary_large_image'); assert.ok(head.alt.length > 20); assert.equal(head.og, head.tw);
+    const og = await p.evaluate(async src => { const i = new Image(); i.src = src; await i.decode(); return [i.naturalWidth, i.naturalHeight].join('x'); }, new URL(head.og, base).href);
+    assert.equal(og, `${head.w}x${head.h}`, `${name}: og.png is not the size the page declares`);
+    const ld = JSON.parse(head.ld); assert.equal(ld['@type'], 'SoftwareApplication'); assert.equal(ld.name, 'ARTESH'); assert.equal(String(ld.offers.price), '0');
+    assert.doesNotMatch(head.text, /hearts of iron/i);
+    // every image is the size its tag declares, so nothing shifts as it loads
+    const sizes = await p.evaluate(() => [...document.images].filter(i => i.naturalWidth && (i.naturalWidth !== Number(i.getAttribute('width')) || i.naturalHeight !== Number(i.getAttribute('height')))).map(i => `${i.getAttribute('src')} is ${i.naturalWidth}x${i.naturalHeight}`));
+    assert.deepEqual(sizes, [], `${name}: image sizes`);
+    for (const f of ['robots.txt', 'sitemap.xml']) assert.equal((await p.request.get(base + f)).status(), 200, `${name}: ${f}`);
+    assert.equal(await p.locator('#countries .lands-list li').count(), 8, `${name}: eight countries listed`);
     console.log(`ok ${name}: canvas ${a.colours} colours, changed over time; verdicts seen: ${new Set([a.verdict, b.verdict, c.verdict]).size}`);
 
     // the demo link opens the app with a campaign in progress
     await Promise.all([p.waitForURL(/\/demo\/\?demo=1/), p.click('.hero a[data-demo]')]);
     await p.waitForFunction(() => window.__artesh?.st, null, { timeout: 15000 });
-    const demo = await p.evaluate(() => ({ reports: window.__artesh.data.reports.length, welcome: document.querySelector('#sheet-title')?.textContent, sheet: !document.querySelector('#sheet').hidden }));
+    const demo = await p.evaluate(() => ({ reports: window.__artesh.data.reports.length, sheet: window.__artesh.ui.sheet, canvases: document.querySelectorAll('#mapwrap canvas').length, bar: document.querySelectorAll('nav[aria-label=Main] button').length }));
     assert.ok(demo.reports > 5, `${name}: the demo opened without a campaign`);
-    assert.equal(demo.sheet, false, `${name}: the demo opened on the welcome sheet`);
+    assert.equal(demo.sheet, null, `${name}: the demo opened on a sheet (${demo.sheet}), not the map`);
+    assert.equal(demo.canvases, 2, `${name}: the map's two canvases`);
+    assert.equal(demo.bar, 3, `${name}: Fronts, the microphone and History`);
     await p.waitForTimeout(1200);
     await p.screenshot({ path: path.join(out, `demo-${name}.png`) });
     console.log(`ok ${name}: demo link loads the app with ${demo.reports} reports`);
