@@ -3,6 +3,7 @@
 import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, shortName, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, rankIndex, DAY } from './engine.js';
 import { MapView, FRONT_COLORS } from './map.js';
 import { classify, assess } from './classify.js';
+import { ask } from './ask.js';
 import { pickEngine, startDictation } from './voice.js';
 import * as store from './store.js';
 import { UI_ICONS, FILLED_ICONS } from './icons.js';
@@ -23,13 +24,16 @@ const actIcon = a => ACT_ICON[a] || 'swords';
 
 let map, view, data, st, live;
 let cfg = { server: false, judge: null, transcribe: null }; // what the private server offers
-const ui = { sheet: null, arg: null, stack: [], report: null, dict: null, asOf: null, playing: null, assess: null, assessAt: 0, emblem: 0 };
+const ui = { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, asOf: null, playing: null, assess: null, assessAt: 0, emblem: 0 };
 const MODES = [['political', 'Map', 'flag'], ['life', 'Life areas', 'user'], ['infra', 'Infrastructure', 'factory'], ['supply', 'Supply', 'box'], ['air', 'Air', 'plane'], ['terrain', 'Terrain', 'terrain']];
 
 async function boot() {
   map = await (await fetch('data/map.json')).json();
   data = store.load();
   try { const r = await fetch('api/config'); if (r.ok) cfg = await r.json(); } catch { /* static hosting: offline judge only */ }
+  // Static demo (…/demo/?demo=1): a first-time visitor finds a campaign already in progress.
+  const demo = !cfg.server && new URLSearchParams(location.search).has('demo');
+  if (demo && !data.reports.length && !data.onboarded) { data.reports = demoReports(); data.onboarded = true; store.save(data); }
   if (cfg.server) { try { const remote = await store.pull(); if (remote) { data = remote; store.save(data); } else if (data.reports.length) store.push(() => data); } catch { /* offline: use the local copy */ } }
   view = new MapView($('#base'), $('#over'), map);
   view.onTap = onMapTap;
@@ -37,12 +41,14 @@ async function boot() {
   $('#layers-btn').innerHTML = I('layers'); $('#home-btn').innerHTML = I('locate'); $('#zin-btn').innerHTML = I('plus'); $('#zout-btn').innerHTML = I('minus');
   $('#sheet .x').innerHTML = I('x'); $('#sheet .back').innerHTML = I('back');
   document.addEventListener('click', onClick); document.addEventListener('input', onInput); document.addEventListener('change', onInput);
+  document.addEventListener('submit', e => { e.preventDefault(); if (e.target.dataset.form === 'ask') runAsk(); });
   window.addEventListener('resize', () => view.resize()); window.visualViewport?.addEventListener('resize', () => view.resize());
   document.addEventListener('visibilitychange', async () => { if (!document.hidden) { await resync(); refresh(); } });
   setInterval(() => { if (!ui.playing) refresh(); }, 60000);
   view.setMode(data.mode || 'political');
   refresh();
   if (!data.onboarded) openSheet('welcome'); else greet();
+  if (demo) demoNote();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
   window.__artesh = { get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
 }
@@ -243,12 +249,28 @@ function entryHTML(l) {
     ${l.summary ? `<p class="quote">${esc(l.summary)}</p>` : ''}${l.items.map(i => evRow(i)).join('')}
     ${l.fx.some(x => x.tone) ? `<div class="fx">${l.fx.filter(x => x.tone).slice(0, 6).map(x => `<span class="${x.tone}">${esc(x.text)}</span>`).join('')}</div>` : ''}</div>`;
 }
+function askBlock() {
+  const a = ui.ask; const res = a.res;
+  const cited = res ? res.cited.map(id => live.log.find(l => l.id === id)).filter(Boolean) : [];
+  return `<form class="askbar" data-form="ask"><input type="text" id="askq" enterkeyhint="search" autocomplete="off" placeholder="Ask about your history…" value="${esc(a.q)}"><button class="btn sm" ${a.busy ? 'disabled' : ''} aria-label="Ask">${I(a.busy ? 'clock' : 'search', 's')}</button></form>
+    ${res ? `<div class="answer"><p class="quote">${esc(res.answer).replace(/\n/g, '<br>')}</p>
+      ${res.warning ? `<p class="faint small">${esc(res.warning)}</p>` : ''}
+      ${res.followups?.length ? `<div class="chips">${res.followups.map(f => `<button class="chip" data-act="askmore" data-q="${esc(f)}">${esc(f)}</button>`).join('')}</div>` : ''}
+      ${cited.length ? `<h3>Based on</h3>${cited.slice(0, 6).map(entryHTML).join('')}` : ''}
+      <div class="btns"><button class="btn sm quiet" data-act="askclear">Clear</button></div></div>` : ''}`;
+}
+async function runAsk(q) {
+  q = (q ?? $('#askq')?.value ?? '').trim(); if (q.length < 3) return;
+  ui.ask = { q, busy: true, res: null }; renderSheet();
+  let res; try { res = await ask({ map, st: live, labels: labels(), question: q, remote: !!cfg.judge }); } catch (e) { res = { answer: 'The staff could not answer that.', cited: [], confidence: 'low', warning: e.message, followups: [] }; }
+  ui.ask = { q, busy: false, res }; if (ui.sheet === 'history') { renderSheet(); $('#sheet-body').scrollTop = 0; }
+}
 function sHistory() {
   const list = live.log.filter(l => !l.kind).reverse();
   if (!list.length) return ['History', `<div class="empty">${I('book')}<b>Nothing yet</b>Tap the microphone and say how your day went.</div>`];
-  return ['History', `${heatmap()}
+  return ['History', `${askBlock()}${ui.ask.res ? '' : `${heatmap()}
     <div class="btns"><button class="btn sm" data-act="replay">${I('play', 's')}Replay on the map</button></div>
-    <div style="margin-top:12px">${list.map(entryHTML).join('')}</div>`, true];
+    <div style="margin-top:12px">${list.map(entryHTML).join('')}</div>`}`, true];
 }
 
 // ---------- report ----------
@@ -417,6 +439,8 @@ function onClick(e) {
     case 'rmitem': ui.edit.items.splice(b.dataset.i, 1); renderSheet(); break;
     case 'saveedit': { const old = data.reports.find(x => x.id === ui.edit.id); if (old) old.items = ui.edit.items.map(i => ({ front: i.front, outcome: i.outcome, severity: i.severity, action: i.action, headline: i.headline.trim() || ACTIONS[i.action].label, ...(i.reason && old.items.some(o => o.action === i.action && o.reason === i.reason) ? { reason: i.reason } : {}) })); persist(); refresh(); back(); toast('Updated.'); break; }
     case 'delreport': if (confirm('Delete this entry and rewind its effects?')) { data.reports = data.reports.filter(x => x.id !== b.dataset.id); persist(); refresh(); } break;
+    case 'askmore': runAsk(b.dataset.q); break;
+    case 'askclear': ui.ask = { q: '', busy: false, res: null }; renderSheet(); break;
     case 'replay': if (!data.reports.length) break; closeSheet(); ui.asOf = firstTs(); view.home(); refresh(); playReplay(); break;
     case 'replay-play': playReplay(); break;
     case 'replay-exit': exitReplay(); break;
@@ -448,6 +472,13 @@ async function shareMap() {
     const url = URL.createObjectURL(blob); const el = Object.assign(document.createElement('a'), { href: url, download: 'artesh.png' }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
     navigator.clipboard?.writeText(text).catch(() => {}); toast('Map saved. Report copied.');
   }, 'image/png');
+}
+function demoNote() {
+  try { if (sessionStorage.getItem('artesh.demo-note')) return; } catch { /* no storage: show it */ }
+  const n = document.createElement('div'); n.id = 'demo-note'; n.className = 'glass'; n.setAttribute('role', 'note');
+  n.innerHTML = `<span><b>This is a demo.</b> Your entries stay in this browser. <a href="https://github.com/sam-siavoshian/hoi4-irl#readme" target="_blank" rel="noopener">Self-host</a> to keep them.</span><button aria-label="Dismiss">${I('x', 's')}</button>`;
+  n.querySelector('button').addEventListener('click', e => { e.stopPropagation(); n.remove(); try { sessionStorage.setItem('artesh.demo-note', '1'); } catch { /* fine */ } });
+  $('#app').append(n);
 }
 function demoReports() {
   const now = Date.now(); const R = (daysAgo, text, summary, items) => ({ id: 'demo' + daysAgo + items.length, ts: now - daysAgo * DAY, text, summary, source: 'demo', items: items.map(([front, outcome, severity, action, headline]) => ({ front, outcome, severity, action, headline })) });
