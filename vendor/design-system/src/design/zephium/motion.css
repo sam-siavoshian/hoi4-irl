@@ -1,0 +1,116 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Adapted from zephium-browser/Zephium (https://github.com/zephium-browser/Zephium):
+ *   frame/src/styles/axes/motion.css            the reduced-motion switch, unchanged
+ *   frame/src/shared/ui/Menu/popover.css        ui-menu-fade/in/out, ui-select-in
+ *   frame/src/features/newtab/components/NewTab.svelte   settle, rise, rise-after, arrive
+ *   frame/src/shared/ui/presence/Shimmer.svelte  band, lit (the working shimmer)
+ * The durations and curves these run on (--motion-*, --ease-*) are in ./tokens.css.
+ * Changes: the Svelte-scoped keyframes are given global names (zephium-*);
+ * their distances, scales and blurs multiply by --motion-travel and the
+ * motion tokens (../motion/tokens.css), so under reduced motion they fade in
+ * place instead of travelling (../motion/README.md).
+ */
+
+/* One switch for both the OS preference and the in-app setting. Durations
+   collapse to a frame instead of zero so transitionend/animationend still fire. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+:root[data-reduce-motion="true"] *,
+:root[data-reduce-motion="true"] *::before,
+:root[data-reduce-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* --- Menu/popover.css: a floating surface arriving and leaving --- */
+@keyframes ui-menu-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-menu-in {
+  from {
+    scale: calc(1 - (1 - var(--popover-start-scale)) * 0.8);
+    translate: 0 calc(-4px * var(--motion-travel));
+  }
+}
+
+/* A pop-up grows from the row it opened on, so it has no travel of its own. */
+@keyframes ui-select-in {
+  from {
+    scale: var(--press-scale);
+  }
+}
+
+@keyframes ui-menu-out {
+  to {
+    opacity: 0;
+    scale: calc(1 - (1 - var(--popover-start-scale)) * 0.3);
+  }
+}
+
+/* --- NewTab.svelte: a page and its title arriving --- */
+@keyframes zephium-settle {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes zephium-rise {
+  from {
+    opacity: 0;
+    filter: blur(calc(8px * var(--motion-travel)));
+    translate: 0 calc(18px * var(--motion-travel));
+  }
+}
+
+@keyframes zephium-rise-after {
+  from {
+    opacity: 0;
+    translate: 0 calc(10px * var(--motion-travel));
+  }
+}
+
+@keyframes zephium-arrive {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- presence/Shimmer.svelte: the band that crosses a working label --- */
+@keyframes zephium-shimmer-band {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  72%,
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes zephium-shimmer-lit {
+  0% {
+    transform: translateX(40%);
+  }
+
+  72%,
+  100% {
+    transform: translateX(-100%);
+  }
+}

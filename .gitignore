@@ -5,3 +5,4 @@ tests/shots/
 private/
 .claude/
 _site/
+dist/

@@ -1,0 +1,142 @@
+/* Lanes' motion tokens: every duration, curve, scale and distance anything
+ * in Lanes moves by, and what each becomes under reduced motion. The twenty
+ * rules they carry are ./README.md; the primitives that use them are
+ * ./motion.css (classes) and ./motion.ts (script).
+ *
+ * The one source. site/app/motion-tokens.css is an exact copy, written by
+ * scripts/sync_site_motion.py; tests/test_site_motion_matches_app.py fails
+ * when they differ. Plain CSS only (no Tailwind, no imports) so the site can
+ * load it as it is. --motion-instant..--motion-page, the curves and
+ * --ease-snap/--ease-spring are Zephium's (frame/src/styles/tokens.css,
+ * MPL-2.0), moved here from ../zephium/tokens.css unchanged.
+ *
+ * Every -exit is calc(<its entrance> * 0.8): exits are 20% shorter (rule 15).
+ */
+
+:root {
+  /* Zephium's ladder, named by what it is for rather than by how long it is.
+     A state the pointer is already on (a hover fill, a colour) arrives almost
+     at once, because anything slower feels like the interface catching up
+     with the cursor. Only things that travel, or that were not on screen a
+     moment ago, get the longer durations. */
+  --motion-instant: 70ms;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-page: 400ms;
+
+  /* The rules' durations. */
+  --motion-press: 160ms; /* 4, 14: the release; the press itself is instant */
+  --motion-tooltip: 150ms; /* 2 */
+  --motion-tooltip-exit: calc(var(--motion-tooltip) * 0.8);
+  --motion-dropdown: 200ms; /* 2: menus, selects, lists from a control */
+  --motion-dropdown-exit: calc(var(--motion-dropdown) * 0.8);
+  --motion-popover: 220ms; /* 10 */
+  --motion-popover-exit: calc(var(--motion-popover) * 0.8);
+  --motion-enter: 260ms; /* 1: rows, banners, dialogs, toasts */
+  --motion-exit: calc(var(--motion-enter) * 0.8); /* 15 */
+  --motion-sheet: 320ms;
+  --motion-sheet-exit: calc(var(--motion-sheet) * 0.8);
+  --motion-move: 300ms; /* 9, 20 */
+  --motion-knob: 220ms; /* 5 */
+  --motion-crossfade: 180ms; /* 18 */
+  --motion-swap: 220ms; /* 16 */
+  --motion-reveal: 360ms; /* 17 */
+  --motion-reveal-exit: calc(var(--motion-reveal) * 0.8);
+  --motion-pulse: 560ms; /* 8 */
+  --motion-arc: 460ms; /* 7 */
+  --motion-spring-back: 380ms; /* 19 */
+  --motion-stagger: 30ms; /* 3 */
+  --motion-settle-stagger: 60ms; /* 6 */
+  --motion-stagger-cap: 12; /* 3: rows past this many arrive together */
+  --motion-roll: 560ms; /* 16: a number's digits rolling to their new place */
+  --motion-linger: 4000ms; /* what stays to be read before it fades ("Back to normal.") */
+  --motion-reduced: 140ms; /* the fade that is left under reduced motion */
+
+  /* A whole page or first run's stage arriving (Zephium's NewTab and
+     Onboarding choreography): long, on --ease-emphasized, so most of the way
+     is covered in the first third and it reads as soft rather than slow. */
+  --motion-rise: 720ms;
+  --motion-rise-after: 640ms;
+  --motion-stage: 900ms;
+  --motion-stage-short: 600ms;
+  --motion-horizon: 1400ms;
+  --motion-rise-delay: 40ms;
+  --motion-rise-after-delay: 120ms;
+  --motion-stage-delay: 250ms;
+
+  /* Curves. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* 1: every entrance */
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1); /* 1: a page, a stage */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* 9: every move */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1); /* 12, 15: every exit */
+  --ease-smooth: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-press: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 13: the one spring for new code, 8% over and settled in two swings:
+     playful moments only (the pal landing), never everyday UI. A damped
+     spring (zeta 0.62, omega 13) sampled at 33 points. */
+  --ease-spring-playful: linear(0, 0.0693, 0.2302, 0.4259, 0.6176, 0.7823, 0.9097, 0.9982, 1.0519, 1.0777, 1.0834, 1.0762, 1.062, 1.0456, 1.0298, 1.0165, 1.0063, 0.9993, 0.9952, 0.9934, 0.9931, 0.9938, 0.995, 0.9964, 0.9977, 0.9988, 0.9996, 1.0001, 1.0004, 1.0006, 1.0006, 1.0005, 1);
+
+  /* Zephium's two springs, kept so their uses resolve: 1.4% and 2% over.
+     They count as springs under rule 13 (motion.test.ts allows them only in
+     its PLAYFUL list). */
+  --ease-snap: linear(0, 0.1776, 0.3343, 0.4698, 0.5848, 0.6808, 0.7597, 0.8234, 0.8742, 0.9138, 0.9443, 0.9672, 0.9839, 0.9959, 1.004, 1.0092, 1.0123, 1.0137, 1.0141, 1.0136, 1.0127, 1.0115, 1.0101, 1.0088, 1.0075, 1.0062, 1.0051, 1.0041, 1.0033, 1.0026, 1.002, 1.0015, 1);
+  --ease-spring: linear(0, 0.0232, 0.0821, 0.1636, 0.2572, 0.3552, 0.452, 0.5438, 0.628, 0.7032, 0.7689, 0.825, 0.8719, 0.9103, 0.9412, 0.9653, 0.9838, 0.9974, 1.007, 1.0135, 1.0174, 1.0194, 1.0199, 1.0194, 1.0182, 1.0166, 1.0147, 1.0128, 1.0109, 1.009, 1.0074, 1.0059, 1.0046, 1.0035, 1.0025, 1.0018, 1.0012, 1.0007, 1.0003, 1);
+
+  /* Scales and distances. */
+  --press-scale: 0.97; /* 4 */
+  --popover-start-scale: 0.95; /* 10 */
+  --knob-stretch: 1.12; /* 5 */
+  --enter-distance: 6px; /* 1 */
+  --settle-distance: 4px; /* 6 */
+  --sheet-distance: 2rem;
+  --crossfade-scale: 0.7; /* 18 */
+  --crossfade-blur: 2px; /* 18 */
+  --swap-distance: 40%; /* 16, of the value's own height */
+  --pulse-scale: 1.04; /* 8 */
+  --pulse-ring-from: 0px;
+  --pulse-ring: 6px; /* 8 */
+  --arc-lift: 0.2; /* 7, of the distance */
+  --rubber-band: 0.55; /* 19 */
+  --motion-travel: 1; /* multiplies every distance */
+}
+
+/* Reduced motion: nothing travels, scales, stretches, blurs, bounces or
+   staggers; opacity stays (./motion.css keeps each primitive's fade at
+   --motion-reduced). data-motion is the OS setting or the window's own
+   (design/theme.ts); the media query covers a page with no theme script
+   (the site). */
+:root[data-motion="reduce"] {
+  --press-scale: 1;
+  --popover-start-scale: 1;
+  --knob-stretch: 1;
+  --crossfade-scale: 1;
+  --crossfade-blur: 0px;
+  --pulse-scale: 1;
+  --pulse-ring-from: 3px;
+  --pulse-ring: 3px;
+  --arc-lift: 0;
+  --rubber-band: 0;
+  --motion-travel: 0;
+  --motion-stagger: 0ms;
+  --motion-settle-stagger: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --press-scale: 1;
+    --popover-start-scale: 1;
+    --knob-stretch: 1;
+    --crossfade-scale: 1;
+    --crossfade-blur: 0px;
+    --pulse-scale: 1;
+    --pulse-ring-from: 3px;
+    --pulse-ring: 3px;
+    --arc-lift: 0;
+    --rubber-band: 0;
+    --motion-travel: 0;
+    --motion-stagger: 0ms;
+    --motion-settle-stagger: 0ms;
+  }
+}

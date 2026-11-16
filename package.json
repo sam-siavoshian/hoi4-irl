@@ -25,28 +25,42 @@
     "llm",
     "openai",
     "ollama",
-    "canvas",
-    "no-build"
+    "canvas"
   ],
   "bin": {
     "artesh": "bin/artesh.mjs"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "prestart": "node tools/ensure-build.mjs",
     "start": "node server.mjs",
+    "preserve": "node tools/ensure-build.mjs",
     "serve": "node tools/serve.mjs",
+    "check:design": "sam-design-check src",
     "build:map": "node tools/build-map.mjs",
+    "build:site": "node tools/build-site.mjs",
+    "pretest": "node tools/ensure-build.mjs",
     "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
     "docker": "docker build -t artesh .",
-    "test:all": "npm test && node --test tests/ask.test.mjs && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
+    "test:all": "npm test && sam-design-check src && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
   },
   "devDependencies": {
     "@iconify-json/game-icons": "^1.2.4",
     "@iconify-json/lucide": "^1.2.155",
+    "@sam/design-system": "file:vendor/design-system",
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-react": "6.2.1",
     "d3-delaunay": "^6.0.4",
+    "lucide-react": "1.66.0",
     "polygon-clipping": "^0.15.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
     "topojson-client": "^3.1.0",
     "topojson-simplify": "^3.0.3",
+    "vite": "8.3.5",
     "world-atlas": "^2.0.2"
   },
   "engines": {

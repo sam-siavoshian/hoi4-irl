@@ -179,13 +179,13 @@ test('orders, XP, ranks, the weekly recap and the profile all speak the scenario
 });
 
 test('no scenario is written into the runtime', () => {
-  for (const f of ['js/engine.js', 'js/map.js', 'js/app.js', 'js/classify.js', 'server/automation.mjs']) {
+  for (const f of ['js/engine.js', 'js/map.js', 'src/core.js', 'src/App.jsx', 'src/parts.jsx', 'src/sheets/fronts.jsx', 'src/sheets/history.jsx', 'src/sheets/report.jsx', 'src/sheets/nation.jsx', 'js/classify.js', 'server/automation.mjs']) {
     const src = fs.readFileSync(new URL(f, root), 'utf8');
     for (const word of ["'IRN'", 'Tehran', 'Isfahan', 'Achaemenid', 'Shah']) assert.ok(!src.includes(word), `${f} still says ${word}`);
   }
   const engine = fs.readFileSync(new URL('js/engine.js', root), 'utf8');
   for (const word of ["'cau'", "'tks'", "'glf'", 'Khorasan', 'Hawker', 'Sarbaz', 'Babylon', 'Nowruz']) assert.ok(!engine.includes(word), `engine.js still says ${word}`);
-  for (const f of ['js/app.js', 'server/automation.mjs', 'sw.js', 'server.mjs', 'tools/build-map.mjs', 'tools/build-site.mjs']) assert.ok(!fs.readFileSync(new URL(f, root), 'utf8').includes('data/map.json'), `${f} still reads the old single map`);
+  for (const f of ['src/core.js', 'src/App.jsx', 'src/parts.jsx', 'src/sheets/fronts.jsx', 'src/sheets/history.jsx', 'src/sheets/report.jsx', 'src/sheets/nation.jsx', 'server/automation.mjs', 'sw.js', 'server.mjs', 'tools/build-map.mjs', 'tools/build-site.mjs']) assert.ok(!fs.readFileSync(new URL(f, root), 'utf8').includes('data/map.json'), `${f} still reads the old single map`);
   assert.ok(!fs.existsSync(new URL('data/map.json', root)));
   // Iran's META is complete: every documented field is there
   for (const k of ['name', 'long', 'empire', 'year', 'blurb', 'pitch', 'flag', 'regionWord', 'regions', 'capitalFalls', 'capitalFreed', 'fightsOnFrom', 'honor', 'commanders', 'oob', 'guard', 'officerNames', 'wings', 'newWingModels', 'fleets', 'shipNames', 'operations', 'enemyOperations', 'nicknames', 'stateStart', 'weather', 'enemyAdjectives', 'ranks', 'landmarks', 'medalNames', 'masthead', 'calendar', 'days', 'motto']) assert.ok(iran.meta[k] != null, `Iran's META.${k}`);

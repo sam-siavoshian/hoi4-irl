@@ -1,0 +1,21 @@
+/* A problem that cleared: "Back to normal." holds, then fades (./problem.tsx).
+   The store lets it go after the same 4 seconds (lib/problems/store.ts). */
+.problem-fade {
+  animation: problem-fade var(--motion-linger) var(--ease-out) forwards;
+}
+
+@keyframes problem-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .problem-fade {
+    animation: none;
+  }
+}

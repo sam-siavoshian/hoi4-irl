@@ -1,0 +1,117 @@
+/* Micro effects. From sam-siavoshian/morrow web/src/app/globals.css (the
+ * owner's own repo), which records them as Zephium's recipes: text and
+ * controls standing on the sky, the frosted sky card, the beam that runs
+ * round a capsule's edge, the hairline and the two-tone headline. Copied as
+ * Morrow wrote them; the one change is that Morrow's light-dark() sheen is
+ * written for this app's data-theme switch. The shimmer is ./ShimmerText.tsx
+ * and ./shimmer-text.css (MPL-2.0, from Zephium's website by way of Morrow).
+ *
+ * `hairline` is a whole box-shadow: on an element that also has a shadow-*
+ * utility it replaces that shadow rather than adding to it (it is emitted
+ * after them). Zephium's shadow-raised/-float/-overlay already carry their own
+ * 0.5px rim; Morrow uses them alone, or its shadow-hairline token for a bare
+ * rim, and never adds `hairline` to a drop.
+ */
+
+/* Morrow's --color-sheen, light-dark(#4f8fe0, #c9d6ff): the beam's light when
+   --beam-light is not set. Zephium's tokens are dark first, light under
+   [data-theme="light"]. */
+:root {
+  --color-sheen: #c9d6ff;
+}
+
+[data-theme="light"] {
+  --color-sheen: #4f8fe0;
+}
+
+/* Text standing on the sky keeps a soft halo so it reads over bright cloud. */
+@utility sky-text {
+  text-shadow: var(--sky-text-shadow);
+}
+
+/* Lanes: the firmer halo, for small lines over bright cloud. Not Morrow's. */
+@utility sky-text-firm {
+  text-shadow: var(--sky-text-shadow-firm);
+}
+
+/* Zephium vibrancy: a white veil for controls standing on the sky. */
+@utility vibrant {
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* Zephium glass card floating over the sky: its edge is the hairline all
+   round, its rim the light caught along the top (Zephium's sheet,
+   NewTabSearch.svelte `.sheet`, and the --sky-card-* tokens in
+   ../zephium/material.css). Morrow had the two swapped and a saturate(1.6)
+   that pulls the sky's blue up into the glass; both are Zephium's again.
+   The blur is the frost: Zephium stretches the sky's frost picture, which
+   a panel that scrolls over a fixed sky cannot line up with. */
+@utility sky-glass {
+  background: var(--sky-card);
+  box-shadow:
+    inset 0 0 0 0.5px var(--sky-card-edge),
+    inset 0 1px 0 var(--sky-card-rim),
+    var(--sky-float-shadow);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+
+/* Zephium two-tone headlines: the second clause steps back a rung. */
+@utility text-quiet {
+  color: color-mix(in srgb, currentColor 50%, transparent);
+}
+
+@utility hairline {
+  box-shadow: inset 0 0 0 0.5px var(--color-border-strong);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zephium beam (website scene.module.css): a light running round the edge.
+   --beam-light picks the light; on the sky it is white. */
+@utility beam-edge {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--beam),
+      transparent 0deg,
+      transparent 250deg,
+      var(--beam-light, var(--color-sheen)) 320deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    pointer-events: none;
+    animation: beam 4.5s linear infinite;
+  }
+  :root[data-motion="reduce"] &::before {
+    animation: none;
+    --beam: 300deg;
+  }
+}
+
+@property --beam {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes beam {
+  to {
+    --beam: 360deg;
+  }
+}

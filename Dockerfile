@@ -1,4 +1,17 @@
-# ARTESH: one dependency-free Node server plus static files. No build step, no npm install.
+# ARTESH: one dependency-free Node server plus the built interface.
+# Stage 1 builds the interface (React + the vendored design system) into dist/. Stage 2 is the server and what it serves;
+# it has no node_modules.
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY vendor ./vendor
+RUN npm ci
+COPY index.html sw.js vite.config.js ./
+COPY src ./src
+COPY js ./js
+COPY css ./css
+RUN npm run build
+
 FROM node:22-alpine
 
 ENV NODE_ENV=production \
@@ -8,8 +21,14 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# .dockerignore is an allowlist, so this copies only the server, the app shell and the CLI.
-COPY --chown=node:node . .
+# Only what server.mjs serves or imports: the server, the engine it shares with the app (js/), the maps, the icons, the CLI.
+COPY --chown=node:node package.json server.mjs manifest.webmanifest ./
+COPY --chown=node:node server ./server
+COPY --chown=node:node js ./js
+COPY --chown=node:node data ./data
+COPY --chown=node:node icons ./icons
+COPY --chown=node:node bin ./bin
+COPY --chown=node:node --from=build /app/dist ./dist
 
 # The campaign, sessions, journal and backups live here. Mount a volume to keep them.
 RUN mkdir -p /app/private && chown node:node /app/private && chmod 700 /app/private

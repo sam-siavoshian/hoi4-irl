@@ -1,0 +1,215 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Adapted from zephium-browser/Zephium (https://github.com/zephium-browser/Zephium):
+ *   frame/src/styles/axes/material.css     the four native glass tiers, unchanged
+ *   frame/src/shared/ui/Menu/surface.css   .ui-menu, the one translucent surface, and
+ *                                          its forced-colours fallback
+ *   frame/src/styles/tokens/sky.css        glass standing on the sky, unchanged
+ * Changes: of surface.css only `.ui-menu` is taken (not the rows, the
+ * popover padding or the disclosure panel). `.ui-menu` is also exposed as the
+ * `glass-menu` utility (in ../bridge.css) so React components can wear it by
+ * class.
+ *
+ * `data-material` on <html> picks the tier. A browser tab sets none (the desktop
+ * app's native sidebar was the one that did), so these tiers are dormant; they
+ * stay as Zephium wrote them. With a tier set the window's own ground is
+ * transparent and the sidebar is the material.
+ */
+
+/*
+ * The material axis: one wash recipe, four native tiers.
+ *
+ * The native effect supplies depth, lensing and motion. It does not supply
+ * identity — bare vibrancy takes whatever colour is behind the window, which
+ * is how a panel over a warm page ends up brown. The wash is the layer that
+ * keeps the interface neutral and the same design across every tier, and the
+ * alphas below are the only thing a tier changes.
+ *
+ * Menus and the launcher are washed; Windows also tints its system acrylic.
+ * The page is solid, so the window reads
+ * as one sheet you look through onto a surface you look at. The opaque tier
+ * leaves every alpha at the 100% default in tokens.css, because the system
+ * has to stand up with no material at all.
+ */
+
+/* Material activates only after native capability discovery, so an absent
+   attribute keeps the bootstrap document byte-for-byte opaque. */
+:root:not([data-material="none"])[data-material],
+:root:not([data-material="none"])[data-material] #root {
+  background: transparent;
+}
+
+:root:not([data-material="none"])[data-material] body {
+  background: var(--material-window-ground, transparent);
+}
+
+:root[data-material="vibrancy"] {
+  --wash-raised: 56%;
+  --wash-launcher: 56%;
+}
+
+/* Liquid Glass tints and lenses on its own, so it needs less from us than
+   plain vibrancy or the interface reads muddy through both layers. */
+:root[data-material="liquid_glass"] {
+  --wash-raised: 50%;
+  --wash-launcher: 48%;
+}
+
+/* Let the native acrylic carry the depth; a light theme wash preserves text
+   contrast without stacking an almost opaque color over the system material. */
+:root[data-material="acrylic"] {
+  --wash-window: 28%;
+  --material-window-ground: color-mix(in srgb, var(--color-chrome) var(--wash-window), transparent);
+  --wash-raised: 56%;
+  --wash-launcher: 82%;
+}
+
+/* Mica is near-opaque and already dark-framed, so the wash only lays the
+   theme's colour into it; any heavier and the wallpaper's hue is lost. */
+:root[data-material="mica"] {
+  --wash-window: 20%;
+  --material-window-ground: color-mix(in srgb, var(--color-chrome) var(--wash-window), transparent);
+  --wash-raised: 70%;
+  --wash-launcher: 86%;
+}
+
+.ui-menu {
+  z-index: 50;
+  box-sizing: border-box;
+  padding: var(--menu-pad);
+
+  /* Concentric with its rows: 10px row + 6px padding. Anything else leaves a
+     crescent of panel in each corner. */
+  border-radius: var(--radius-menu);
+  background: var(--color-menu);
+
+  /* The one blur in the chrome, and the one surface that is translucent at
+     every tier. A menu is the only thing here that genuinely floats over
+     something else, so it is the only thing that should show a trace of it —
+     the desktop under glass, our own page under none. No saturation boost: the
+     platform's own materials use one to keep colour alive behind frosted
+     white, but this panel is graphite by design, and all a boost does here is
+     pull whatever hue the wallpaper happens to have up into it. */
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-menu), var(--shine-top);
+  outline: none;
+  overflow: hidden;
+}
+
+/* WebView2 cannot reliably blur content over a transparent native backdrop.
+   Only menus opened from the Windows sidebar receive this policy. */
+.ui-menu[data-menu-material="opaque"] {
+  background: var(--color-float);
+  backdrop-filter: none;
+}
+
+@media (forced-colors: active) {
+  .ui-menu {
+    border: 1px solid ButtonText;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}
+
+/* The new tab's sky: the page each sky is baked into (scripts/bake-sky.mjs),
+   and what stands on it. Day stands over a light page and night
+   over a dark one, whatever the theme; the sky brings its own light. */
+:root {
+  --sky-day-paper: #f7f7f8;
+  --sky-day-shadow: rgb(18 48 112 / 22%);
+  --sky-day-disc-fill: rgb(255 255 255 / 18%);
+  --sky-day-disc-rim: rgb(255 255 255 / 36%);
+  --sky-night-paper: #1a1d25;
+
+  /* Beside a new tab the window's glass is first evened out, so whatever
+     the wallpaper puts through it is only a hint, then lit from the side by
+     the picture's own edge, this strongly where the light comes in. */
+  --sky-day-glass: rgb(242 244 248 / 72%);
+  --sky-night-glass: rgb(18 20 27 / 76%);
+  --sky-day-edge-strength: 0.5;
+  --sky-night-edge-strength: 0.62;
+
+  /* Light falls off with distance from where it comes in, eased, so there is
+     no line where it ends. */
+  --sky-edge-falloff: linear-gradient(
+    to left,
+    rgb(0 0 0 / 100%) 0,
+    rgb(0 0 0 / 66%) 16%,
+    rgb(0 0 0 / 34%) 38%,
+    rgb(0 0 0 / 13%) 64%,
+    rgb(0 0 0 / 3%) 86%,
+    transparent 100%
+  );
+
+  /* And it eases in below the page's top and out above its foot, round the
+     page's corners, so it ends where the picture does. */
+  --sky-edge-ends: linear-gradient(
+    transparent 0,
+    rgb(0 0 0 / 35%) 14px,
+    rgb(0 0 0 / 80%) 34px,
+    rgb(0 0 0 / 100%) 56px,
+    rgb(0 0 0 / 100%) calc(100% - 56px),
+    rgb(0 0 0 / 80%) calc(100% - 34px),
+    rgb(0 0 0 / 35%) calc(100% - 14px),
+    transparent 100%
+  );
+  --sky-night-shadow: rgb(2 8 24 / 40%);
+  --sky-night-disc-fill: rgb(255 255 255 / 10%);
+  --sky-night-disc-rim: rgb(255 255 255 / 18%);
+  --sky-ink: rgb(255 255 255);
+  --sky-name: rgb(255 255 255 / 92%);
+  --sky-glint: rgb(255 255 255);
+  --sky-day-lip: rgb(236 244 255 / 34%);
+  --sky-night-lip: rgb(176 196 238 / 30%);
+
+  /* Where the picture meets the page's sides: by day it softens into haze,
+     by night into the deep of the sky. */
+  --sky-day-edge: rgb(232 238 248 / 46%);
+  --sky-day-edge-half: rgb(232 238 248 / 22%);
+  --sky-day-edge-faint: rgb(232 238 248 / 7%);
+  --sky-night-edge: rgb(10 16 32 / 58%);
+  --sky-night-edge-half: rgb(10 16 32 / 28%);
+  --sky-night-edge-faint: rgb(10 16 32 / 9%);
+
+  /* A sheet of glass standing on the sky: dark over the night, white over
+     the day, so the theme's own ink reads on it. Its rim is the light caught
+     along the upper edge, its edge the hairline all round. */
+  --sky-day-card: rgb(255 255 255 / 64%);
+  --sky-day-card-rim: rgb(255 255 255 / 90%);
+  --sky-day-card-edge: rgb(255 255 255 / 70%);
+  --sky-night-card: rgb(12 18 36 / 64%);
+  --sky-night-card-rim: rgb(176 196 238 / 26%);
+  --sky-night-card-edge: rgb(176 196 238 / 14%);
+
+  /* Ink on a white control set on the sky. */
+  --sky-on-ink: rgb(16 24 42);
+  --sky-ink-hover: rgb(255 255 255 / 86%);
+}
+
+/* A scene drawn outside the new tab names its sky; what stands on it
+   follows. */
+[data-sky="day"] {
+  --sky-paper: var(--sky-day-paper);
+  --sky-shadow: var(--sky-day-shadow);
+  --sky-lip: var(--sky-day-lip);
+  --sky-card: var(--sky-day-card);
+  --sky-card-rim: var(--sky-day-card-rim);
+  --sky-card-edge: var(--sky-day-card-edge);
+}
+
+[data-sky="night"] {
+  --sky-paper: var(--sky-night-paper);
+  --sky-shadow: var(--sky-night-shadow);
+  --sky-lip: var(--sky-night-lip);
+  --sky-card: var(--sky-night-card);
+  --sky-card-rim: var(--sky-night-card-rim);
+  --sky-card-edge: var(--sky-night-card-edge);
+}
+
+/* The sheet's hairline is all that sets it off the sky; with more contrast
+   asked for, it is the strong one. */
+:root[data-contrast="true"] [data-sky] {
+  --sky-card-edge: var(--color-border-strong);
+}

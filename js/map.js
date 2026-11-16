@@ -7,6 +7,13 @@ export const FRONT_PALETTE = ['#4aa3c7', '#d0604e', '#dc8f3f', '#c2aa3e', '#cf5d
 export function frontColor(map, fid) { const i = map.fronts.findIndex(f => f.id === fid); return FRONT_PALETTE[(i < 0 ? 0 : i) % FRONT_PALETTE.length]; }
 // the same colours under the original scenario's front ids (kept for anything that still looks them up by id)
 export const FRONT_COLORS = Object.fromEntries(['afg', 'cau', 'tks', 'irq', 'raj', 'tur', 'glf'].map((id, i) => [id, FRONT_PALETTE[i]]));
+// What a legend shows for each map mode: [paint, word] pairs, the renderer's own paints (the interface draws the swatches).
+export const LEGENDS = {
+  infra: [['#5c4634', 'Undeveloped'], ['#5abe78', 'Developed']],
+  supply: [['#aa3c32', 'Starved'], ['#46aa5f', 'Supplied']],
+  air: [['#af3c37', 'Enemy skies'], ['#4682c8', 'Ours']],
+  terrain: [['#7f9a5a', 'Plains'], ['#8c8a5c', 'Hills'], ['#6f6558', 'Mountain'], ['#c9b27a', 'Desert'], ['#4f7d4d', 'Forest']],
+};
 const TERRAIN_COL = { plains: '#7f9a5a', hills: '#8c8a5c', mountain: '#6f6558', desert: '#c9b27a', forest: '#4f7d4d', marsh: '#5b8a86', urban: '#a8a39a' };
 
 const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];

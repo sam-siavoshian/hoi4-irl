@@ -1,0 +1,206 @@
+/* StepTrail (./step-trail.tsx): the steps a campaign goes through, one under
+ * another, joined by a thin rule. The wells are the idea cards' (Zephium's
+ * soft sky over the ground, ./suggestion-card.css); the live states are a
+ * tick for done, the filled well and a slow ring for now, a faint outline for
+ * next. Zephium's curves and durations (design/zephium/tokens.css). */
+
+.step-trail {
+  --trail-mark: 32px;
+  --trail-gap: 12px;
+  --trail-row: 16px;
+  --trail-rule: var(--color-border);
+  --trail-well: var(--color-soft-sky-wash);
+  --trail-well-ink: var(--color-soft-sky-ink);
+  --trail-title: var(--text-reading);
+  --trail-detail: var(--text-body);
+
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step-trail[data-variant="sky"] {
+  --trail-rule: color-mix(in srgb, var(--color-text) 14%, transparent);
+  --trail-well: color-mix(in srgb, var(--color-soft-sky) 22%, transparent);
+}
+
+.step-trail[data-size="compact"] {
+  --trail-mark: 20px;
+  --trail-gap: 10px;
+  --trail-row: 7px;
+  --trail-title: var(--text-body);
+  --trail-detail: var(--text-label);
+}
+
+.step-trail-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--trail-mark) minmax(0, 1fr);
+  column-gap: var(--trail-gap);
+  align-items: start;
+  padding-bottom: var(--trail-row);
+}
+
+.step-trail[data-arrive] .step-trail-item {
+  animation: step-trail-in var(--motion-stage-short) var(--ease-emphasized) backwards;
+  animation-delay: calc(var(--motion-rise-delay) + min(var(--i, 0), var(--motion-stagger-cap)) * var(--motion-settle-stagger));
+}
+
+.step-trail-item:last-child {
+  padding-bottom: 0;
+}
+
+/* The rule from one well down to the next. */
+.step-trail-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--trail-mark) / 2 - 0.5px);
+  top: calc(var(--trail-mark) + 3px);
+  bottom: 3px;
+  width: 1px;
+  border-radius: 1px;
+  background: var(--trail-rule);
+}
+
+.step-trail-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--trail-mark);
+  height: var(--trail-mark);
+  border-radius: 999px;
+  background: var(--trail-well);
+  color: var(--trail-well-ink);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, currentColor 16%, transparent);
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    color var(--motion-base) var(--ease-out);
+}
+
+.step-trail-mark svg {
+  width: calc(var(--trail-mark) * 0.5);
+  height: calc(var(--trail-mark) * 0.5);
+  stroke-width: 2;
+}
+
+.step-trail[data-size="compact"] .step-trail-mark svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+
+.step-trail-words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* The title's first line centred on its well. */
+  padding-top: max(0px, calc((var(--trail-mark) - var(--trail-title) * 1.35) / 2));
+}
+
+.step-trail-title {
+  color: var(--color-text);
+  font-size: var(--trail-title);
+  font-weight: 560;
+  line-height: 1.35;
+  letter-spacing: -0.008em;
+  text-wrap: pretty;
+}
+
+.step-trail-detail {
+  color: var(--color-muted);
+  font-size: var(--trail-detail);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------ live states */
+
+.step-trail-item[data-state="done"] .step-trail-mark {
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success-foreground);
+}
+
+.step-trail-item[data-state="done"]::before {
+  background: color-mix(in srgb, var(--color-success) 40%, transparent);
+}
+
+.step-trail-item[data-state="done"] .step-trail-title {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+/* Lit: the sky's ink as the fill, the ground's colour for the icon, so it reads in light and dark. */
+.step-trail-item[data-state="now"] .step-trail-mark {
+  background: var(--color-soft-sky-ink);
+  color: var(--color-background);
+}
+
+/* A slow ring round the step on now. */
+.step-trail-item[data-state="now"] .step-trail-mark::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-soft-sky) 70%, transparent);
+  animation: step-trail-ring 2.4s var(--ease-out) infinite;
+}
+
+.step-trail-item[data-state="next"] .step-trail-mark {
+  background: transparent;
+  color: var(--color-faint);
+  box-shadow: inset 0 0 0 1px var(--trail-rule);
+}
+
+.step-trail-item[data-state="next"] .step-trail-title {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+@keyframes step-trail-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+@keyframes step-trail-ring {
+  0% {
+    opacity: 0.9;
+    scale: 0.9;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.35;
+  }
+}
+
+:root[data-motion="reduce"] .step-trail-item,
+:root[data-motion="reduce"] .step-trail-mark,
+:root[data-motion="reduce"] .step-trail-mark::after {
+  animation: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-trail-item,
+  .step-trail-mark,
+  .step-trail-mark::after {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .step-trail-mark {
+    border: 1px solid CanvasText;
+  }
+
+  .step-trail-item[data-state="now"] .step-trail-mark {
+    border-color: Highlight;
+  }
+}

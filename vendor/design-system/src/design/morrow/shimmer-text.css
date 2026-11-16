@@ -1,0 +1,61 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * Adapted from zephium-browser/website components/island/shimmer.module.css,
+ * by way of sam-siavoshian/morrow web/src/components/ui/shimmer-text.module.css.
+ * Changes (Morrow): rest and lit colours follow the surrounding text colour.
+ * Changes (here): data attributes instead of module classes; the keyframes
+ * are Zephium's band and lit, in ../zephium/motion.css.
+ */
+
+/* The shimmer's band stops for reduced motion (Morrow keeps this outside the
+   CSS module because Tailwind's parser does not know :global). */
+:root[data-motion="reduce"] [data-shimmer-band] {
+  visibility: hidden;
+  animation-play-state: paused;
+}
+:root[data-motion="reduce"] [data-shimmer-words] {
+  color: inherit !important;
+}
+
+[data-shimmer] {
+  position: relative;
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+[data-shimmer-words] {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-shimmer][data-running] [data-shimmer-words] {
+  color: var(--shimmer-rest, color-mix(in srgb, currentColor 62%, transparent));
+}
+
+[data-shimmer-band] {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 40%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 45%, black 55%, transparent);
+  animation: zephium-shimmer-band 2.4s linear infinite;
+}
+
+[data-shimmer-lit] {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  display: block;
+  inline-size: 250%;
+  overflow: hidden;
+  color: var(--shimmer-lit, currentColor);
+  text-overflow: ellipsis;
+  animation: zephium-shimmer-lit 2.4s linear infinite;
+}

@@ -1,0 +1,4 @@
+/* The one stylesheet: Tailwind, every token (light and dark), the theme mapping and the motion primitives all come
+   from the design system. Nothing is restyled here. */
+@import "@sam/design-system/styles.css";
+@source "./";

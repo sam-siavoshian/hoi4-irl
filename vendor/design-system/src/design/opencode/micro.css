@@ -1,0 +1,414 @@
+/* Ported from anomalyco/opencode (https://github.com/anomalyco/opencode).
+ * MIT License, Copyright (c) 2025 opencode. Full notice in app/ui/THIRD_PARTY_NOTICES.md.
+ *
+ * The small things: the radar spinner's resting and paused states, the text
+ * shimmer, the hover-only scrollbar, hover-reveal, the overlay hover, the
+ * tooltip and cursor keyframes, and the reduced-motion variants. Each section
+ * names the opencode file it is copied from. The rules are opencode's, with
+ * these changes, each also named where it is made:
+ *  - the variables opencode's rules read are fed here: its text colours from
+ *    Zephium's ladder (Zephium paints), its overlay and border alphas with
+ *    opencode's own values;
+ *  - `overlay-hover` is button.css's neutral hover/press as a utility: the
+ *    overlay gradient alone, over whatever background the element already has
+ *    (button.css also repeats the button's own fill as a second layer);
+ *  - three animations become Tailwind utilities with opencode's timings:
+ *    `animate-working-out` (tw-animate's `animate-out fade-out
+ *    fill-mode-forwards` at the indicator's duration-200 ease-out),
+ *    `animate-tooltip-in` / `animate-tooltip-out` (tooltip.css's
+ *    `[data-component="tooltip-v2"]` in and `[data-closed]` out), and
+ *    `animate-pulse-opacity` (animations.css's --animate-pulse, renamed so
+ *    Tailwind's own animate-pulse keeps its meaning).
+ */
+
+/* The app resolves its reduce motion setting, including the system preference, into this attribute.
+   (opencode packages/ui/src/styles/tailwind/index.css) */
+@custom-variant motion-reduce (&:where(:root[data-motion="reduce"] *));
+@custom-variant motion-safe (&:where(:root:not([data-motion="reduce"]) *));
+
+/* opencode's own variable names, so the rules below stay exactly as opencode
+   wrote them (packages/ui/src/styles/tokens/theme.css and colors.css). Text
+   colours come from Zephium's ladder (../zephium/tokens.css). The alphas are
+   opencode's: border-muted/strong are alpha-light-8/20 on dark and
+   alpha-dark-8/20 on light (the scrollbar thumb, resting and hovered), the
+   overlays alpha-light-6/10 and alpha-dark-4/8. Lanes' base is dark. */
+:root {
+  --text-weak: var(--color-muted);
+  --text-weaker: var(--color-faint);
+  --text-strong: var(--color-text);
+  --v2-icon-icon-muted: var(--color-muted);
+  --v2-border-border-muted: #ffffff14;
+  --v2-border-border-strong: #ffffff33;
+  --v2-overlay-simple-overlay-hover: #ffffff0f;
+  --v2-overlay-simple-overlay-pressed: #ffffff1a;
+}
+
+[data-theme="light"] {
+  --v2-border-border-muted: #00000014;
+  --v2-border-border-strong: #00000033;
+  --v2-overlay-simple-overlay-hover: #0000000a;
+  --v2-overlay-simple-overlay-pressed: #00000014;
+}
+
+/* The animations above, as utilities. The tooltip pair is tooltip.css's
+   `animation: tooltipV2In 120ms ease-out` and, `&[data-closed]`,
+   `animation: tooltipV2Out 80ms ease-in forwards`: a Base UI popup takes
+   `animate-tooltip-in data-ending-style:animate-tooltip-out`. Change: on the
+   motion tokens (../motion/tokens.css), 150ms in and 120ms out from 0.95,
+   where opencode wrote 120ms, 80ms and 0.96. The kit's own TooltipPopup
+   uses the motion-tooltip surface instead (../motion/motion.css). */
+@theme {
+  --animate-working-out: working-out var(--motion-exit) var(--ease-exit) forwards;
+  --animate-pulse-opacity: pulse-opacity 2s ease-in-out infinite;
+  --animate-tooltip-in: tooltipV2In var(--motion-tooltip) var(--ease-out);
+  --animate-tooltip-out: tooltipV2Out var(--motion-tooltip-exit) var(--ease-exit) forwards;
+}
+
+@keyframes working-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* --- Radar spinner: opencode packages/ui/src/components/spinner.css --- */
+[data-component="spinner"] {
+  color: inherit;
+  flex-shrink: 0;
+  width: 18px;
+  aspect-ratio: 1;
+}
+
+/* Each dot rests at its frozen pose, so reduced motion only has to stop the animation. */
+[data-slot="spinner-dots"] rect {
+  opacity: var(--still);
+}
+
+/* syncSpinPhase marks spinners out of view; `!important` beats the inline animation each dot carries. */
+[data-slot="spinner-dots"][data-offscreen] rect {
+  animation-play-state: paused !important;
+}
+
+:root[data-motion="reduce"] [data-slot="spinner-dots"] rect {
+  /* Beats the inline animation each dot carries. */
+  animation: none !important;
+}
+
+/* --- Progress indicator: opencode packages/session-ui/src/v2/components/session-progress-indicator-v2.css --- */
+[data-component="session-progress-indicator-v2"] {
+  display: block;
+  flex-shrink: 0;
+  color: var(--v2-icon-icon-muted, #808080);
+}
+
+/* --- Text shimmer: opencode packages/ui/src/typography/text-shimmer/text-shimmer.css --- */
+[data-component="text-shimmer"] {
+  --text-shimmer-step: 45ms;
+  --text-shimmer-duration: 1200ms;
+  --text-shimmer-swap: var(--motion-swap);
+  --text-shimmer-index: 0;
+  --text-shimmer-angle: 90deg;
+  --text-shimmer-spread: 5.2ch;
+  --text-shimmer-gutter: calc(var(--text-shimmer-spread) + 1ch);
+  --text-shimmer-size: calc(200% + var(--text-shimmer-gutter) + var(--text-shimmer-gutter));
+  --text-shimmer-base-color: var(--text-weak);
+  --text-shimmer-peak-color: var(--text-strong);
+  --text-shimmer-sweep: linear-gradient(
+    var(--text-shimmer-angle),
+    transparent calc(50% - var(--text-shimmer-spread)),
+    var(--text-shimmer-peak-color) 50%,
+    transparent calc(50% + var(--text-shimmer-spread))
+  );
+  --text-shimmer-base: linear-gradient(var(--text-shimmer-base-color), var(--text-shimmer-base-color));
+
+  display: inline-flex;
+  align-items: baseline;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+[data-component="text-shimmer"] [data-slot="text-shimmer-char"] {
+  display: inline-grid;
+  white-space: pre;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+[data-component="text-shimmer"] [data-slot="text-shimmer-char-base"],
+[data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"] {
+  grid-area: 1 / 1;
+  white-space: pre;
+  transition: opacity var(--text-shimmer-swap) var(--ease-out);
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+[data-component="text-shimmer"] [data-slot="text-shimmer-char-base"] {
+  color: inherit;
+  opacity: 1;
+}
+
+[data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"] {
+  color: var(--text-weaker);
+  opacity: 0;
+}
+
+[data-component="text-shimmer"][data-active="true"] [data-slot="text-shimmer-char-shimmer"] {
+  opacity: 1;
+}
+
+[data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"][data-run="true"] {
+  animation-name: text-shimmer-sweep;
+  animation-duration: var(--text-shimmer-duration);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-delay: calc(var(--text-shimmer-step) * var(--text-shimmer-index) * -1);
+  will-change: background-position;
+}
+
+@keyframes text-shimmer-sweep {
+  0% {
+    background-position:
+      100% 0,
+      0 0;
+  }
+
+  100% {
+    background-position:
+      0% 0,
+      0 0;
+  }
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  [data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"] {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-image: var(--text-shimmer-sweep), var(--text-shimmer-base);
+    background-size:
+      var(--text-shimmer-size) 100%,
+      100% 100%;
+    background-position:
+      100% 0,
+      0 0;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  [data-component="text-shimmer"][data-active="true"] [data-slot="text-shimmer-char-base"] {
+    opacity: 0;
+  }
+}
+
+:root[data-motion="reduce"] {
+  [data-component="text-shimmer"] [data-slot="text-shimmer-char-base"],
+  [data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"] {
+    transition-duration: 0ms;
+  }
+
+  [data-component="text-shimmer"] [data-slot="text-shimmer-char-shimmer"] {
+    animation: none !important;
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+    background-image: none;
+  }
+
+  [data-component="text-shimmer"] [data-slot="text-shimmer-char-base"] {
+    opacity: 1 !important;
+  }
+}
+
+/* --- Scrollbar: opencode packages/ui/src/styles/scrollbar.css --- */
+/*
+  Shared scrollbar for every native scroll container, so a plain `overflow: auto` matches ScrollView's thumb:
+  a 4px pill that shows while the container is hovered and darkens while it is hovered or dragged.
+  Only pointer devices get it; touch devices keep their platform overlay scrollbars.
+
+  Chromium ignores the ::-webkit-scrollbar parts on any element that sets `scrollbar-width` or
+  `scrollbar-color`, so set those only to hide a scrollbar (`scrollbar-width: none`), never to restyle one.
+*/
+
+@property --scrollbar-hover {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* The width a scrollbar takes from layout. Containers that reserve it with `scrollbar-gutter: stable` subtract it
+     from their padding, so content keeps its width; it stays 0 where scrollbars overlay the content. */
+  @supports selector(::-webkit-scrollbar) {
+    :root {
+      --scrollbar-size: 8px;
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background-color: transparent;
+  }
+
+  ::-webkit-scrollbar-track:vertical {
+    margin: 4px 0;
+  }
+
+  ::-webkit-scrollbar-track:horizontal {
+    margin: 0 4px;
+  }
+
+  /* Matches ScrollView's minimum thumb length, so a long document keeps a thumb you can grab. */
+  ::-webkit-scrollbar-thumb {
+    min-width: 32px;
+    min-height: 32px;
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-color: transparent;
+    background-clip: padding-box;
+  }
+
+  /* Chromium re-resolves scrollbar parts only when the owning element's style changes, and a
+     `:hover::-webkit-scrollbar-thumb` rule alone does not change it. This non-inherited property
+     does, without restyling the subtree. */
+  :hover {
+    --scrollbar-hover: 1;
+  }
+
+  :hover::-webkit-scrollbar-thumb {
+    background-color: var(--v2-border-border-muted);
+  }
+
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--v2-border-border-strong);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    :hover {
+      scrollbar-color: var(--v2-border-border-muted) transparent;
+    }
+  }
+}
+
+/* --- no-scrollbar, hover-reveal: opencode packages/ui/src/styles/tailwind/utilities.css --- */
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  & {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+@utility hover-reveal {
+  @apply opacity-0 transition-opacity;
+
+  @media (hover: none) {
+    opacity: 1;
+  }
+}
+
+/* --- Hover and press overlay: opencode packages/ui/src/actions/button/button.css (neutral variant) --- */
+/* Hover is an overlay layer laid over the base, never a new fill colour, so it
+   works on any surface. Change: button.css's second layer (the button's own
+   fill, repeated as a gradient) is left out; the element's background-color
+   shows under the overlay instead, which paints the same. */
+@utility overlay-hover {
+  &:is(:hover, [data-state="hover"]):not(:disabled) {
+    background-image:
+      linear-gradient(90deg, var(--v2-overlay-simple-overlay-hover) 0%, var(--v2-overlay-simple-overlay-hover) 100%);
+  }
+
+  &:is(:active, [data-state="pressed"]):not(:disabled) {
+    background-image:
+      linear-gradient(
+        90deg,
+        var(--v2-overlay-simple-overlay-pressed) 0%,
+        var(--v2-overlay-simple-overlay-pressed) 100%
+      );
+  }
+}
+
+/* --- pulse-opacity: opencode packages/ui/src/styles/animations.css --- */
+/* opencode names this --animate-pulse; it is --animate-pulse-opacity above, so
+   Tailwind's own animate-pulse keeps its meaning. */
+@keyframes pulse-opacity {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --- Typing cursor: opencode packages/ui/src/components/typewriter.css --- */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.blinking-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+/* --- Tooltip in/out: opencode packages/ui/src/overlays/tooltip/tooltip.css --- */
+/* The popup's motion, for a tooltip popup tagged data-component="tooltip-v2"
+   (opencode's panel styling is not here: the panel is t3code's). Kobalte's
+   --kb-tooltip-content-transform-origin is Base UI's --transform-origin, and
+   Base UI marks a closing popup data-closed as Kobalte does. */
+[data-component="tooltip-v2"] {
+  animation: tooltipV2In var(--motion-tooltip) var(--ease-out);
+  transform-origin: var(--transform-origin);
+
+  &[data-closed] {
+    animation: tooltipV2Out var(--motion-tooltip-exit) var(--ease-exit) forwards;
+  }
+
+  /* Change: Base UI opens a tooltip instantly (data-instant) when the pointer
+     moves on from one that is already open; it appears without the motion. */
+  &[data-instant] {
+    animation: none;
+  }
+}
+
+@keyframes tooltipV2In {
+  from {
+    opacity: 0;
+    scale: var(--popover-start-scale);
+  }
+}
+
+@keyframes tooltipV2Out {
+  to {
+    opacity: 0;
+    scale: var(--popover-start-scale);
+  }
+}
+
+:root[data-motion="reduce"] {
+  [data-component="tooltip-v2"],
+  [data-component="tooltip-v2"][data-closed] {
+    animation: none;
+  }
+}

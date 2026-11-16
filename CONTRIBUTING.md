@@ -13,9 +13,10 @@ You need Node 20 or newer (CI runs Node 22).
 ```bash
 git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
 cd artesh
-npm install                  # dev tools only: map build and icon sets
+npm install                  # the interface build (Vite, React, the vendored design system) and the map tools
 cp .env.example .env         # set ARTESH_PASSWORD; OPENAI_API_KEY is optional
-npm start                    # the real server on http://localhost:8080
+npm start                    # builds dist/ if needed, then the real server on http://localhost:8080
+npm run dev                  # in a second terminal: Vite on http://localhost:5173 with hot reload, /api proxied to :8080
 ```
 
 `npm run serve` starts a plain static server with no login and no model. It is handy for working on the

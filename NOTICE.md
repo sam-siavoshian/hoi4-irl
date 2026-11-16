@@ -7,6 +7,21 @@ following third-party work. Thank you to everyone who made it.
 
 These are embedded in files the browser loads.
 
+### The Lanes design system (`@sam/design-system`): the interface kit
+
+- Source: the owner's `sam-designsystem` repository (`packages/design`), vendored in
+  `vendor/design-system/` at the commit named in its README.
+- Where: every control, surface, token and motion rule of the interface in `src/` comes from it.
+- It adapts work from Zephium (MPL-2.0), t3code (MIT), opencode (MIT) and Morrow, and bundles Inter
+  (OFL-1.1), Base UI (MIT), Lucide (ISC), class-variance-authority (Apache-2.0), tailwind-merge (MIT)
+  and morphicons (MIT). The full notices and licence texts are in
+  [`vendor/design-system/THIRD_PARTY_NOTICES.md`](vendor/design-system/THIRD_PARTY_NOTICES.md).
+
+### React and Tailwind CSS
+
+- React and React DOM (MIT, Meta Platforms and contributors) are bundled into the built interface.
+  Tailwind CSS (MIT, Tailwind Labs) generates its stylesheet; Vite (MIT) builds it.
+
 ### Game-icons.net: unit and building silhouettes
 
 - Authors: Lorc, Delapouite and contributors
@@ -21,8 +36,9 @@ These are embedded in files the browser loads.
 - Authors: Lucide contributors (portions derived from Feather by Cole Bemis)
 - Source: <https://lucide.dev>
 - Licence: [ISC](https://github.com/lucide-icons/lucide/blob/main/LICENSE)
-- Where: SVG bodies in `js/icons.js` (`UI_ICONS`), extracted from the `@iconify-json/lucide` package
-  by `tools/build-icons-js.mjs`.
+- Where: the interface's icons come from the `lucide-react` package through the design system. The
+  SVG bodies in `js/icons.js` (`UI_ICONS`), extracted from the `@iconify-json/lucide` package by
+  `tools/build-icons-js.mjs`, remain for the canvas renderers.
 
 ### Natural Earth: country borders and coastlines
 
