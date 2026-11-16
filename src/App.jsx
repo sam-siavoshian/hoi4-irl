@@ -62,9 +62,9 @@ function Chrome() {
         </div>
         <div className="flex items-start justify-between gap-2">
           {alert && !covered ? (
-            <Button variant="outline" size="sm-multiline" className="pointer-events-auto max-w-64 text-start" data-testid="alert" onClick={() => go(alert[2])}>
+            <CardButton padding="sm" className="pointer-events-auto flex w-auto max-w-64 items-center gap-2 text-start text-xs font-medium" data-testid="alert" onClick={() => go(alert[2])}>
               <StatusDot tone={alert[0]} />{alert[1]}
-            </Button>
+            </CardButton>
           ) : <span />}
           {wide ? null : <MapControls wide={false} />}
         </div>
