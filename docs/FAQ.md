@@ -89,11 +89,14 @@ its approximations at the top.
 
 No. There are three ways to run it:
 
-1. **OpenAI** (the default): set `OPENAI_API_KEY`.
-2. **Any OpenAI-compatible endpoint**: Ollama or LM Studio on your own machine, or a hosted one such as
-   OpenRouter or Groq. Set `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `LLM_API=chat` if the server has no
-   Responses API.
-3. **No model at all**: leave the key empty and the offline keyword judge is used.
+1. **A hosted provider, with your own key**: OpenAI, Anthropic, Google Gemini, Groq, Mistral or
+   OpenRouter. Choose it in Settings → General staff and paste the key. Each starts on its small, cheap
+   model, which is enough.
+2. **A model on your own machine**: Ollama, LM Studio or any OpenAI-compatible server. No key.
+3. **No model at all**: the offline keyword judge is used.
+
+The same can still be set in `.env` (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `LLM_API`); what
+is chosen in the app wins.
 
 ### How good is the offline judge?
 

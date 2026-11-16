@@ -21,9 +21,24 @@ multi-user service and was not designed to face the open internet without someth
 
 ### What the design protects
 
-- **The API key stays on the host.** The key is read from `.env` or the environment by `server.mjs` and
-  used only for outgoing calls to the model endpoint. It is never included in any response, and `.env` is
-  not a servable path.
+- **Your model keys stay on the host.** A key is yours: you paste it in Settings → General staff, or put
+  it in `.env`. One set in the app is sent to the server once and stored in `ai.json` in the data folder
+  (`~/.homefront/ai.json`, mode `0600`, written to a temporary file and renamed into place). From then on
+  it is used only for outgoing calls to the provider it belongs to. It is never included in any response:
+  the app learns that a key exists and, for one saved in the app, its last 4 characters. A key from `.env`
+  cannot be read, shown or removed from the app at all. Keys are not in `state.json`, the journal, the
+  dated backups, the app's Export, the server log or the files the service worker caches, and neither
+  `.env` nor `ai.json` is a servable path. The tests search every response of a full session, the log and
+  every other file in the data folder for the test keys, and fail if one appears.
+- **Changing the provider settings needs the session, from the app itself.** `/api/ai` returns `401`
+  without the session cookie, and the automation token does not open it. Writes are refused (`403`) when
+  the browser reports another site as the sender (`Sec-Fetch-Site`, or `Origin` on older browsers), on
+  top of the `SameSite=Lax` cookie. The other write endpoints rely on `SameSite=Lax` alone, as before.
+- **A provider's error is summarised.** Providers often quote the key back when they reject it. The
+  server replaces that with "The provider rejected the key." and cuts anything key-shaped out of any
+  other provider message before it reaches the app, the automation API or the log.
+- **A custom address must be `http://` or `https://`**, with no user name or password in it, and only
+  the local providers (Ollama, LM Studio, another server) have one to set.
 - **The password is the lock.** Until a device has logged in, the server returns only the login page,
   `robots.txt` and the icons needed for Home Screen install. The app's code, the map and every API
   endpoint return `401`.
@@ -57,8 +72,28 @@ multi-user service and was not designed to face the open internet without someth
 - **More than one person.** There are no accounts, roles or per-user data. Everyone with the password
   sees and can change the same campaign.
 - **The model provider.** The text of your reports, and your audio if you use voice, is sent to the
-  endpoint in `OPENAI_BASE_URL`. That provider's retention policy applies. Requests to OpenAI are sent
-  with `store: false`. Use a local model to keep everything on your machine.
+  provider you chose. That provider's retention policy applies to it. What leaves the machine, per
+  provider:
+
+  | Provider | Sent for judging | Sent for voice | Notes |
+  |---|---|---|---|
+  | OpenAI | the report text, the current state of the fronts and your last 8 dispatches, to `api.openai.com` | the recording, to the same host | sent with `store: false` |
+  | Anthropic | the same text, to `api.anthropic.com` | nothing: Anthropic has no speech-to-text | |
+  | Google Gemini | the same text, to `generativelanguage.googleapis.com` | the recording, to the same host | sent with `store: false` |
+  | Groq | the same text, to `api.groq.com` | the recording, to the same host | |
+  | Mistral | the same text, to `api.mistral.ai` | the recording, to the same host | |
+  | OpenRouter | the same text, to `openrouter.ai`, which passes it to the model's host | nothing | OpenRouter's and that host's policies both apply |
+  | Ollama, LM Studio, another server | the same text, to the address you set | nothing | on your own machine nothing leaves it |
+  | Offline judge | nothing | nothing | keywords, on your server |
+
+  The key goes only to its own provider, in that provider's auth header. "On this device" voice uses the
+  browser's speech recognition, which in some browsers sends audio to the browser's maker, or the
+  keyboard's dictation. Use a local model or the offline judge to keep everything on your machine.
+- **A custom address is a request the server makes for you.** Whoever is signed in can point a local
+  provider at any `http(s)` address the server can reach, and the server will post report text there.
+  That person is you; it is one more reason the password matters.
+- **A copy of the data folder carries the keys.** `ai.json` is plain text, owner-only. Data is not
+  encrypted at rest, so treat a copy of `~/.homefront/` like the keys themselves.
 - **A compromised device.** Someone holding your unlocked, logged-in phone has the app.
 - **Prompt injection through your own reports.** The judge reads what you write. Its output is forced
   into a strict schema and sanitised (unknown fronts dropped, battle types checked against the outcome),
@@ -73,7 +108,8 @@ multi-user service and was not designed to face the open internet without someth
 3. With a proxy or tunnel in front, set `HOST=127.0.0.1` so the port is not reachable directly.
 4. Treat `HOMEFRONT_TOKEN` like a password: generate it randomly, and rotate it if a Shortcut or script
    that holds it is shared.
-5. Keep `.env` and `~/.homefront/` out of git (they are ignored by default) and out of shared folders.
+5. Keep `.env` and `~/.homefront/` (which holds `ai.json`, your keys) out of git (they are ignored by
+   default) and out of shared folders. Give each provider key a spending limit at the provider.
 6. Back up `~/.homefront/`.
 
 ## Scope

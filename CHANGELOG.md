@@ -15,6 +15,20 @@ The step from a personal tool to something anyone can self-host.
 
 ### Added
 
+- **Your own key, set in the app, and more providers.** Settings → General staff chooses who judges your
+  reports: OpenAI, Anthropic, Google Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, any other
+  OpenAI-compatible server, or the offline judge. Paste your own key, press Test, and it works without a
+  restart. Each provider starts on its small, cheap model (`gpt-6-luna`, `claude-haiku-5-5`,
+  `gemini-3.5-flash-lite`, `openai/gpt-oss-20b`, `mistral-small-latest`), since judging a day needs no
+  frontier model. Voice is chosen apart from the judge: the same provider when it can turn speech into
+  text (Whisper on Groq, Voxtral on Mistral, Gemini itself), another provider with its own key, or the
+  device. A first run offers the screen as an optional step.
+- **Keys stay on your server.** They are stored in `ai.json` in the data folder (mode `0600`) and never
+  sent back: the app sees only that a key exists and its last 4 characters. New endpoints: `GET` and
+  `PUT /api/ai`, `DELETE /api/ai/key/<provider>`, `POST /api/ai/test`. `.env` remains the fallback, so
+  existing installs keep working untouched; a key from `.env` shows as "set on the server".
+- Provider marks from Simple Icons (CC0) where the project may ship them; a plain icon for OpenAI and Groq.
+
 - **Eight countries.** Iran, Turkey, Greece, France, Ethiopia, Siam, Peru and Mexico, each with its own
   1936 map, seven fronts, order of battle, fleets, air wings, commanders, ranks, decorations and an
   empire to restore. Choose on first run or in Settings; each country keeps its own campaign. A country
