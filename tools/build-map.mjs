@@ -1,19 +1,23 @@
-// Builds data/map.json from Natural Earth (world-atlas) + hand-authored seeds.
-// Run: npm run build:map
+// Builds data/maps/<id>.json for every scenario in tools/scenarios/ from Natural Earth (world-atlas) + hand-authored seeds.
+// Run: npm run build:map            (all scenarios)
+//      node tools/build-map.mjs france   (one)
+// See docs/SCENARIOS.md for the scenario file format.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { feature, merge } from 'topojson-client';
 import { presimplify, simplify, quantile } from 'topojson-simplify';
 import { Delaunay } from 'd3-delaunay';
 import pc from 'polygon-clipping';
-import * as S from './seeds.mjs';
 
 const require = createRequire(import.meta.url);
 const topoRaw = JSON.parse(fs.readFileSync(require.resolve('world-atlas/countries-10m.json'), 'utf8'));
 
+async function build(S) {
+const HOME = S.HOME; const problems = [];
+
 // ---------- projection (Mercator → map units) ----------
 const { lon0, lon1, lat0, lat1 } = S.EXTENT;
-const W = 4000;
+const W = 4000; const span = lon1 - lon0;
 const K = W / (lon1 - lon0);
 const merc = lat => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * 180 / Math.PI;
 const yTop = merc(lat1);
@@ -32,7 +36,7 @@ const inBox = g => {
   return false;
 };
 let topo = presimplify(topoRaw);
-topo = simplify(topo, quantile(topo, 0.3));
+topo = simplify(topo, quantile(topo, Math.max(0.04, Math.min(0.3, 0.3 * span / 52)))); // smaller theatres keep more coastline detail
 const geoms = topo.objects.countries.geometries;
 const byName = {};
 for (const g of geoms) byName[g.properties.name] = g;
@@ -86,31 +90,32 @@ for (const [tag, c] of Object.entries(S.COUNTRIES)) {
   if (!ll.length) continue;
   // drop tiny islands
   const area = r => { let s = 0; for (let i = 0; i < r.length - 1; i++) s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return Math.abs(s / 2); };
-  ll = ll.filter(p => area(p[0]) > (tag === 'GBR' ? 0.004 : 0.012));
+  const minIsland = (c.minIsland ?? 0.012) * (span / 52) ** 2;
+  ll = ll.filter(p => area(p[0]) > minIsland);
   const xy = ll.map(poly => poly.map(ring => densify(ring.map(proj), 7)));
   countries[tag] = { tag, ...c, ll, xy };
 }
 
 // ---------- seeds ----------
 const seeds = []; // {name, lon, lat, tag, state, vp, flags, named}
-for (const [state, list] of Object.entries(S.IRAN_STATES)) for (const [name, lon, lat, vp = 1, flags = ''] of list) seeds.push({ name, lon, lat, tag: 'IRN', state, vp, flags, named: true });
+for (const [state, list] of Object.entries(S.HOME_STATES)) for (const [name, lon, lat, vp = 1, flags = ''] of list) seeds.push({ name, lon, lat, tag: HOME, state, vp, flags, named: true });
 for (const [tag, regions] of Object.entries(S.FOREIGN)) for (const [state, list] of Object.entries(regions)) for (const [name, lon, lat, vp = 1, flags = ''] of list) seeds.push({ name, lon, lat, tag, state, vp, flags, named: true });
 
 // snap named seeds into their country polygon
 for (const s of seeds) {
   const c = countries[s.tag];
-  if (!c) { s.drop = true; continue; }
+  if (!c) { s.drop = true; problems.push(`city ${s.name}: country ${s.tag} has no land in the extent`); continue; }
   if (inMP([s.lon, s.lat], c.ll)) continue;
   let best = null, bd = 1e9;
   for (const poly of c.ll) for (const v of poly[0]) { const d = Math.hypot(v[0] - s.lon, v[1] - s.lat); if (d < bd) { bd = d; best = v; } }
-  if (bd > 1.2) { console.warn('seed far outside', s.name, s.tag, bd.toFixed(2)); s.drop = true; continue; }
+  if (bd > 1.2 * Math.max(0.4, span / 52)) { problems.push(`city ${s.name} (${s.tag}) is ${bd.toFixed(2)}° outside its country — wrong coordinates or wrong country?`); s.drop = true; continue; }
   // step inward along several directions
   let placed = false;
   for (let rad = 0.04; rad < 0.5 && !placed; rad += 0.04) for (let a = 0; a < 16 && !placed; a++) {
     const p = [best[0] + Math.cos(a * Math.PI / 8) * rad, best[1] + Math.sin(a * Math.PI / 8) * rad];
     if (inMP(p, c.ll)) { s.lon = p[0]; s.lat = p[1]; placed = true; }
   }
-  if (!placed) { console.warn('could not snap', s.name); s.drop = true; }
+  if (!placed) { problems.push(`city ${s.name}: could not be placed inside ${s.tag}`); s.drop = true; }
 }
 let all = seeds.filter(s => !s.drop);
 
@@ -240,28 +245,30 @@ const adj = provinces.map(() => new Set());
 for (const [k, n] of shareCount) if (n >= 2) { const a = Math.floor(k / 100000), b = k % 100000; adj[a].add(b); adj[b].add(a); }
 // coastal detection: vertices used by only this province and not on bbox edge
 for (const p of provinces) {
-  let lone = 0, loneSouth = 0, loneCasp = 0;
+  let lone = 0; p.coastPts = [];
   for (const poly of p.mp) for (const v of poly[0]) {
     if (v[0] < 1 || v[0] > W - 1 || v[1] < 1 || v[1] > H - 1) continue;
     const k = `${Math.round(v[0] * 5)},${Math.round(v[1] * 5)}`;
-    if (vmap.get(k).length === 1) { lone++; const lat = (Math.atan(Math.exp(((yTop - v[1] / K) * Math.PI) / 180)) * 360) / Math.PI - 90; if (lat < 30.7) loneSouth++; if (lat > 36) loneCasp++; }
+    if (vmap.get(k).length === 1) { lone++; p.coastPts.push([v[0] / K + lon0, (Math.atan(Math.exp(((yTop - v[1] / K) * Math.PI) / 180)) * 360) / Math.PI - 90]); }
   }
-  p.coastal = lone >= 4; p.loneSouth = loneSouth; p.loneCasp = loneCasp;
+  p.coastal = lone >= 4;
 }
 
 // ---------- terrain ----------
 function distSeg(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy))); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
 function terrainAt(ll) {
   let mt = 9;
-  for (const r of S.RANGES) for (let i = 0; i < r.pts.length - 1; i++) mt = Math.min(mt, distSeg(ll, r.pts[i], r.pts[i + 1]) / r.w);
+  for (const r of S.RANGES || []) for (let i = 0; i < r.pts.length - 1; i++) mt = Math.min(mt, distSeg(ll, r.pts[i], r.pts[i + 1]) / r.w);
   if (mt < 0.55) return 'mountain';
-  for (const [x, y, rx, ry] of S.MARSHES) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'marsh';
-  for (const [x, y, rx, ry] of S.FORESTS) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'forest';
+  for (const [x, y, rx, ry] of S.MARSHES || []) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'marsh';
+  for (const [x, y, rx, ry] of S.FORESTS || []) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'forest';
   if (mt < 1.1) return 'hills';
-  for (const [x, y, rx, ry] of S.DESERTS) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'desert';
+  for (const [x, y, rx, ry] of S.DESERTS || []) if (((ll[0] - x) / rx) ** 2 + ((ll[1] - y) / ry) ** 2 < 1) return 'desert';
   return 'plains';
 }
 for (const p of provinces) { p.terrain = p.seed.vp >= 15 ? 'urban' : terrainAt(p.ll); p.sub = p.seed.whole ? null : subOf([p.seed.lon, p.seed.lat]); }
+// distance in km from a point to a polyline of [lon,lat]
+const kmToLine = (pt, line) => { let best = Infinity; const kx = 111 * Math.cos((pt[1] * Math.PI) / 180), ky = 111; for (let i = 0; i < line.length - 1; i++) { const a = line[i], b = line[i + 1]; const ax = (a[0] - pt[0]) * kx, ay = (a[1] - pt[1]) * ky, bx = (b[0] - pt[0]) * kx, by = (b[1] - pt[1]) * ky; const dx = bx - ax, dy = by - ay; const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1))); best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy)); } return best; };
 
 // ---------- fronts: ordering by path distance ----------
 const R = 6371;
@@ -276,16 +283,18 @@ function dijkstra(sources, allowed) { // sources: Map id→cost
   }
   return dist;
 }
-const tehran = provinces.find(p => p.seed.name === 'Tehran');
-const iran = provinces.filter(p => p.tag === 'IRN');
+const tehran = provinces.find(p => p.seed.name === S.CAPITAL && p.tag === HOME);
+if (!tehran) throw new Error(`capital ${S.CAPITAL} not found among the home cities`);
+const iran = provinces.filter(p => p.tag === HOME);
 const jit = rngFrom(77);
 const fronts = [];
 for (const f of S.FRONTS) {
-  const isObj = p => p.tag !== 'IRN' && f.subs.includes(p.sub) && !(f.id !== 'glf' && p.tag === 'GBR' && ['Kuwait', 'Bahrain', 'Qatar', 'United Arab Emirates', 'Oman'].includes(p.sub));
+  const isObj = p => p.tag !== HOME && f.subs.includes(p.sub) && (!f.box || (p.ll[0] >= f.box[0] && p.ll[0] <= f.box[2] && p.ll[1] >= f.box[1] && p.ll[1] <= f.box[3]));
   const objs = provinces.filter(isObj);
   let iranSrc = new Map(), enemySrc = new Map();
   if (f.naval) {
-    for (const p of iran) if (p.loneSouth >= 3) iranSrc.set(p.id, 15 + jit() * 50);
+    if (!f.coast) throw new Error(`naval front ${f.id} needs a coast polyline`);
+    for (const p of iran) if (p.coastal && p.coastPts.filter(c => kmToLine(c, f.coast) < (f.coastKm || 70)).length >= 2) iranSrc.set(p.id, 15 + jit() * 50);
     const coastIr = [...iranSrc.keys()].map(i => provinces[i]);
     // enemy side: ordered by sea distance from the Iranian shore
     for (const p of objs) { let d = Infinity; for (const q of coastIr) d = Math.min(d, hav(p.ll, q.ll)); enemySrc.set(p.id, d); }
@@ -295,25 +304,32 @@ for (const f of S.FRONTS) {
       if (!enemySrc.has(v)) enemySrc.set(v, 12 + jit() * 45);
     }
   }
-  const dIr = dijkstra(iranSrc, p => p.tag === 'IRN');
+  if (!iranSrc.size) { problems.push(`front ${f.id}: no home province touches it (${f.naval ? 'check the coast polyline' : 'check subs: ' + f.subs.join(', ')})`); continue; }
+  const dIr = dijkstra(iranSrc, p => p.tag === HOME);
   const dEn = f.naval ? enemySrc : dijkstra(enemySrc, isObj);
   const dTehran = dIr.get(tehran.id);
+  if (dTehran == null) { problems.push(`front ${f.id}: the capital cannot be reached overland from it`); continue; }
   const iranOrder = [...dIr].filter(([id, d]) => d <= dTehran + 1e-6).sort((a, b) => a[1] - b[1]).map(([id, d]) => [id, Math.round(d)]);
   const enemyOrder = [...dEn].sort((a, b) => a[1] - b[1]).map(([id, d]) => [id, Math.round(d)]);
   const unreachable = objs.filter(p => !dEn.has(p.id)).map(p => p.seed.name);
-  if (unreachable.length) console.warn(f.id, 'unreachable objectives:', unreachable.join(', '));
-  const { subs, ...rest } = f;
+  if (unreachable.length > objs.length * 0.5) problems.push(`front ${f.id}: ${unreachable.length} of ${objs.length} objective provinces are unreachable overland (islands? make it naval or trim subs)`);
+  if (enemyOrder.length < 4) problems.push(`front ${f.id}: only ${enemyOrder.length} objective provinces`);
+  if (iranOrder.length < 6) problems.push(`front ${f.id}: only ${iranOrder.length} home provinces between it and the capital`);
+  const { subs, coast, box, ...rest } = f;
   fronts.push({ ...rest, iranOrder, enemyOrder, dTehran: Math.round(dTehran), dMax: enemyOrder.length ? enemyOrder[enemyOrder.length - 1][1] : 0, border: [...iranSrc.keys()] });
-  console.log(f.id.padEnd(4), 'iran provs', String(iranOrder.length).padStart(3), 'dTehran', Math.round(dTehran), 'km | objectives', enemyOrder.length, 'dMax', fronts.at(-1).dMax, 'km');
+  console.log(' ', f.id.padEnd(5), 'home provs', String(iranOrder.length).padStart(3), 'dTehran', Math.round(dTehran), 'km | objectives', enemyOrder.length, 'dMax', fronts.at(-1).dMax, 'km');
 }
 // home front per Iranian province (nearest front border by path distance) – for building damage targeting
 const homeDist = fronts.map(f => new Map(f.iranOrder));
 
 // ---------- assemble ----------
 const stateSet = [...new Set(provinces.map(p => `${p.tag}:${p.seed.state}`))];
+const P2 = v => proj(v).map(r1);
 const cityXY = {}; for (const p of provinces) if (p.seed.named) cityXY[p.seed.name] = p.city;
 const out = {
-  w: W, h: H, k: K, extent: S.EXTENT,
+  id: S.ID, home: HOME, w: W, h: H, k: K, extent: S.EXTENT, meta: S.META || {},
+  labels: { home: P2(S.HOME_LABEL || tehran.ll), countries: (S.COUNTRY_LABELS || []).map(([t, n, lon, lat, sz = 13]) => ({ t, n, c: P2([lon, lat]), sz })) },
+  fleetAt: Object.fromEntries(Object.entries(S.FLEET_AT || {}).map(([k, v]) => [k, P2(v)])),
   countries: Object.fromEntries(Object.values(countries).map(c => [c.tag, { name: c.name, long: c.long, color: c.color, shape: c.xy.map(poly => poly.map(r => r.flat())) }])),
   states: stateSet,
   provinces: provinces.map(p => ({
@@ -323,18 +339,37 @@ const out = {
     g: p.mp.map(poly => poly.map(r => r.flat())),
   })),
   fronts,
-  tehran: tehran.id,
-  lakes: S.LAKES.map(l => ({ n: l.name, p: l.pts.map(proj).map(v => v.map(r1)).flat() })),
-  rivers: S.RIVERS.map(l => ({ n: l.name, p: l.pts.map(proj).map(v => v.map(r1)).flat() })),
-  railways: S.RAILWAYS.map(r => ({ n: r.name, stage: r.stage, p: r.via.map(v => (typeof v === 'string' ? (cityXY[v] || (console.warn('rail city?', v), [0, 0])) : proj(v).map(r1))).flat() })),
-  ranges: S.RANGES.map(r => ({ n: r.name, w: Math.round(r.w * K), p: r.pts.map(proj).map(v => v.map(r1)).flat() })),
-  deserts: S.DESERTS.map(([x, y, rx, ry, n]) => ({ n, c: proj([x, y]).map(r1), rx: Math.round(rx * K), ry: Math.round(ry * K * 1.2) })),
-  seas: S.SEA_LABELS.map(([n, x, y, sz, rot = 0]) => ({ n, c: proj([x, y]).map(r1), sz, rot })),
-  achaemenid: S.ACHAEMENID.map(proj).map(v => v.map(r1)).flat(),
+  tehran: tehran.id, capital: tehran.id,
+  lakes: (S.LAKES || []).map(l => ({ n: l.name, p: l.pts.map(proj).map(v => v.map(r1)).flat() })),
+  rivers: (S.RIVERS || []).map(l => ({ n: l.name, p: l.pts.map(proj).map(v => v.map(r1)).flat() })),
+  railways: (S.RAILWAYS || []).map(r => ({ n: r.name, stage: r.stage, p: r.via.map(v => (typeof v === 'string' ? (cityXY[v] || (problems.push(`railway ${r.name}: unknown city ${v}`), tehran.city)) : proj(v).map(r1))).flat() })),
+  ranges: (S.RANGES || []).map(r => ({ n: r.name, w: Math.round(r.w * K), p: r.pts.map(proj).map(v => v.map(r1)).flat() })),
+  deserts: (S.DESERTS || []).map(([x, y, rx, ry, n]) => ({ n, c: proj([x, y]).map(r1), rx: Math.round(rx * K), ry: Math.round(ry * K * 1.2) })),
+  seas: (S.SEA_LABELS || []).map(([n, x, y, sz, rot = 0]) => ({ n, c: proj([x, y]).map(r1), sz, rot })),
+  achaemenid: (S.EMPIRE || []).map(proj).map(v => v.map(r1)).flat(),
 };
 // sanity
-const isolated = provinces.filter(p => !adj[p.id].size).map(p => p.seed.name);
-console.log('provinces', provinces.length, '| iran', iran.length, '| isolated:', isolated.join(', ') || 'none');
+const isolated = provinces.filter(p => !adj[p.id].size && p.tag === HOME).map(p => p.seed.name);
+if (isolated.length) problems.push(`home provinces with no neighbours: ${isolated.join(', ')}`);
+if (iran.length < 40) problems.push(`only ${iran.length} home provinces — lower the home country's spacing`);
+if (fronts.length !== S.FRONTS.length) problems.push('some fronts could not be built');
 const json = JSON.stringify(out);
-fs.writeFileSync(new URL('../data/map.json', import.meta.url), json);
-console.log('map.json', (json.length / 1024).toFixed(0), 'KB', `${W}x${H}`);
+fs.mkdirSync(new URL('../data/maps/', import.meta.url), { recursive: true });
+fs.writeFileSync(new URL(`../data/maps/${S.ID}.json`, import.meta.url), json);
+if (S.ID === 'iran') fs.writeFileSync(new URL('../data/map.json', import.meta.url), json); // legacy path
+console.log(`  ${S.ID}: ${provinces.length} provinces (${iran.length} home), ${(json.length / 1024).toFixed(0)} KB, ${W}x${H}`);
+for (const pr of problems) console.log('  PROBLEM:', pr);
+return { id: S.ID, problems, provinces: provinces.length, home: iran.length, meta: S.META || {} };
+}
+
+const dir = new URL('./scenarios/', import.meta.url);
+const only = process.argv.slice(2);
+const ids = fs.readdirSync(dir).filter(f => f.endsWith('.mjs')).map(f => f.replace(/\.mjs$/, '')).filter(id => !only.length || only.includes(id)).sort((a, b) => (a === 'iran' ? -1 : b === 'iran' ? 1 : a.localeCompare(b)));
+let bad = 0; const index = [];
+for (const id of ids) {
+  console.log(id);
+  try { const S = await import(new URL(`${id}.mjs`, dir)); if (S.ID !== id) throw new Error(`ID "${S.ID}" must match the file name`); const r = await build(S); bad += r.problems.length; const m = r.meta; index.push({ id, name: m.name, long: m.long, empire: m.empire, year: m.year || 1936, blurb: m.blurb || '', flag: m.flag || null }); }
+  catch (e) { console.log('  FAILED:', e.message); bad++; }
+}
+if (!only.length) fs.writeFileSync(new URL('../data/scenarios.json', import.meta.url), JSON.stringify(index, null, 1));
+if (bad) { console.log(`\n${bad} problem(s)`); process.exit(1); }
