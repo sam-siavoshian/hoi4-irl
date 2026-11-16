@@ -210,6 +210,12 @@ cp .env.example .env      # set HOMEFRONT_PASSWORD
 docker compose up -d      # http://localhost:8080, data in the homefront-data volume
 ```
 
+**Let your agent do it.** The repository ships a setup skill for coding agents
+(`.claude/skills/setup-home-front`). In Claude Code, open the cloned folder and say "set up Home Front";
+any other agent can be pointed at [AGENTS.md](AGENTS.md). It installs, generates a password without
+showing it, starts the server, checks it, and can add a background service, HTTPS for your phone and
+backups, asking before each system change.
+
 No API key? Leave `OPENAI_API_KEY` empty. The offline keyword judge takes over, and you can add a key
 or a local model later without losing anything.
 

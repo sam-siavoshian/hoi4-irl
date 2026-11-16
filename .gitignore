@@ -3,6 +3,7 @@ node_modules/
 tests/shots/
 .env
 private/
-.claude/
+.claude/*
+!.claude/skills/
 _site/
 dist/
