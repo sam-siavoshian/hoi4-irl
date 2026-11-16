@@ -97,7 +97,11 @@ export class MapView {
 
   home(animate = true) {
     const [x0, y0, x1, y1] = this.homeBox; // the whole home country, with a little room
-    const s = Math.max(this.minS, Math.min(this.w / ((x1 - x0) * 1.08), this.h / ((y1 - y0) * 0.97)));
+    const fit = Math.min(this.w / ((x1 - x0) * 1.08), this.h / ((y1 - y0) * 0.97));
+    // a wide country on a tall screen would leave empty bands above and below the map: zoom in until the map covers
+    // the screen, but by no more than half again, so most of the country stays in view
+    const cover = Math.max(this.w / this.map.w, this.h / this.map.h);
+    const s = Math.max(this.minS, fit, Math.min(cover, fit * 1.5));
     this.flyTo((x0 + x1) / 2, (y0 + y1) / 2, s, animate);
   }
   flyTo(cx, cy, s, animate = true) {
