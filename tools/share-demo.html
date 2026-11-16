@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARTESH — share cards</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 24px 16px 64px; background: #07090a; color: #eceae5; font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; } p { margin: 0 0 20px; color: #a2a7ab; max-width: 70ch; }
+  h2 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: #6d7377; margin: 32px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; align-items: start; }
+  figure { margin: 0; } figure canvas { display: block; width: 100%; height: auto; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+  figcaption { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; color: #a2a7ab; font-size: 13px; }
+  button { font: inherit; font-size: 13px; color: #1c1505; background: #e3b85c; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  #status { color: #6d7377; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>ARTESH share cards</h1>
+<p>Every card from <code>js/share.js</code> in several variants: short and long headlines, each tone, sparse and dense data, with and without a map. The map is drawn here from <code>data/map.json</code>. <span id="status">Rendering…</span></p>
+<div id="root"></div>
+<script type="module">
+import * as api from '../js/share.js';
+import { UNIT_PATHS } from '../js/icons.js';
+
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
+const hash = n => { let x = Math.imul(n + 1, 2654435761) >>> 0; x ^= x >>> 15; return (x % 1000) / 1000; };
+
+// A stand-in for the live map: provinces by country, some occupied, some liberated, cropped around Iran.
+function fakeMap(map, w = 1179, h = 1500) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  x.fillStyle = '#0b1218'; x.fillRect(0, 0, w, h);
+  if (!map) { // no data: sea, a green country, red neighbours, a jagged front
+    x.fillStyle = '#7a2b27'; x.fillRect(0, 0, w, h * 0.3); x.fillStyle = '#5d93a6'; x.fillRect(w * 0.72, h * 0.2, w * 0.28, h * 0.6); x.fillStyle = '#8a7a4d'; x.fillRect(0, h * 0.3, w * 0.2, h * 0.5);
+    x.fillStyle = '#3d8573'; x.beginPath(); for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2, r = w * (0.34 + 0.06 * Math.sin(a * 5) + 0.03 * Math.cos(a * 9)); x.lineTo(w / 2 + Math.cos(a) * r, h * 0.48 + Math.sin(a) * r * 0.8); } x.fill();
+    x.strokeStyle = '#e5604d'; x.lineWidth = 6; x.beginPath(); for (let i = 0; i <= 20; i++) x.lineTo(w * 0.7 + (i % 2) * 24 - i * 3, h * 0.3 + i * h * 0.02); x.stroke();
+    return c;
+  }
+  const bx0 = 1380, bx1 = 3180, by0 = 640, by1 = 2240, s = Math.max(w / (bx1 - bx0), h / (by1 - by0)), ox = (w - (bx1 + bx0) * s) / 2, oy = (h - (by1 + by0) * s) / 2;
+  const occ = new Set(), lib = new Set(), F = Object.fromEntries(map.fronts.map(f => [f.id, f]));
+  F.afg.iranOrder.slice(0, 26).forEach(([id]) => occ.add(id)); F.tks.iranOrder.slice(0, 7).forEach(([id]) => occ.add(id));
+  F.irq.enemyOrder.slice(0, 22).forEach(([id]) => lib.add(id)); F.cau.enemyOrder.slice(0, 8).forEach(([id]) => lib.add(id));
+  x.save(); x.translate(ox, oy); x.scale(s, s); x.lineJoin = 'round';
+  const iran = hex('#3d8573'), paths = [];
+  for (const p of map.provinces) {
+    const path = new Path2D(); for (const poly of p.g) for (const r of poly) { path.moveTo(r[0], r[1]); for (let i = 2; i < r.length; i += 2) path.lineTo(r[i], r[i + 1]); path.closePath(); }
+    const own = hex(map.countries[p.t]?.color || '#555555'), k = (hash(p.id) - 0.5) * 0.16;
+    let col = p.t === 'IRN' ? iran : own.map(v => v * 0.62 + 20);
+    if (occ.has(p.id)) col = [150, 52, 44]; if (lib.has(p.id)) col = [86, 176, 140];
+    x.fillStyle = mix(col, k > 0 ? [255, 255, 255] : [0, 0, 0], Math.abs(k)); x.fill(path); x.strokeStyle = 'rgba(0,0,0,.22)'; x.lineWidth = 0.7 / s; x.stroke(path);
+    paths.push([p, path]);
+  }
+  for (const l of map.lakes) { x.beginPath(); for (let i = 0; i < l.p.length; i += 2) x.lineTo(l.p[i], l.p[i + 1]); x.closePath(); x.fillStyle = '#0b1218'; x.fill(); }
+  // front line: edges between provinces held by different sides are approximated by stroking the occupied/liberated sets
+  x.lineWidth = 5 / s; x.strokeStyle = 'rgba(255,240,220,.9)'; x.setLineDash([]);
+  for (const [p, path] of paths) if (occ.has(p.id) || lib.has(p.id)) { x.save(); x.strokeStyle = occ.has(p.id) ? 'rgba(255,120,100,.5)' : 'rgba(190,255,220,.45)'; x.lineWidth = 2.4 / s; x.stroke(path); x.restore(); }
+  for (const p of map.provinces) if (p.city && p.vp >= 8) { const [cx, cy] = p.city; x.beginPath(); x.arc(cx, cy, 5 / s, 0, 7); x.fillStyle = '#f4efe2'; x.fill(); x.strokeStyle = '#0b0e10'; x.lineWidth = 1.6 / s; x.stroke(); x.font = `600 ${15 / s}px -apple-system,Inter,system-ui,sans-serif`; x.fillStyle = 'rgba(244,239,226,.92)'; x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 3 / s; x.strokeText(p.n, cx + 9 / s, cy + 5 / s); x.fillText(p.n, cx + 9 / s, cy + 5 / s); }
+  const t = map.provinces[map.tehran]; if (t) { const [cx, cy] = t.city || t.c; x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = (i % 2 ? 6 : 14) / s; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); x.fillStyle = '#e3b85c'; x.fill(); x.strokeStyle = '#0b0e10'; x.lineWidth = 2 / s; x.stroke(); }
+  x.restore();
+  return c;
+}
+
+const FRONTS = [
+  { label: 'School', status: 'Border breached', pos: 38, color: '#4aa3c7' },
+  { label: 'Family', status: 'Advancing', pos: -22, color: '#d0604e' },
+  { label: 'Girlfriend', status: 'Holding the line', pos: 4, color: '#dc8f3f' },
+  { label: 'Startup', status: 'Deep in enemy land', pos: -61, color: '#c2aa3e' },
+  { label: 'Gym & Health', status: 'Quiet', pos: 0, color: '#cf5d84' },
+  { label: 'Friends & Social', status: 'Advancing', pos: -12, color: '#a195dc' },
+  { label: 'Personal Life', status: 'Enemy at the gates', pos: 83, color: '#3fc0ab' },
+];
+const NOW = new Date(2026, 10, 14, 19, 30);
+const BODY = [
+  'The garrison of Zabol laid down its arms at dusk after two days of bombardment. The calculus midterm, long expected, struck the eastern line where it was thinnest.',
+  'Staff officers concede that the defences had been neglected for a fortnight. Two assignments were already missing when the assault began.',
+  'In the west the picture is brighter. The Startup front crossed the Zagros passes on Tuesday and has not stopped since; a first pilot customer signed on Thursday.',
+  'The High Command has ordered three evenings of study and a counter-attack before the week is out.',
+];
+
+function variants(map) {
+  const icon = k => UNIT_PATHS[k];
+  return [
+    ['Bulletin', [
+      ['bulletin-bad', 'Disaster, 7 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Zabol has fallen', sub: 'School · Second Battle of Zabol', tone: 'bad', stability: 53, streak: 12, rank: 'Sarvan', fronts: FRONTS, footer: 'your life as a war map' })],
+      ['bulletin-good', 'Advance, 5 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Baghdad road open after breakthrough at Khanaqin', sub: 'Startup · First pilot customer signed', tone: 'good', stability: 71, streak: 31, rank: 'Sargord', fronts: FRONTS.slice(0, 5) })],
+      ['bulletin-gold', 'Triumph, 3 fronts', () => api.renderBulletin({ map, nation: 'Iran', date: NOW, headline: 'Satrapy of Babylonia restored', sub: 'Startup · The empire grows', tone: 'gold', stability: 88, streak: 104, rank: 'Sepahbod', fronts: FRONTS.slice(1, 4) })],
+      ['bulletin-long', 'Very long headline, long labels', () => api.renderBulletin({ map, nation: 'Imperial State of Iran', date: NOW, headline: 'Heavy armoured assault on the school front leaves the enemy two hundred kilometres from Tehran as the Seventh Mountain Division is encircled near Birjand and reserves run dry', sub: 'School · Third Battle of Birjand, with the Seventh Mountain Division “Damavand” leading a doomed counter-attack', tone: 'bad', stability: 9, streak: 0, rank: 'Sarlashkar-e Artesh-e Shahanshahi', fronts: FRONTS.map((f, i) => ({ ...f, label: i % 2 ? f.label : f.label + ' and everything around it', status: i % 2 ? f.status + ' — reserves committed' : f.status })) })],
+      ['bulletin-nomap', 'No map', () => api.renderBulletin({ map: null, nation: 'Iran', date: NOW, headline: 'The Aras is crossed', sub: 'Family · Long talk with dad', tone: 'good', stability: 64, streak: 5, rank: 'Sotvan', fronts: FRONTS.slice(0, 4) })],
+      ['bulletin-sparse', 'Sparse: headline only', () => api.renderBulletin({ map, headline: 'Quiet day', tone: 'gold' })],
+      ['bulletin-empty', 'Empty data, no map', () => api.renderBulletin({})],
+    ]],
+    ['Front page', [
+      ['frontpage-bad', 'Disaster', () => api.renderFrontPage({ map, date: NOW, persianDate: true, headline: 'Zabol has fallen', deck: 'Eastern line broken on the School front; High Command orders three evenings of study', tone: 'bad', body: BODY, sidebar: ['Startup: columns 60 km past Khanaqin', 'Family: the Aras is crossed', 'Gym & Health: all quiet', 'Girlfriend: line restored after Thursday'], caption: 'The situation on the evening of the 14th. Occupied districts are shaded.' })],
+      ['frontpage-gold', 'Triumph', () => api.renderFrontPage({ map, date: NOW, persianDate: '23 Aban 1405', masthead: "Ettela'at-e Artesh", headline: 'Babylonia restored', deck: 'After 104 days without a missed report, the western satrapy returns to the empire', tone: 'gold', body: BODY.slice(2).concat(BODY.slice(0, 1)), sidebar: ['School: enemy held at Birjand', 'Friends & Social: advancing', 'Personal Life: enemy at the gates'] })],
+      ['frontpage-good', 'Long headline, no sidebar', () => api.renderFrontPage({ map, date: NOW, headline: 'Enemy thrown back across the frontier on three fronts in a single week', deck: 'A good week by any measure: nine reports, seven victories, and the first promotion since the summer', tone: 'good', body: BODY })],
+      ['frontpage-nomap', 'No map, two paragraphs', () => api.renderFrontPage({ map: null, date: NOW, persianDate: true, headline: 'Tehran holds', deck: 'The capital stands after a hard night', tone: 'bad', body: BODY.slice(0, 2), sidebar: ['Startup: quiet', 'Family: quiet'] })],
+      ['frontpage-dense', 'Everything long', () => api.renderFrontPage({ map, date: NOW, persianDate: true, masthead: 'The Imperial Gazette of the General Staff', kicker: 'Second extra of the evening', headline: 'Heavy armoured assault on the school front leaves the enemy two hundred kilometres from Tehran as reserves run dry', deck: 'The Seventh Mountain Division is encircled near Birjand; the Minister of War promises that the passes will be held whatever the cost, and that the reserves are on the march', tone: 'bad', body: BODY.map(p => p + ' ' + p), sidebar: FRONTS.map(f => `${f.label}: ${f.status.toLowerCase()} after a week of heavy fighting`), caption: 'The situation map issued by the General Staff this evening, with occupied districts shaded and the line of the front marked as it stood at dusk on Saturday.' })],
+      ['frontpage-sparse', 'Headline only', () => api.renderFrontPage({ map, headline: 'Victory', tone: 'gold' })],
+      ['frontpage-empty', 'Empty data', () => api.renderFrontPage({})],
+    ]],
+    ['Weekly recap', [
+      ['recap-typical', 'Typical week', () => api.renderRecap({ from: new Date(2026, 10, 9), to: new Date(2026, 10, 15), verdict: 'A hard week in the east, a brilliant one in the west.', reports: 9, wins: 7, losses: 4, xp: 420, rankStart: 'Sarvan', rankEnd: 'Sarvan', rankProgress: 0.64, streak: 12, perFront: FRONTS.slice(0, 5).map((f, i) => ({ label: f.label, color: f.color, delta: [-18, 9, 0, 31, 4][i], status: f.status })), biggestWin: { headline: 'First pilot customer signed', front: 'Startup' }, hardestLoss: { headline: 'Calculus midterm failed', front: 'School' }, citiesCaptured: ['Khanaqin', 'Baqubah'], citiesLost: ['Zabol'], satrapies: [], medals: ['Order of the Lion'], mvp: { name: '2nd Armoured “Rakhsh”', iconPath: icon('arm'), w: 3 }, ordersDone: 2 })],
+      ['recap-dense', 'Dense week', () => api.renderRecap({ from: new Date(2026, 9, 28), to: new Date(2026, 10, 3), verdict: 'The line bent on four fronts and broke on none; the west carried the week, and the empire is one satrapy larger for it.', reports: 23, wins: 19, losses: 11, xp: 1280, rankStart: 'Sargord', rankEnd: 'Sarhang', rankProgress: 0.12, streak: 104, perFront: FRONTS.map((f, i) => ({ label: i === 5 ? 'Friends, social life and the band' : f.label, color: f.color, delta: [-42, 12, -3, 55, 8, 0, -27][i], status: f.status })), biggestWin: { headline: 'Shipped the onboarding flow and two investors replied the same afternoon', front: 'Startup · Battle of Khanaqin' }, hardestLoss: { headline: 'Bombed the calculus midterm after a week of not studying at all', front: 'School · Second Battle of Zabol' }, citiesCaptured: ['Khanaqin', 'Baqubah', 'Baghdad', 'Kirkuk', 'Mosul', 'Erivan'], citiesLost: ['Zabol', 'Birjand', 'Bandar Abbas'], satrapies: ['Babylonia'], medals: ['Order of the Lion', 'Zagros Cross', 'Iron Streak'], mvp: { name: '7th Mountain Division “Damavand”', iconPath: icon('mtn'), w: 6 }, ordersDone: 5 })],
+      ['recap-bad', 'Losing week, no cities', () => api.renderRecap({ from: new Date(2026, 10, 9), to: new Date(2026, 10, 15), verdict: 'The retreat continues.', reports: 5, wins: 1, losses: 6, xp: 60, rankEnd: 'Sotvan', rankProgress: 0.3, streak: 2, perFront: FRONTS.slice(0, 3).map((f, i) => ({ label: f.label, color: f.color, delta: [-30, -12, 2][i], status: f.status })), hardestLoss: { headline: 'Four hours of sleep, three nights running', front: 'Personal Life' }, mvp: { name: '1st Infantry', iconPath: icon('inf'), w: 1 } })],
+      ['recap-quiet', 'Quiet week', () => api.renderRecap({ from: new Date(2026, 10, 9), to: new Date(2026, 10, 15), verdict: 'All quiet on every front.', reports: 1, wins: 1, losses: 0, xp: 15, rankEnd: 'Sarbaz', rankProgress: 0.08, streak: 1 })],
+      ['recap-empty', 'Empty data', () => api.renderRecap({})],
+    ]],
+    ['Promotion and decoration', [
+      ['rankup-rank', 'Promotion', () => api.renderRankUp({ kind: 'rank', title: 'Sarhang', gloss: 'Colonel', sub: 'Promoted on 14 November 2026', streak: 104, nation: 'Iran' })],
+      ['rankup-medal', 'Decoration', () => api.renderRankUp({ kind: 'medal', title: 'Order of the Lion', gloss: 'For thirty days without a missed report', sub: 'Awarded on 14 November 2026', streak: 30, nation: 'Iran' })],
+      ['rankup-icon', 'Decoration with unit icon, long title', () => api.renderRankUp({ kind: 'medal', title: 'Battle honour: Second Battle of Zabol', gloss: '7th Mountain Division “Damavand”, which held the pass for eleven days against everything', sub: 'Awarded on 14 November 2026 by order of the General Staff of the Imperial Army', iconPath: icon('mtn'), streak: 0, nation: 'Imperial State of Iran' })],
+      ['rankup-sparse', 'Title only', () => api.renderRankUp({ kind: 'rank', title: 'Sotvan' })],
+      ['rankup-empty', 'Empty data', () => api.renderRankUp({})],
+    ]],
+  ];
+}
+
+const root = document.getElementById('root'), status = document.getElementById('status');
+const cards = {};
+async function boot() {
+  let map = null; try { map = await (await fetch('../data/map.json')).json(); } catch { /* fall back to the procedural blob */ }
+  const img = fakeMap(map);
+  const t0 = performance.now();
+  for (const [title, items] of variants(img)) {
+    const h = document.createElement('h2'); h.textContent = title; const grid = document.createElement('div'); grid.className = 'grid'; root.append(h, grid);
+    for (const [id, label, render] of items) {
+      const canvas = render(); canvas.id = id; cards[id] = { canvas, render, label };
+      const fig = document.createElement('figure'), cap = document.createElement('figcaption'), name = document.createElement('span'), btn = document.createElement('button');
+      name.textContent = `${label} · ${canvas.width}×${canvas.height}`; btn.textContent = 'Share'; btn.dataset.share = id;
+      btn.onclick = async () => { const r = await api.shareCanvas(canvas, { filename: `artesh-${id}.png`, text: `${label} — made with ARTESH` }); status.textContent = `${id}: ${r}`; };
+      cap.append(name, btn); fig.append(canvas, cap); grid.append(fig);
+    }
+  }
+  status.textContent = `${Object.keys(cards).length} cards in ${Math.round(performance.now() - t0)} ms.`;
+  window.__share = { api, cards, map: img, ready: true };
+}
+boot().catch(e => { status.textContent = String(e.stack || e); window.__share = { error: String(e.stack || e) }; throw e; });
+</script>
+</body>
+</html>
