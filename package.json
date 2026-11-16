@@ -35,7 +35,7 @@
     "start": "node server.mjs",
     "serve": "node tools/serve.mjs",
     "build:map": "node tools/build-map.mjs",
-    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
     "docker": "docker build -t artesh .",
     "test:all": "npm test && node --test tests/ask.test.mjs && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"

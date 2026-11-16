@@ -444,9 +444,9 @@ export const META = {
   ],
   newWingModels: { fighter: 'Morane-Saulnier MS.406', cas: 'Breguet 693', bomber: 'Lioré et Olivier LeO 45' },
   fleets: [
-    { id: 'ponant', name: 'Escadre de l’Atlantique', base: 'Brest', sea: 'Atlantic & Channel', fronts: ['man', 'low', 'rhi', 'pyr'],
+    { id: 'ponant', name: 'Escadre de l’Atlantique', base: 'Brest', sea: 'Atlantic & Channel', fronts: ['man', 'low', 'pyr'],
       ships: [['Bretagne', 'Battleship'], ['Provence', 'Battleship'], ['Émile Bertin', 'Light Cruiser'], ['Le Fantasque', 'Destroyer'], ['Le Terrible', 'Destroyer'], ['Bourrasque', 'Destroyer'], ['Surcouf', 'Submarine']] },
-    { id: 'levant', name: 'Escadre de la Méditerranée', base: 'Toulon', sea: 'Mediterranean', fronts: ['med', 'alp', 'jur'],
+    { id: 'levant', name: 'Escadre de la Méditerranée', base: 'Toulon', sea: 'Mediterranean', fronts: ['med', 'alp'],
       ships: [['Lorraine', 'Battleship'], ['Algérie', 'Heavy Cruiser'], ['Dupleix', 'Heavy Cruiser'], ['Foch', 'Heavy Cruiser'], ['La Galissonnière', 'Light Cruiser'], ['Vauquelin', 'Destroyer'], ['Guépard', 'Destroyer'], ['Redoutable', 'Submarine']] },
   ],
   shipNames: ['Dunkerque', 'Strasbourg', 'Richelieu', 'Jean Bart', 'Clemenceau', 'Gascogne', 'Georges Leygues', 'Gloire', 'Montcalm', 'De Grasse', 'Mogador', 'Volta',

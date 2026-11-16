@@ -388,10 +388,10 @@ export const META = {
   ],
   newWingModels: { fighter: 'Curtiss Hawk 75N', cas: 'Mitsubishi Ki-30 Nagoya', bomber: 'Martin 139W' },
   fleets: [
-    { id: 'gulf', name: 'Gulf Squadron', base: 'Sattahip', sea: 'Gulf of Siam', fronts: ['gos', 'cam', 'mal', 'lao'],
+    { id: 'gulf', name: 'Gulf Squadron', base: 'Sattahip', sea: 'Gulf of Siam', fronts: ['gos', 'cam', 'mal'],
       ships: [['Ratanakosindra', 'Coastal defence gunboat'], ['Sukhothai', 'Coastal defence gunboat'], ['Phra Ruang', 'Destroyer'], ['Trad', 'Torpedo boat'],
         ['Puket', 'Torpedo boat'], ['Chao Phraya', 'Sloop'], ['Bangrachan', 'Minelayer'], ['Nhong Sarhai', 'Minelayer']] },
-    { id: 'andaman', name: 'Andaman Flotilla', base: 'Phuket', sea: 'Andaman Sea', fronts: ['and', 'ten', 'shn'],
+    { id: 'andaman', name: 'Andaman Flotilla', base: 'Phuket', sea: 'Andaman Sea', fronts: ['and', 'ten'],
       ships: [['Suriya Monthon', 'Gunboat'], ['Sua Khamronsin', 'Torpedo-boat destroyer'], ['Sua Thayanchon', 'Torpedo-boat destroyer'], ['Klongyai', 'Coastal torpedo boat']] },
   ],
   shipNames: ['Sri Ayudhya', 'Dhonburi', 'Tachin', 'Maeklong', 'Matchanu', 'Wirun', 'Sinsamut', 'Phlai Chumphon', 'Pattani', 'Surasdra', 'Chandaburi', 'Rayong',

@@ -395,7 +395,7 @@ export const META = {
   ],
   newWingModels: { fighter: 'North American NA-50', cas: 'Douglas 8A-3P', bomber: 'Caproni Ca.135' },
   fleets: [
-    { id: 'pacific', name: 'Pacific Squadron', base: 'Callao', sea: 'Pacific Ocean', fronts: ['pac', 'chi', 'ecu', 'bol'],
+    { id: 'pacific', name: 'Pacific Squadron', base: 'Callao', sea: 'Pacific Ocean', fronts: ['pac', 'chi', 'ecu'],
       ships: [['Almirante Grau', 'Cruiser'], ['Coronel Bolognesi', 'Cruiser'], ['Almirante Villar', 'Destroyer'], ['Almirante Guise', 'Destroyer'], ['Teniente Rodríguez', 'Torpedo Boat'],
         ['R-1', 'Submarine'], ['R-2', 'Submarine'], ['R-3', 'Submarine'], ['R-4', 'Submarine'], ['Rímac', 'Transport']] },
     { id: 'amazon', name: 'Amazon River Flotilla', base: 'Iquitos', sea: 'Amazon', fronts: ['qui', 'col', 'bra'],

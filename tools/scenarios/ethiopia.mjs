@@ -368,9 +368,9 @@ export const META = {
   newWingModels: { fighter: 'Gloster Gauntlet', cas: 'Hawker Hart', bomber: 'Junkers Ju 52/3m' },
   // invented: armed launches and reed boats (tankwa) on Lake Tana, and a steamer landing at Gambela on the Baro
   fleets: [
-    { id: 'tana', name: 'Lake Tana Flotilla', base: 'Gorgora', sea: 'Lake Tana', fronts: ['eri', 'nub', 'dji', 'bso'],
+    { id: 'tana', name: 'Lake Tana Flotilla', base: 'Gorgora', sea: 'Lake Tana', fronts: [],
       ships: [['Tana Kirkos', 'Armed Launch'], ['Dek', 'Armed Launch'], ['Daga', 'Tankwa Squadron'], ['Zege', 'Tankwa Squadron']] },
-    { id: 'baro', name: 'Baro River Flotilla', base: 'Gambela', sea: 'Baro River', fronts: ['sdd', 'ken', 'som'],
+    { id: 'baro', name: 'Baro River Flotilla', base: 'Gambela', sea: 'Baro River', fronts: ['sdd'],
       ships: [['Baro', 'River Steamer'], ['Sobat', 'Armed Launch'], ['Gilo', 'Armed Launch']] },
   ],
   shipNames: ['Abay', 'Tekezé', 'Awash', 'Omo', 'Genale', 'Shebelle', 'Gibe', 'Didessa', 'Mereb', 'Tis Issat', 'Narga', 'Kibran', 'Rema', 'Debre Maryam', 'Mitsraha', 'Gabaza',

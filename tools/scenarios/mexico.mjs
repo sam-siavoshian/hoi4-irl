@@ -472,9 +472,9 @@ export const META = {
   ],
   newWingModels: { fighter: 'Republic P-47D Thunderbolt', cas: 'North American AT-6 Texan', bomber: 'Douglas A-24B Banshee' },
   fleets: [
-    { id: 'gulf', name: 'Flota del Golfo', base: 'Veracruz', sea: 'Gulf of Mexico', fronts: ['glf', 'car', 'tex', 'gua'],
+    { id: 'gulf', name: 'Flota del Golfo', base: 'Veracruz', sea: 'Gulf of Mexico', fronts: ['glf', 'car'],
       ships: [['Anáhuac', 'Coastal defence ship'], ['Querétaro', 'Gunboat'], ['Guanajuato', 'Gunboat'], ['Nicolás Bravo', 'Gunboat'], ['G-20', 'Coast guard cutter'], ['G-21', 'Coast guard cutter'], ['G-22', 'Coast guard cutter']] },
-    { id: 'pacific', name: 'Flota del Pacífico', base: 'Acapulco', sea: 'Pacific Ocean', fronts: ['pac', 'cal', 'nmx'],
+    { id: 'pacific', name: 'Flota del Pacífico', base: 'Acapulco', sea: 'Pacific Ocean', fronts: ['pac', 'cal', 'gua'],
       ships: [['Durango', 'Transport gunboat'], ['Potosí', 'Gunboat'], ['Progreso', 'Transport'], ['G-25', 'Coast guard cutter'], ['G-26', 'Coast guard cutter'], ['G-27', 'Coast guard cutter']] },
   ],
   shipNames: ['Zaragoza', 'Tampico', 'Veracruz', 'Sonora', 'Chihuahua', 'Yucatán', 'Tabasco', 'Jalisco', 'Oaxaca', 'Guerrero', 'Morelos', 'Hidalgo', 'Allende', 'Aldama', 'Matamoros', 'Mina',

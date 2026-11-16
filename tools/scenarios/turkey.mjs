@@ -480,7 +480,7 @@ export const META = {
   fleets: [
     { id: 'north', name: 'Battle Fleet', base: 'Gölcük', sea: 'Black Sea', fronts: ['bla', 'thr', 'cau'],
       ships: [['Yavuz', 'Battlecruiser'], ['Hamidiye', 'Cruiser'], ['Adatepe', 'Destroyer'], ['Kocatepe', 'Destroyer'], ['Sakarya', 'Submarine'], ['Dumlupınar', 'Submarine'], ['Nusret', 'Minelayer']] },
-    { id: 'south', name: 'Aegean Squadron', base: 'İzmir', sea: 'Aegean Sea', fronts: ['aeg', 'lev', 'mes', 'per'],
+    { id: 'south', name: 'Aegean Squadron', base: 'İzmir', sea: 'Aegean Sea', fronts: ['aeg', 'lev'],
       ships: [['Mecidiye', 'Cruiser'], ['Tınaztepe', 'Destroyer'], ['Zafer', 'Destroyer'], ['Birinci İnönü', 'Submarine'], ['İkinci İnönü', 'Submarine'], ['Gür', 'Submarine'], ['Peyk', 'Torpedo Gunboat'], ['Berk', 'Torpedo Gunboat']] },
   ],
   shipNames: ['Sultanhisar', 'Demirhisar', 'Muavenet', 'Gayret', 'Saldıray', 'Atılay', 'Yıldıray', 'Batıray', 'Gelibolu', 'Giresun', 'Gaziantep', 'Preveze',

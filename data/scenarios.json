@@ -15,5 +15,119 @@
    ],
    "disc": "#e3b85c"
   }
+ },
+ {
+  "id": "ethiopia",
+  "name": "Ethiopia",
+  "long": "Ethiopian Empire",
+  "empire": "Aksumite Empire",
+  "year": 1935,
+  "blurb": "Seven frontiers around the mountain empire, every one of them a colony. Restore Aksum from the Nile to the Red Sea.",
+  "flag": {
+   "type": "h3",
+   "colors": [
+    "#2f8f4e",
+    "#f2c230",
+    "#c8342c"
+   ]
+  }
+ },
+ {
+  "id": "france",
+  "name": "France",
+  "long": "French Republic",
+  "empire": "French Empire",
+  "year": 1936,
+  "blurb": "Seven frontiers from the Rhine to the Pyrenees. Restore the empire of Napoleon.",
+  "flag": {
+   "type": "v3",
+   "colors": [
+    "#2b4a8c",
+    "#efeadb",
+    "#c9423a"
+   ]
+  }
+ },
+ {
+  "id": "greece",
+  "name": "Greece",
+  "long": "Kingdom of Greece",
+  "empire": "Byzantine Empire",
+  "year": 1936,
+  "blurb": "Three mountain borders and four seas. Restore the empire of Basil II, from the Danube to Antioch.",
+  "flag": {
+   "type": "h3",
+   "colors": [
+    "#0d5eaf",
+    "#f4f1e6",
+    "#0d5eaf"
+   ]
+  }
+ },
+ {
+  "id": "mexico",
+  "name": "Mexico",
+  "long": "United Mexican States",
+  "empire": "Mexican Empire",
+  "year": 1936,
+  "blurb": "Seven fronts from Alta California to Costa Rica. Restore the empire of the Three Guarantees.",
+  "flag": {
+   "type": "v3",
+   "colors": [
+    "#2f7d55",
+    "#efeadb",
+    "#c0392b"
+   ],
+   "disc": "#8a6a3a"
+  }
+ },
+ {
+  "id": "peru",
+  "name": "Peru",
+  "long": "Republic of Peru",
+  "empire": "Tawantinsuyu",
+  "year": 1936,
+  "blurb": "Seven frontiers from the Putumayo to Tacna. Restore the Inca realm of the four quarters.",
+  "flag": {
+   "type": "v3",
+   "colors": [
+    "#c0392f",
+    "#efeadb",
+    "#c0392f"
+   ]
+  }
+ },
+ {
+  "id": "siam",
+  "name": "Siam",
+  "long": "Kingdom of Siam",
+  "empire": "Greater Siam",
+  "year": 1936,
+  "blurb": "Seven fronts from the Shan hills to the Malay sultanates. Restore the tributary realm of the early Chakri kings.",
+  "flag": {
+   "type": "h3",
+   "colors": [
+    "#a51931",
+    "#2d2a4a",
+    "#a51931"
+   ]
+  }
+ },
+ {
+  "id": "turkey",
+  "name": "Turkey",
+  "long": "Republic of Turkey",
+  "empire": "Ottoman Empire",
+  "year": 1936,
+  "blurb": "Seven fronts from the Danube to the Tigris. Restore the empire of Süleyman.",
+  "flag": {
+   "type": "h3",
+   "colors": [
+    "#d7141a",
+    "#d7141a",
+    "#d7141a"
+   ],
+   "disc": "#f4f1e8"
+  }
  }
 ]

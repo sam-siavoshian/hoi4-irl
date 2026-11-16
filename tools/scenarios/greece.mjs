@@ -444,10 +444,10 @@ export const META = {
   ],
   newWingModels: { fighter: 'PZL P.24', cas: 'Henschel Hs 126', bomber: 'Bristol Blenheim' },
   fleets: [
-    { id: 'aegean', name: 'Fleet of the Aegean', base: 'Salamis', sea: 'Aegean Sea', fronts: ['aeg', 'str', 'lev', 'thr'],
+    { id: 'aegean', name: 'Fleet of the Aegean', base: 'Salamis', sea: 'Aegean Sea', fronts: ['aeg', 'str', 'lev'],
       ships: [['Georgios Averof', 'Armoured Cruiser'], ['Elli', 'Light Cruiser'], ['Hydra', 'Destroyer'], ['Spetsai', 'Destroyer'], ['Psara', 'Destroyer'],
         ['Kountouriotis', 'Destroyer'], ['Proteus', 'Submarine'], ['Nereus', 'Submarine'], ['Triton', 'Submarine'], ['Glafkos', 'Submarine']] },
-    { id: 'ionian', name: 'Ionian Squadron', base: 'Patras', sea: 'Ionian Sea', fronts: ['ion', 'epr', 'mac'],
+    { id: 'ionian', name: 'Ionian Squadron', base: 'Patras', sea: 'Ionian Sea', fronts: ['ion', 'epr'],
       ships: [['Aetos', 'Destroyer'], ['Ierax', 'Destroyer'], ['Leon', 'Destroyer'], ['Panthir', 'Destroyer'], ['Katsonis', 'Submarine'], ['Papanikolis', 'Submarine']] },
   ],
   shipNames: ['Vasilefs Georgios', 'Vasilissa Olga', 'Salamis', 'Kilkis', 'Lemnos', 'Thyella', 'Sfendoni', 'Aspis', 'Niki', 'Velos', 'Doxa', 'Navarinon', 'Miaoulis', 'Kanaris', 'Kriti',
