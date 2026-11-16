@@ -1,7 +1,7 @@
 // The interface is deliberately thin: a map, one report button, a list of fronts and a history.
 // Everything else (objectives, commanders, satrapies, decorations, repairs) is worked out by engine.js.
-import { simulate, sitrep, statusOf, objective, frontNote, mapMeta, shortName, momentOf, headlineOf, weeklyRecap, medalProgress, medalOf, orderText, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, MEDALS, rankOf, rankIndex, DAY } from './engine.js';
-import { MapView, FRONT_COLORS } from './map.js';
+import { simulate, sitrep, statusOf as statusFor, objective, frontNote, mapMeta, flavor, capitalOf, shortName, momentOf, headlineOf, weeklyRecap, medalProgress, medalOf, orderText, ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, UNIT_TYPES, rankOf, rankIndex, DAY } from './engine.js';
+import { MapView, frontColor } from './map.js';
 import { classify, assess } from './classify.js';
 import { ask } from './ask.js';
 import { fx } from './fx.js';
@@ -14,7 +14,8 @@ import { UI_ICONS, FILLED_ICONS, UNIT_PATHS } from './icons.js';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtDate = (ts, o = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(ts).toLocaleDateString(undefined, o);
-const persian = (ts, o = { day: 'numeric', month: 'long', year: 'numeric' }) => { try { return new Intl.DateTimeFormat('en-u-ca-persian', o).format(ts).replace(/\s*AP$/, ''); } catch { return ''; } };
+// the date in the scenario's own calendar (META.calendar), or '' when it has none or the browser cannot do it
+const altDate = (ts, o = { day: 'numeric', month: 'long', year: 'numeric' }) => { const cal = F().calendar; if (!cal) return ''; try { const f = new Intl.DateTimeFormat(`en-u-ca-${cal}`, o); return f.resolvedOptions().calendar === cal ? f.format(ts).replace(/\s*(AP|AH|AM|BE|ERA\d)$/, '') : ''; } catch { return ''; } };
 const dayKey = ts => Math.floor((ts - new Date(ts).getTimezoneOffset() * 60000) / DAY);
 
 // Interface icons: Lucide (ISC). Unit silhouettes: Game-icons.net (CC BY 3.0). Both are generated into icons.js.
@@ -25,19 +26,26 @@ const ACT_ICON = { offensive: 'arrowR', breakthrough: 'tank', encirclement: 'rin
   strategic_bombing: 'bomb', port_strike: 'anchor', supply_hub_bombed: 'box', naval_defeat: 'anchor', attrition: 'users', rail_cut: 'train', sabotage: 'bomb', desertion: 'users', winter: 'snow', skirmish: 'swords' };
 const actIcon = a => ACT_ICON[a] || 'swords';
 
-let map, view, data, st, live;
+let map, view, data, st, live, scenarios = [];
+// everything the interface says about the country comes from the scenario being played
+const F = () => flavor(map);
+const statusOf = pos => statusFor(pos, map);
+const fcol = id => frontColor(map, id); // colours go by front slot, whatever the ids are
 let cfg = { server: false, judge: null, transcribe: null }; // what the private server offers
 const ui = { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, asOf: null, playing: null, assess: null, assessAt: 0, emblem: 0 };
 const MODES = [['political', 'Map', 'flag'], ['life', 'Life areas', 'user'], ['infra', 'Infrastructure', 'factory'], ['supply', 'Supply', 'box'], ['air', 'Air', 'plane'], ['terrain', 'Terrain', 'terrain']];
 
 async function boot() {
-  map = await (await fetch('data/map.json')).json();
   data = store.load();
   try { const r = await fetch('api/config'); if (r.ok) cfg = await r.json(); } catch { /* static hosting: offline judge only */ }
+  try { scenarios = await (await fetch('data/scenarios.json')).json(); } catch { scenarios = []; }
+  if (cfg.server) { try { const remote = await store.pull(); if (remote) { data = remote; store.save(data); } else if (data.reports.length) store.push(() => data); } catch { /* offline: use the local copy */ } }
+  // the country being played (Iran for saves from before there was a choice); one that is no longer offered falls back without losing its campaign
+  try { map = await loadMap(data.scenario); }
+  catch (e) { if (data.scenario === store.DEFAULT_SCENARIO) throw e; map = await loadMap(store.DEFAULT_SCENARIO); store.switchScenario(data, map.id); store.save(data); }
   // Static demo (…/demo/?demo=1): a first-time visitor finds a campaign already in progress.
   const demo = !cfg.server && new URLSearchParams(location.search).has('demo');
   if (demo && !data.reports.length && !data.onboarded) { data.reports = demoReports(); data.onboarded = true; store.save(data); }
-  if (cfg.server) { try { const remote = await store.pull(); if (remote) { data = remote; store.save(data); } else if (data.reports.length) store.push(() => data); } catch { /* offline: use the local copy */ } }
   view = new MapView($('#base'), $('#over'), map);
   view.onTap = onMapTap;
   $('#nav').innerHTML = `<button data-act="open" data-sheet="fronts">${I('flag')}<span>Fronts</span></button><button class="report" data-act="open" data-sheet="report" aria-label="Report">${I('mic')}</button><button data-act="open" data-sheet="history">${I('book')}<span>History</span></button>`;
@@ -52,10 +60,42 @@ async function boot() {
   fx.init({ root: $('#mapwrap') }); fx.configure({ sound: data.settings.sound !== false, motion: data.settings.motion !== false, haptics: true });
   document.addEventListener('pointerdown', () => fx.unlock(), { passive: true });
   refresh();
-  if (!data.onboarded) openSheet('welcome'); else greet();
+  if (!data.onboarded) openSheet(scenarios.length > 1 ? 'country' : 'welcome'); else greet();
   if (demo) demoNote();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__artesh = { save: persist, get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, view, map, commitReports, refresh, ui };
+  window.__artesh = { save: persist, get cfg() { return cfg; }, get st() { return st; }, get live() { return live; }, get data() { return data; }, get map() { return map; }, get scenarios() { return scenarios; }, view, commitReports, refresh, ui, chooseCountry };
+}
+
+// ---------- the country ----------
+const mapCache = new Map();
+function loadMap(id) {
+  if (!/^[\w-]+$/.test(id)) return Promise.reject(new Error('Unknown country'));
+  if (!mapCache.has(id)) mapCache.set(id, fetch(`data/maps/${id}.json`).then(r => { if (!r.ok) throw new Error(`The map of ${id} could not be loaded.`); return r.json(); }).catch(e => { mapCache.delete(id); throw e; }));
+  return mapCache.get(id);
+}
+// the map on screen follows data.scenario: called after anything that may have changed it
+async function followScenario() {
+  if (map.id === data.scenario) return;
+  let next; try { next = await loadMap(data.scenario); } catch { store.switchScenario(data, map.id); return; }
+  map = next; view.setMap(map); iconCache.clear(); for (const k in cardCache) delete cardCache[k];
+  ui.assess = null; ui.asOf = null; clearInterval(ui.playing); ui.playing = null; ui.ask = { q: '', busy: false, res: null }; ui.preset = null; lastCommit = [];
+  view.setMode(view.mode);
+}
+// Play another country. The campaign of the one being left is kept and comes back when it is chosen again.
+async function chooseCountry(id) {
+  if (id !== data.scenario) {
+    let next; try { next = await loadMap(id); } catch (e) { toast(e.message); return false; }
+    store.switchScenario(data, id, map.fronts.map(f => f.id), next.fronts.map(f => f.id));
+    await followScenario(); persist(); refresh();
+  }
+  return true;
+}
+// a small round flag from META.flag: three bands (h3 across, v3 upright) and an optional disc; a plain roundel without one
+let flagSeq = 0;
+function flagSVG(flag, cls = '') {
+  const c = flag && Array.isArray(flag.colors) && flag.colors.length >= 3 ? flag.colors : ['#59636b', '#8b949b', '#59636b']; const id = `fc${++flagSeq}`;
+  const bands = flag && flag.type === 'v3' ? `<rect width="14" height="40" fill="${esc(c[0])}"/><rect x="14" width="12" height="40" fill="${esc(c[1])}"/><rect x="26" width="14" height="40" fill="${esc(c[2])}"/>` : `<rect width="40" height="14" fill="${esc(c[0])}"/><rect y="14" width="40" height="12" fill="${esc(c[1])}"/><rect y="26" width="40" height="14" fill="${esc(c[2])}"/>`;
+  return `<svg class="flag ${cls}" viewBox="0 0 40 40" aria-hidden="true"><defs><clipPath id="${id}"><circle cx="20" cy="20" r="18"/></clipPath></defs><g clip-path="url(#${id})">${bands}${flag && flag.disc ? `<circle cx="20" cy="20" r="4.6" fill="${esc(flag.disc)}"/>` : ''}</g></svg>`;
 }
 
 const labels = () => Object.fromEntries(map.fronts.map(f => [f.id, data.labels[f.id] || f.defaultLabel]));
@@ -63,9 +103,9 @@ const front = id => map.fronts.find(f => f.id === id);
 const activeFronts = () => map.fronts.filter(f => !data.off.includes(f.id));
 function persist() {
   if (!store.save(data)) toast('Storage is full. Export a backup in Settings.');
-  if (cfg.server) store.push(() => data, newer => { if (newer) { data = newer; store.save(data); refresh(); toast('Updated from another device.'); } });
+  if (cfg.server) store.push(() => data, async newer => { if (newer) { data = newer; await followScenario(); store.save(data); refresh(); toast('Updated from another device.'); } });
 }
-async function resync() { if (!cfg.server || document.activeElement?.matches?.('input,textarea')) return; try { const remote = await store.pull(); if (remote && JSON.stringify(remote.reports) + JSON.stringify(remote.labels) + remote.off !== JSON.stringify(data.reports) + JSON.stringify(data.labels) + data.off) { data = remote; store.save(data); } } catch { /* offline */ } }
+async function resync() { if (!cfg.server || document.activeElement?.matches?.('input,textarea')) return; try { const remote = await store.pull(); if (remote && remote.scenario + JSON.stringify(remote.reports) + JSON.stringify(remote.labels) + remote.off !== data.scenario + JSON.stringify(data.reports) + JSON.stringify(data.labels) + data.off) { data = remote; await followScenario(); store.save(data); } } catch { /* offline */ } }
 
 function refresh() {
   live = simulate(map, data.reports, Date.now(), { off: data.off });
@@ -77,24 +117,23 @@ function refresh() {
   if (ui.sheet && !['report', 'welcome', 'edit'].includes(ui.sheet) && !document.activeElement?.matches?.('input,textarea,select')) renderSheet();
 }
 function greet() {
-  const [m, d] = persian(Date.now(), { day: 'numeric', month: 'numeric' }).split('/').map(Number);
-  if (m === 1 && d <= 2) toast('Nowruz Pirouz. A new year on every front.', 6000);
-  else if (m === 9 && d === 30) toast('Shab-e Yalda. The longest night ends at dawn.', 6000);
-  else if (m === 8 && d === 7) toast('7 Aban — Cyrus the Great Day.', 6000);
+  const now = new Date(), day = F().days.find(d => d.month === now.getMonth() + 1 && d.day === now.getDate()); // the scenario's own days (META.days)
+  if (day) toast(day.text, 6000);
 }
 
 // ---------- chrome ----------
 function renderTop() {
-  $('#nation-name').textContent = st.empire ? st.nation.name : 'Iran';
+  $('#nation-name').textContent = st.empire ? st.nation.name : F().name;
+  const fl = $('#nation-flag'); if (fl.dataset.id !== map.id) { fl.dataset.id = map.id; fl.innerHTML = flagSVG(F().flag); }
   $('#nation-date').textContent = fmtDate(st.now, { weekday: 'short', day: 'numeric', month: 'short' });
   const v = st.nation.stability;
   $('#stats').innerHTML = `<span class="stat num ${v >= 60 ? 'good' : v >= 35 ? 'warn' : 'bad'}" title="How things are going overall">${v}%</span><span class="stat num ${st.dayStreak ? 'hot' : ''}" title="Day streak">${I('flame')}${st.dayStreak}</span>`;
 }
 function topAlert() {
   const L = labels();
-  if (st.empire) return ['gold', 'The Achaemenid Empire is restored', 'overview'];
-  if (st.tehranFallen) return ['crit', 'Tehran has fallen', `front:${st.terr.occ.get(map.tehran)}`];
-  if (st.terr.threat && st.terr.threat.km < 300) return ['crit', `Enemy ${st.terr.threat.km} km from Tehran`, `front:${st.terr.threat.front}`];
+  if (st.empire) return ['gold', `The ${F().empire} is restored`, 'overview'];
+  if (st.tehranFallen) return ['crit', `${F().capital} has fallen`, `front:${st.terr.occ.get(capitalOf(map))}`];
+  if (st.terr.threat && st.terr.threat.km < 300) return ['crit', `Enemy ${st.terr.threat.km} km from ${F().capital}`, `front:${st.terr.threat.front}`];
   const worst = activeFronts().slice().sort((a, b) => st.fronts[b.id].pos - st.fronts[a.id].pos)[0];
   if (worst && ['bad', 'crit'].includes(statusOf(st.fronts[worst.id].pos).tone)) return ['crit', `${L[worst.id]}: ${statusOf(st.fronts[worst.id].pos).text.toLowerCase()}`, `front:${worst.id}`];
   const run = activeFronts().find(f => st.fronts[f.id].streak <= -3); if (run) return ['warn', `${L[run.id]}: ${-st.fronts[run.id].streak} defeats in a row`, `front:${run.id}`];
@@ -108,7 +147,7 @@ function renderAlert() {
 }
 function renderLegend() {
   const L = labels(); let h = ''; const sw = (c, n) => `<span><i style="background:${c}"></i>${esc(n)}</span>`;
-  if (view.mode === 'life') h = activeFronts().map(f => sw(FRONT_COLORS[f.id], L[f.id])).join('');
+  if (view.mode === 'life') h = activeFronts().map(f => sw(fcol(f.id), L[f.id])).join('');
   else if (view.mode === 'infra') h = sw('#5c4634', 'Undeveloped') + sw('#5abe78', 'Developed');
   else if (view.mode === 'supply') h = sw('#aa3c32', 'Starved') + sw('#46aa5f', 'Supplied');
   else if (view.mode === 'air') h = sw('#af3c37', 'Enemy skies') + sw('#4682c8', 'Ours');
@@ -120,7 +159,7 @@ function renderModes() {
   $('#layers-btn').classList.toggle('on', view.mode !== 'political' || view.showEmpire);
 }
 function setMode(m) {
-  if (m === 'empire') { view.showEmpire = !view.showEmpire; view.dirty = true; if (view.showEmpire) { const [x, y] = view.proj(50, 33); view.flyTo(x, y, view.minS * 1.02); } }
+  if (m === 'empire') { view.showEmpire = !view.showEmpire; view.dirty = true; if (view.showEmpire) view.flyTo(map.w / 2, map.h / 2, view.minS * 1.02); }
   else { view.setMode(m); data.mode = m; persist(); }
   $('#modes').hidden = true; renderModes(); renderLegend();
 }
@@ -155,15 +194,16 @@ function unitIcon(type, color, str = 100, o = {}) {
   const saved = view.dpr; view.dpr = 1; view.token(x, 48, 45, 3, { type, color, str, num: o.num, rank: o.rank, brigade: o.brigade }); view.dpr = saved;
   const url = c.toDataURL(); iconCache.set(key, url); return url;
 }
-const divIcon = d => unitIcon(d.type, d.front ? '#2c6557' : '#8a6a2a', d.str, { num: d.n, rank: rankIndex(d.xp), brigade: /Brigade/.test(d.name) });
+const divIcon = d => unitIcon(d.type, d.front ? view.homeTok : '#8a6a2a', d.str, { num: d.n, rank: rankIndex(d.xp), brigade: /Brigade/.test(d.name) });
 
 // ---------- sheets ----------
 const ROOTS = ['fronts', 'history', 'report', 'welcome', 'province', 'overview'];
+const firstRun = () => !data.onboarded; // the country picker opens the welcome; later it is a page of Settings
 const fromMap = new Set(['division']);
 function openSheet(name, arg = null, push = true) {
   if (ui.dict) stopDictation();
   if (name === 'report' && ui.asOf) exitReplay();
-  if (ROOTS.includes(name) || (fromMap.has(name) && !ui.sheet)) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
+  if (ROOTS.includes(name) || (fromMap.has(name) && !ui.sheet) || (name === 'country' && firstRun())) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
   ui.sheet = name; ui.arg = arg;
   if (name === 'report' && !ui.report) ui.report = newReport();
   if (name === 'overview') autoAssess();
@@ -174,6 +214,7 @@ function openSheet(name, arg = null, push = true) {
 }
 function closeSheet() {
   if (ui.dict) stopDictation();
+  if (ui.sheet === 'country' && firstRun()) { openSheet('welcome'); return; } // the picker is only the first step
   if (ui.sheet === 'welcome') { data.onboarded = true; persist(); }
   ui.sheet = null; ui.stack = []; $('#sheet').hidden = true; view.select(null);
   document.querySelectorAll('#nav button').forEach(b => b.classList.remove('on'));
@@ -181,7 +222,7 @@ function closeSheet() {
 }
 function back() { const p = ui.stack.pop(); if (p) openSheet(p[0], p[1], false); else closeSheet(); }
 function renderSheet() {
-  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, settings: sSettings, units: sUnits, division: sDivision, share: sShare }[ui.sheet];
+  const R = { fronts: sFronts, front: sFront, history: sHistory, report: sReport, edit: sEdit, province: sProvince, overview: sOverview, welcome: sWelcome, country: sCountry, settings: sSettings, units: sUnits, division: sDivision, share: sShare }[ui.sheet];
   if (!R) return;
   const [title, html, tall] = R();
   $('#sheet-title').textContent = title; $('#sheet-body').innerHTML = html; $('#sheet').classList.toggle('tall', !!tall);
@@ -197,16 +238,16 @@ function frontBar(fr) {
 }
 function frontCard(f) {
   const fr = st.fronts[f.id], s = statusOf(fr.pos), L = labels(); const off = data.off.includes(f.id);
-  return `<button class="front" data-act="open" data-sheet="front" data-arg="${f.id}" style="--c:${FRONT_COLORS[f.id]}">
+  return `<button class="front" data-act="open" data-sheet="front" data-arg="${f.id}" style="--c:${fcol(f.id)}">
     <div class="hd"><i class="dotc"></i><span class="lab">${esc(L[f.id])}</span><span class="st ${off ? 'neutral' : s.tone}">${off ? 'Paused' : s.text}</span></div>${frontBar(fr)}</button>`;
 }
 function sFronts() {
   const order = map.fronts.slice().sort((a, b) => data.off.includes(a.id) - data.off.includes(b.id) || st.fronts[b.id].pos - st.fronts[a.id].pos);
-  return ['Fronts', `<div class="rows">${order.map(frontCard).join('')}</div><p class="faint small" style="margin-top:14px">Red: the enemy is inside Iran. Green: you are pushing out.</p>`, true];
+  return ['Fronts', `<div class="rows">${order.map(frontCard).join('')}</div><p class="faint small" style="margin-top:14px">Red: the enemy is inside ${esc(F().name)}. Green: you are pushing out.</p>`, true];
 }
 function evRow(i, ts) {
   const L = labels();
-  return `<div class="ev ${i.outcome}" style="--c:${FRONT_COLORS[i.front]}">${I(actIcon(i.action))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label)}${i.unit ? ` · ${esc(i.unit.replace(/ (Division|Brigade).*$/, ''))}` : ''}${i.reason ? ` (${esc(i.reason)})` : ''}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
+  return `<div class="ev ${i.outcome}" style="--c:${fcol(i.front)}">${I(actIcon(i.action))}<div><div class="h">${esc(i.headline)}</div><div class="m"><b>${esc(L[i.front])}</b> · ${esc(i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label)}${i.unit ? ` · ${esc(i.unit.replace(/ (Division|Brigade).*$/, ''))}` : ''}${i.reason ? ` (${esc(i.reason)})` : ''}${i.at != null ? ` at ${esc(map.provinces[i.at].n)}` : ''}${ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : ''}</div></div></div>`;
 }
 const unitGrid = list => `<div class="units">${list.map(d => `<button class="unit" data-act="open" data-sheet="division" data-arg="${d.id}" aria-label="${esc(d.name)}"><img src="${divIcon(d)}" alt=""><span>${esc(d.home)}</span></button>`).join('')}</div>`;
 function sFront() {
@@ -214,8 +255,8 @@ function sFront() {
   const divs = st.divisions.filter(d => d.front === f.id); const obj = objective(map, st, f.id);
   const disp = st.log.slice().reverse().flatMap(l => l.items.filter(i => i.front === f.id).map(i => [i, l.ts])).slice(0, 5); const note = off ? null : frontNote(map, st, f.id);
   return [L[f.id], `
-    <div class="front" style="--c:${FRONT_COLORS[f.id]};padding:0"><div class="hd"><span class="nm">${esc(f.name)}</span><span class="st ${off ? 'neutral' : s.tone}">${off ? 'Paused' : s.text}</span></div>
-    ${frontBar(fr)}<div class="fends"><span>Tehran</span><span>${esc(f.satrapy)}</span></div></div>
+    <div class="front" style="--c:${fcol(f.id)};padding:0"><div class="hd"><span class="nm">${esc(f.name)}</span><span class="st ${off ? 'neutral' : s.tone}">${off ? 'Paused' : s.text}</span></div>
+    ${frontBar(fr)}<div class="fends"><span>${esc(F().capital)}</span><span>${esc(f.satrapy)}</span></div></div>
     ${note ? `<p class="small ${note.tone}" style="margin:12px 0 0">${esc(note.text)}</p>` : ''}
     <div class="rows" style="margin-top:14px">${row({ icon: 'target', t: esc(obj.text), d: 'Next objective', act: 'flyfront', attrs: `data-id="${f.id}"`, end: I('chev', 's') })}</div>
     <div class="btns"><button class="btn win" data-act="quick" data-id="${f.id}" data-o="win" ${off ? 'disabled' : ''}>${I('arrowR', 's')}Win</button><button class="btn loss" data-act="quick" data-id="${f.id}" data-o="loss" ${off ? 'disabled' : ''}>${I('arrowL', 's')}Loss</button></div>
@@ -228,7 +269,7 @@ function sUnits() {
   if (ui.arg === 'air') return ['Air force', `<div class="rows">${st.wings.map(w => urow('air', '#4a5f8a', (w.planes / w.max) * 100, w.name, `${w.model} · ${w.base} · ${Math.round(w.planes)} aircraft`)).join('')}</div>`, true];
   if (ui.arg === 'navy') return ['Navy', st.fleets.map(fl => `<h3>${esc(fl.name)}</h3><div class="rows">${fl.ships.map(s => urow('ship', '#28587a', s.hp, s.name, s.cls)).join('')}</div>`).join(''), true];
   const list = st.divisions.filter(d => (ui.arg === 'guard' ? !d.front : d.front === ui.arg));
-  return [ui.arg === 'guard' ? 'Tehran garrison' : `${L[ui.arg]} · divisions`, `<div class="rows">${list.map(d => row({ lead: `<img class="tok" src="${divIcon(d)}" alt="">`, t: esc(d.name), d: `${UNIT_TYPES[d.type].name} · ${rankOf(d.xp)}`, end: I('chev', 's'), act: 'open', attrs: `data-sheet="division" data-arg="${d.id}"` })).join('')}</div>`, true];
+  return [ui.arg === 'guard' ? `${F().capital} garrison` : `${L[ui.arg]} · divisions`, `<div class="rows">${list.map(d => row({ lead: `<img class="tok" src="${divIcon(d)}" alt="">`, t: esc(d.name), d: `${UNIT_TYPES[d.type].name} · ${rankOf(d.xp)}`, end: I('chev', 's'), act: 'open', attrs: `data-sheet="division" data-arg="${d.id}"` })).join('')}</div>`, true];
 }
 function sDivision() {
   const d = st.divisions.find(x => x.id === ui.arg); const L = labels();
@@ -237,7 +278,7 @@ function sDivision() {
   const state = refit ? ['Pulled out of the line to refit', 'warn'] : d.led && st.now - d.led < 3 * DAY ? ['In action in the last few days', 'gold'] : [f ? `In the line on the ${f.name}` : 'Guarding the capital', 'dim'];
   return [shortName(d), `
     <div class="dhead"><img src="${divIcon(d)}" alt=""><div><b>${esc(d.name)}</b>${d.nick ? `<span class="gold">“${esc(d.nick)}”</span>` : ''}<span>${esc(d.co)} · raised at ${esc(d.home)}</span><span class="${state[1]}">${state[0]}</span></div></div>
-    <div class="grid">${kpi('Strength', Math.round(d.str) + '%', d.str < 30 ? 'bad' : d.str < 66 ? 'warn' : '')}${kpi('Organisation', Math.round(d.org) + '%')}${kpi('Experience', rankOf(d.xp))}${kpi('Led to victory', d.w, d.w ? 'good' : '')}${kpi('Took the blow', d.l, d.l ? 'bad' : '')}${f ? kpi('Front', `<span style="color:${FRONT_COLORS[f.id]}">${esc(L[f.id])}</span>`) : kpi('Station', 'Tehran')}</div>
+    <div class="grid">${kpi('Strength', Math.round(d.str) + '%', d.str < 30 ? 'bad' : d.str < 66 ? 'warn' : '')}${kpi('Organisation', Math.round(d.org) + '%')}${kpi('Experience', rankOf(d.xp))}${kpi('Led to victory', d.w, d.w ? 'good' : '')}${kpi('Took the blow', d.l, d.l ? 'bad' : '')}${f ? kpi('Front', `<span style="color:${fcol(f.id)}">${esc(L[f.id])}</span>`) : kpi('Station', esc(F().capital))}</div>
     <h3>Battle honours</h3>${d.honours.length ? d.honours.slice().reverse().map(h => `<div class="ev ${h.win ? 'win' : 'loss'}">${I(h.win ? 'medal' : 'arrowL')}<div><div class="h">${esc(h.text)}</div><div class="m">${esc(h.headline || '')} · ${fmtDate(h.t, { day: 'numeric', month: 'short' })}</div></div></div>`).join('') : '<p class="faint small">None yet. Honours are earned in significant engagements this division leads.</p>'}
     ${f ? `<div class="btns"><button class="btn sm" data-act="flyfront" data-id="${f.id}">${I('locate', 's')}Show on the map</button></div>` : ''}`, true];
 }
@@ -290,12 +331,12 @@ function sReport() {
       <button class="mic ${ui.dict ? (ui.dict.state === 'transcribing' ? 'busy' : 'live') : ''}" data-act="mic" aria-label="Dictate">${I('mic')}</button></div>
     <div class="btns"><button class="btn primary" data-act="send" ${r.busy ? 'disabled' : ''}>${r.busy ? 'Working…' : 'Send'}</button></div>
     ${r.pick ? '' : `<h3>Orders of the day</h3>${ordersHTML()}`}
-    ${r.pick ? `<p class="small warn" style="margin:14px 0 8px">Not sure where that belongs. Pick a front:</p><div class="pick">${activeFronts().map(f => `<div class="pk" style="--c:${FRONT_COLORS[f.id]}"><span><i class="dotc"></i>${esc(L[f.id])}</span><button class="btn sm win" data-act="quick" data-id="${f.id}" data-o="win">Win</button><button class="btn sm loss" data-act="quick" data-id="${f.id}" data-o="loss">Loss</button></div>`).join('')}</div>` : ''}`, true];
+    ${r.pick ? `<p class="small warn" style="margin:14px 0 8px">Not sure where that belongs. Pick a front:</p><div class="pick">${activeFronts().map(f => `<div class="pk" style="--c:${fcol(f.id)}"><span><i class="dotc"></i>${esc(L[f.id])}</span><button class="btn sm win" data-act="quick" data-id="${f.id}" data-o="win">Win</button><button class="btn sm loss" data-act="quick" data-id="${f.id}" data-o="loss">Loss</button></div>`).join('')}</div>` : ''}`, true];
 }
 function sEdit() {
   const res = ui.edit; const L = labels();
   const opt = (list, cur) => list.map(a => `<option value="${a}" ${a === cur ? 'selected' : ''}>${ACTIONS[a].label} — ${esc(ACTIONS[a].means)}</option>`).join('');
-  return ['Edit', `${res.items.map((it, i) => `<div class="item" style="--c:${FRONT_COLORS[it.front]}">
+  return ['Edit', `${res.items.map((it, i) => `<div class="item" style="--c:${fcol(it.front)}">
       <div class="top"><select data-bind="item.front" data-i="${i}">${map.fronts.map(f => `<option value="${f.id}" ${f.id === it.front ? 'selected' : ''}>${esc(L[f.id])}</option>`).join('')}</select><button data-act="rmitem" data-i="${i}" aria-label="Remove">${I('x', 's')}</button></div>
       <input class="hl" type="text" data-bind="item.headline" data-i="${i}" value="${esc(it.headline)}" placeholder="What happened">
       <div class="ctl"><div class="seg">${[['win', 'Win'], ['loss', 'Loss']].map(([o, n]) => `<button class="${it.outcome === o ? 'on ' + o : ''}" data-act="outcome" data-i="${i}" data-o="${o}">${n}</button>`).join('')}</div>
@@ -313,16 +354,16 @@ function autoAssess() {
 const ordersHTML = () => `<div class="orders">${(live.orders || []).map(o => `<div class="ord ${o.done ? 'done' : ''}">${I(o.done ? 'check' : 'target', 's')}<span>${esc(orderText(o, labels(), map))}</span><b>+${o.reward}</b></div>`).join('')}</div>`;
 function sOverview() {
   const n = st.nation; const L = labels(); const a = ui.assess; const c = st.commander;
-  const earned = Object.keys(live.ach).map(medalOf).filter(Boolean); const next = (medalProgress(live) || [])[0];
+  const earned = Object.keys(live.ach).map(id => medalOf(id, map)).filter(Boolean); const alt = altDate(st.now); const next = (medalProgress(live) || [])[0];
   const total = Math.round(map.fronts.reduce((s, f) => s + Math.max(0, -st.fronts[f.id].pos), 0) / map.fronts.length);
   return [n.name, `
-    <p class="dim small">${fmtDate(st.now, { weekday: 'long', day: 'numeric', month: 'long' })} · ${persian(st.now)}</p>
+    <p class="dim small">${fmtDate(st.now, { weekday: 'long', day: 'numeric', month: 'long' })} ${alt ? ` · ${esc(alt)}` : ''}</p>
     <div class="rank"><div class="rk"><b>${esc(c.title)}</b><span>${esc(c.gloss)}</span><em class="num">${c.xp.toLocaleString()} XP</em></div>
       <div class="meter"><i style="width:${Math.round(c.progress * 100)}%;background:var(--accent)"></i></div>
       ${c.next ? `<div class="fends"><span>${(c.nextAt - c.xp).toLocaleString()} XP to ${esc(c.next.title)}</span><span>${esc(c.next.gloss)}</span></div>` : ''}</div>
     <div class="grid">${kpi('Stability', n.stability + '%', n.stability >= 60 ? 'good' : n.stability < 35 ? 'bad' : '')}${kpi('Day streak', st.dayStreak, st.dayStreak ? 'gold' : '')}${kpi('Empire', total + '%')}</div>
     <h3>Orders of the day</h3>${ordersHTML()}
-    ${a ? `<h3>Chief of staff</h3><p class="quote">${esc(a.assessment)}</p>${a.orders.map(o => `<div class="ev" style="--c:${FRONT_COLORS[o.front]}">${I('target')}<div><div class="h">${esc(o.order)}</div><div class="m"><b>${esc(L[o.front])}</b></div></div></div>`).join('')}` : ''}
+    ${a ? `<h3>Chief of staff</h3><p class="quote">${esc(a.assessment)}</p>${a.orders.map(o => `<div class="ev" style="--c:${fcol(o.front)}">${I('target')}<div><div class="h">${esc(o.order)}</div><div class="m"><b>${esc(L[o.front])}</b></div></div></div>`).join('')}` : ''}
     <h3>Decorations · ${earned.length}</h3>
     ${earned.length || st.satrapies.length ? `<div class="tags">${earned.map(md => `<span class="tag gold" title="${esc(md.desc)}">${I('medal', 's')}${esc(md.name)}</span>`).join('')}${st.satrapies.map(x => `<span class="tag" title="${esc(x.region)}">${esc(x.name)}</span>`).join('')}</div>` : ''}
     ${next ? `<div class="nextmedal"><span>Next: <b>${esc(next.name)}</b> · ${esc(next.desc)}</span><div class="meter"><i style="width:${Math.round(next.pct * 100)}%"></i></div></div>` : ''}
@@ -332,23 +373,23 @@ function sOverview() {
 // ---------- share cards ----------
 function mapShot() {
   const c = document.createElement('canvas'); c.width = view.base.width; c.height = view.base.height; const x = c.getContext('2d'); x.drawImage(view.base, 0, 0); x.drawImage(view.over, 0, 0);
-  const t = map.provinces[map.tehran].city; const [sx, sy] = view.toScreen(t[0], t[1] + 260);
+  const t = map.provinces[capitalOf(map)].city; const [sx, sy] = view.toScreen(t[0], t[1] + 260);
   return { canvas: c, focus: [Math.max(0.2, Math.min(0.8, sx / view.w)), Math.max(0.2, Math.min(0.8, sy / view.h))] };
 }
 function latestEntry() { return live.log.filter(l => !l.kind).at(-1) || null; }
 function cardData(kind) {
   const L = labels(); const e = latestEntry(); const m = e ? momentOf(e) : null; const shot = mapShot(); const c = live.commander;
   const main = e?.items.slice().sort((a, b) => b.severity - a.severity)[0];
-  const fronts = activeFronts().map(f => ({ label: L[f.id], status: statusOf(live.fronts[f.id].pos).text, pos: live.fronts[f.id].pos, color: FRONT_COLORS[f.id] }));
-  const nation = live.empire ? live.nation.name : 'Iran';
+  const fronts = activeFronts().map(f => ({ label: L[f.id], status: statusOf(live.fronts[f.id].pos).text, pos: live.fronts[f.id].pos, color: fcol(f.id) }));
+  const nation = live.empire ? live.nation.name : F().name;
   const fresh = e && live.now - e.ts < 3 * DAY;
   const headline = fresh ? (m.kind === 'normal' || m.kind === 'levelup' || m.kind === 'medal' ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front';
   const tone = fresh ? (m.kind === 'normal' ? (main?.outcome === 'loss' ? 'bad' : 'good') : m.tone) : 'gold';
   if (kind === 'bulletin') return renderBulletin({ map: shot.canvas, focus: shot.focus, nation, date: live.now, headline, sub: fresh && main ? `${L[main.front]} · ${main.battle || ACTIONS[main.action].label}` : `${live.nation.stability}% stability`, tone, stability: live.nation.stability, streak: live.dayStreak, rank: c.title, fronts });
-  if (kind === 'frontpage') return renderFrontPage({ map: shot.canvas, date: live.now, persianDate: true, tone, headline: e ? (['levelup', 'medal', 'order_done', 'streak', 'normal'].includes(m.kind) ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front', deck: e?.summary || '',
+  if (kind === 'frontpage') return renderFrontPage({ map: shot.canvas, date: live.now, persianDate: altDate(live.now), masthead: F().masthead, city: F().capital, nation, tone, headline: e ? (['levelup', 'medal', 'order_done', 'streak', 'normal'].includes(m.kind) ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front', deck: e?.summary || '',
     body: e ? [e.items.map(i => `**${L[i.front]}.** ${i.headline}.`).join(' '), e.fx.filter(x => x.tone).map(x => x.text).slice(0, 5).join('. ') + '.', sitrep(map, live, L).split('\n').slice(-1)[0]].filter(t => t.length > 3) : ['The borders are quiet.'],
     sidebar: fronts.map(f => `${f.label}: ${f.status.toLowerCase()}`) });
-  if (kind === 'recap') { const r = weeklyRecap(map, live, L); const col = Object.fromEntries(map.fronts.map(f => [f.id, FRONT_COLORS[f.id]]));
+  if (kind === 'recap') { const r = weeklyRecap(map, live, L); const col = Object.fromEntries(map.fronts.map(f => [f.id, fcol(f.id)]));
     return renderRecap({ ...r, perFront: r.perFront.filter(f => !f.paused).map(f => ({ ...f, color: col[f.id] })), rankProgress: c.progress, mvp: r.mvp ? { ...r.mvp, iconPath: UNIT_PATHS[r.mvp.type] } : null }); }
   return renderRankUp({ kind: 'rank', title: c.title, gloss: c.gloss, sub: c.promotedAt ? `Promoted on ${fmtDate(c.promotedAt, { day: 'numeric', month: 'long', year: 'numeric' })}` : `${c.xp.toLocaleString()} XP`, streak: live.dayStreak, nation });
 }
@@ -363,7 +404,9 @@ function sSettings() {
   const s = data.settings; const L = labels();
   return ['Settings', `
     <h3>Your fronts</h3>
-    ${map.fronts.map(f => `<div class="frow" style="--c:${FRONT_COLORS[f.id]}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"><button class="switch ${data.off.includes(f.id) ? '' : 'on'}" data-act="togglefront" data-id="${f.id}" aria-label="Active"></button></div>`).join('')}
+    ${map.fronts.map(f => `<div class="frow" style="--c:${fcol(f.id)}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"><button class="switch ${data.off.includes(f.id) ? '' : 'on'}" data-act="togglefront" data-id="${f.id}" aria-label="Active"></button></div>`).join('')}
+    <h3>Country</h3>
+    <div class="rows">${row({ lead: flagSVG(F().flag, 'lead'), t: esc(F().name), d: scenarios.length > 1 ? 'Change country. Each one keeps its own campaign.' : esc(F().long), ...(scenarios.length > 1 ? { act: 'open', attrs: 'data-sheet="country"', end: I('chev', 's') } : {}) })}</div>
     <h3>Staff</h3>
     <div class="rows">${row({ icon: cfg.judge ? 'check' : 'info', t: cfg.judge ? `Judged by ${esc(cfg.judge)}` : 'Offline keyword judge', d: cfg.judge ? (cfg.transcribe ? `Voice transcribed by ${esc(cfg.transcribe)}` : 'Voice: keyboard dictation') : cfg.server ? 'Set OPENAI_API_KEY or OPENAI_BASE_URL in .env on the server' : 'Run the server to use an AI judge' })}</div>
     <h3>Feel</h3>
@@ -378,21 +421,27 @@ function sSettings() {
 function sProvince() {
   const p = map.provinces[ui.arg]; const meta = mapMeta(map); const c = map.countries[p.t]; const t = st.terr;
   const occ = t.occ.get(p.id), lib = t.lib.get(p.id);
-  const ctl = p.t === 'IRN' ? (occ ? front(occ).enemyName : 'Iran') : lib ? 'Iran' : c.name;
+  const us = F().name;
+  const ctl = p.t === F().home ? (occ ? front(occ).enemyName : us) : lib ? us : c.name;
   const kinds = { port: ['Port', 'anchor'], naval: ['Naval base', 'anchor'], airbase: ['Airbase', 'plane'], hub: ['Supply hub', 'box'], refinery: ['Oil refinery', 'factory'], fort: ['Fortress', 'fort'] };
   const bl = meta.buildings.filter(b => b.prov === p.id);
   const here = activeFronts().filter(f => st.lines[f.id].ours.includes(p.id) || st.lines[f.id].theirs.includes(p.id));
   return [p.n, `<p class="dim small">${esc(meta.stateName(p.s))} · ${esc(c.name)} · held by <span class="${occ ? 'bad' : lib ? 'good' : ''}">${esc(ctl)}</span></p>
     ${bl.length ? `<div class="rows">${bl.map(b => row({ icon: kinds[b.kind][1], t: kinds[b.kind][0], end: st.bld[b.id].dmg > 0.05 ? `<span class="bad num">${Math.round(st.bld[b.id].dmg * 100)}% damaged</span>` : '' })).join('')}</div>` : ''}
-    ${p.id === map.tehran ? `<div class="rows">${row({ icon: 'shield', t: 'Tehran garrison', act: 'open', attrs: 'data-sheet="units" data-arg="guard"', end: I('chev', 's') })}</div>` : ''}
+    ${p.id === capitalOf(map) ? `<div class="rows">${row({ icon: 'shield', t: `${esc(F().capital)} garrison`, act: 'open', attrs: 'data-sheet="units" data-arg="guard"', end: I('chev', 's') })}</div>` : ''}
     ${here.length ? `<div class="rows">${here.map(frontCard).join('')}</div>` : ''}`];
+}
+// The country picker: the first step of a first run, and "Change country" in Settings.
+function sCountry() {
+  return [firstRun() ? 'Choose your country' : 'Country', `<p class="dim">${firstRun() ? 'Seven borders, seven parts of your life. Pick the country whose map you want to fight on; you can change it later.' : 'Each country keeps its own campaign. Nothing is lost by switching.'}</p>
+    <div class="rows countries">${scenarios.map(c => row({ lead: flagSVG(c.flag, 'lead'), t: `${esc(c.name)}${c.id === data.scenario && !firstRun() ? ' <span class="faint small">· playing</span>' : ''}`, d: `${c.empire ? `<span class="gold">${esc(c.empire)}</span>` : ''}${c.blurb ? `<span>${esc(c.blurb)}</span>` : ''}`, act: 'country', attrs: `data-id="${esc(c.id)}"`, end: I('chev', 's') })).join('')}</div>`, true];
 }
 function sWelcome() {
   const L = labels(); const cur = PRESETS.find(p => p.id === ui.preset);
-  return ['Your fronts', `<p class="dim">Each border of Iran is one part of your life. Pick a starting point, rename anything, then tell the staff what happened each day.</p>
+  return ['Your fronts', `<p class="dim">Each border of ${esc(F().name)} is one part of your life. Pick a starting point, rename anything, then tell the staff what happened each day.</p>
     <div class="chips">${PRESETS.map(p => `<button class="chip ${ui.preset === p.id ? 'on' : ''}" data-act="preset" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div>
     ${cur ? `<p class="faint small">${esc(cur.blurb)}</p>` : ''}
-    ${map.fronts.map(f => `<div class="frow" style="--c:${FRONT_COLORS[f.id]}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"></div>`).join('')}
+    ${map.fronts.map(f => `<div class="frow" style="--c:${fcol(f.id)}"><i class="dotc"></i><input type="text" maxlength="28" data-bind="label" data-id="${f.id}" value="${esc(L[f.id])}" aria-label="${esc(f.name)}"></div>`).join('')}
     ${cur ? `<p class="faint small">Try saying: “${esc(cur.examples[0])}”</p>` : ''}
     <div class="btns"><button class="btn primary" data-act="close">Begin</button></div>`, true];
 }
@@ -400,7 +449,7 @@ function sWelcome() {
 // ---------- actions ----------
 function onMapTap(d) {
   $('#modes').hidden = true;
-  if (['report', 'welcome', 'settings', 'edit'].includes(ui.sheet)) return;
+  if (['report', 'welcome', 'country', 'settings', 'edit'].includes(ui.sheet)) return;
   if (d.kind === 'province') { view.select(d.id); openSheet('province', d.id); }
   else if (d.kind === 'front') openSheet('front', d.id);
   else if (d.kind === 'division') openSheet('division', d.id);
@@ -470,8 +519,8 @@ export function commitReports(reps, { quiet = false, warning = '' } = {}) {
     setTimeout(() => view.flyToFront(main.front), 250);
   }
   // rank, decorations and orders get their own beat a few seconds later
-  const later = promoted ? { title: `Promoted to ${promoted.title}`, sub: promoted.gloss, kind: 'levelup' } : medalIds.length ? { title: medalOf(medalIds[0])?.name || 'Decoration awarded', sub: medalOf(medalIds[0])?.desc || '', kind: 'medal' }
-    : before.nation.name !== live.nation.name ? { title: `Long live the ${live.nation.name}`, sub: 'Every satrapy is restored', kind: 'empire' } : entries.some(e => e.allOrders) ? { title: 'All orders carried out', sub: 'Three of three today', kind: 'order_done' } : null;
+  const later = promoted ? { title: `Promoted to ${promoted.title}`, sub: promoted.gloss, kind: 'levelup' } : medalIds.length ? { title: medalOf(medalIds[0], map)?.name || 'Decoration awarded', sub: medalOf(medalIds[0], map)?.desc || '', kind: 'medal' }
+    : before.nation.name !== live.nation.name ? { title: `Long live the ${live.nation.name}`, sub: `Every ${F().regionWord.toLowerCase()} is restored`, kind: 'empire' } : entries.some(e => e.allOrders) ? { title: 'All orders carried out', sub: 'Three of three today', kind: 'order_done' } : null;
   if (later) setTimeout(() => { banner(later.title, later.sub, 'gold'); fx.celebrate({ tone: 'gold', magnitude: later.kind === 'empire' ? 5 : 4, kind: later.kind, at: null }); }, 4300);
   if (live.dayStreak > before.dayStreak) setTimeout(() => { fx.pulse($('#stats .hot')); if (!later) fx.sound('streak'); }, 900);
   const tally = [wins ? `${wins} win${wins > 1 ? 's' : ''}` : '', losses ? `${losses} loss${losses > 1 ? 'es' : ''}` : ''].filter(Boolean).join(', ') || 'noted';
@@ -486,7 +535,8 @@ function onClick(e) {
     case 'open': if (ui.sheet === b.dataset.sheet && !b.dataset.arg && b.closest('#nav')) closeSheet(); else openSheet(b.dataset.sheet, b.dataset.arg || null); break;
     case 'close': closeSheet(); break;
     case 'back': back(); break;
-    case 'emblem': if (++ui.emblem % 7 === 0) toast('adam Kūruš, xšāyaθiya — “I am Cyrus, the king.”', 5000); else openSheet('overview'); break;
+    case 'emblem': if (++ui.emblem % 7 === 0) toast(F().motto, 5000); else openSheet('overview'); break;
+    case 'country': chooseCountry(b.dataset.id).then(ok => { if (!ok) return; if (firstRun()) openSheet('welcome'); else { back(); view.home(false); toast(`Now playing ${F().name}.`); } }); break;
     case 'go': { const [s, arg] = b.dataset.go.split(':'); openSheet(s, arg || null); if (s === 'front') view.flyToFront(arg); break; }
     case 'modes': renderModes(); $('#modes').hidden = !$('#modes').hidden; break;
     case 'mode': setMode(b.dataset.mode); break;
@@ -510,7 +560,7 @@ function onClick(e) {
     case 'replay-exit': exitReplay(); break;
     case 'sharemap': shareMap(); break;
     case 'sharecard': { const c = cardCache[b.dataset.kind]; if (c) shareCanvas(c, { filename: `artesh-${b.dataset.kind}.png`, text: sitrep(map, live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved. Report copied.'); }); break; }
-    case 'preset': { const p = PRESETS.find(x => x.id === b.dataset.id); if (p) { const a = applyPreset(p); data.labels = a.labels; data.notes = a.notes; data.off = a.off; ui.preset = p.id; persist(); refresh(); renderSheet(); } break; }
+    case 'preset': { const p = PRESETS.find(x => x.id === b.dataset.id); if (p) { const a = applyPreset(p, map); data.labels = a.labels; data.notes = a.notes; data.off = a.off; ui.preset = p.id; persist(); refresh(); renderSheet(); } break; }
     case 'togglefx': { const k = b.dataset.k; data.settings[k] = data.settings[k] === false; persist(); fx.configure({ sound: data.settings.sound !== false, motion: data.settings.motion !== false }); if (k === 'sound' && data.settings.sound !== false) fx.sound('order'); renderSheet(); break; }
     case 'togglefront': { const id = b.dataset.id; if (data.off.includes(id)) data.off = data.off.filter(x => x !== id); else if (activeFronts().length > 1) data.off.push(id); else { toast('Keep at least one front.'); break; } persist(); refresh(); renderSheet(); break; }
     case 'export': { const blob = new Blob([store.exportData(data)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); break; }
@@ -522,7 +572,7 @@ function onClick(e) {
 }
 function onInput(e) {
   const el = e.target; const bind = el.dataset?.bind;
-  if (el.id === 'importfile') { const file = el.files[0]; if (!file) return; file.text().then(t => { data = store.importData(t); persist(); refresh(); toast(`Imported ${data.reports.length} entries.`); }).catch(err => toast(err.message)); el.value = ''; return; }
+  if (el.id === 'importfile') { const file = el.files[0]; if (!file) return; file.text().then(async t => { data = store.importData(t); await followScenario(); persist(); refresh(); toast(`Imported ${data.reports.length} entries.`); }).catch(err => toast(err.message)); el.value = ''; return; }
   if (!bind) return;
   if (bind === 'replay') { clearInterval(ui.playing); ui.playing = null; const a = firstTs(), b = Date.now(); ui.asOf = Math.min(b - 1, a + (Number(el.value) / 1000) * (b - a)); refresh(); }
   else if (bind === 'report.text') { ui.report.text = el.value; const h = $('#micnote'); if (h && !ui.dict) h.textContent = ''; }
@@ -547,17 +597,19 @@ function demoNote() {
   n.querySelector('button').addEventListener('click', e => { e.stopPropagation(); n.remove(); try { sessionStorage.setItem('artesh.demo-note', '1'); } catch { /* fine */ } });
   $('#app').append(n);
 }
+// A campaign in progress for the demo. Fronts are named by slot (0–6), so it plays on whichever map is loaded.
 function demoReports() {
-  const now = Date.now(); const R = (daysAgo, text, summary, items) => ({ id: 'demo' + daysAgo + items.length, ts: now - daysAgo * DAY, text, summary, source: 'demo', items: items.map(([front, outcome, severity, action, headline]) => ({ front, outcome, severity, action, headline })) });
+  const ids = map.fronts.map(f => f.id);
+  const now = Date.now(); const R = (daysAgo, text, summary, items) => ({ id: 'demo' + daysAgo + items.length, ts: now - daysAgo * DAY, text, summary, source: 'demo', items: items.map(([slot, outcome, severity, action, headline]) => ({ front: ids[slot % ids.length], outcome, severity, action, headline })) });
   return [
-    R(11, 'Finished the landing page and signed our first pilot customer.', 'Our columns cross the Zagros passes and take ground beyond the frontier.', [['irq', 'win', 4, 'breakthrough', 'First pilot customer signed']]),
-    R(9, 'Gym three days in a row, sleep is finally on a schedule.', 'Engineers lay the foundations for a long campaign.', [['raj', 'win', 3, 'infrastructure', 'Three straight gym days'], ['glf', 'win', 2, 'fortify', 'Sleep schedule holding']]),
-    R(7, 'Bombed the calculus midterm. Did not study enough.', 'The enemy breaks the line east of Birjand.', [['afg', 'loss', 4, 'enemy_breakthrough', 'Calculus midterm failed']]),
-    R(6, 'Great dinner with the family, long talk with dad.', 'The Aras is crossed.', [['cau', 'win', 3, 'offensive', 'Long talk with dad']]),
-    R(4, 'Fight with my girlfriend. Also slept 4 hours.', 'Enemy aircraft catch our columns in the open; supply dumps burn.', [['tks', 'loss', 4, 'enemy_cas', 'Fight with girlfriend'], ['glf', 'loss', 3, 'supply_hub_bombed', 'Four hours of sleep']]),
-    R(3, 'Still behind in school, missed two assignments.', 'The retreat continues.', [['afg', 'loss', 3, 'enemy_offensive', 'Two assignments missed']]),
-    R(2, 'Made up with her, went for a long walk. Friends came over.', 'The line is restored.', [['tks', 'win', 3, 'encirclement', 'Made up after the fight'], ['tur', 'win', 2, 'offensive', 'Good night with friends']]),
-    R(0.4, 'Shipped the new onboarding flow and two investors replied. Skipped the gym.', 'A second breakthrough in the west.', [['irq', 'win', 4, 'breakthrough', 'Onboarding shipped, investors replied'], ['raj', 'loss', 1, 'attrition', 'Skipped the gym']]),
+    R(11, 'Finished the landing page and signed our first pilot customer.', 'Our columns cross the frontier and take ground beyond it.', [[3, 'win', 4, 'breakthrough', 'First pilot customer signed']]),
+    R(9, 'Gym three days in a row, sleep is finally on a schedule.', 'Engineers lay the foundations for a long campaign.', [[4, 'win', 3, 'infrastructure', 'Three straight gym days'], [6, 'win', 2, 'fortify', 'Sleep schedule holding']]),
+    R(7, 'Bombed the calculus midterm. Did not study enough.', 'The enemy breaks the line and pours through.', [[0, 'loss', 4, 'enemy_breakthrough', 'Calculus midterm failed']]),
+    R(6, 'Great dinner with the family, long talk with dad.', 'The border is crossed.', [[1, 'win', 3, 'offensive', 'Long talk with dad']]),
+    R(4, 'Fight with my girlfriend. Also slept 4 hours.', 'Enemy aircraft catch our columns in the open; supply dumps burn.', [[2, 'loss', 4, 'enemy_cas', 'Fight with girlfriend'], [6, 'loss', 3, 'supply_hub_bombed', 'Four hours of sleep']]),
+    R(3, 'Still behind in school, missed two assignments.', 'The retreat continues.', [[0, 'loss', 3, 'enemy_offensive', 'Two assignments missed']]),
+    R(2, 'Made up with her, went for a long walk. Friends came over.', 'The line is restored.', [[2, 'win', 3, 'encirclement', 'Made up after the fight'], [5, 'win', 2, 'offensive', 'Good night with friends']]),
+    R(0.4, 'Shipped the new onboarding flow and two investors replied. Skipped the gym.', 'A second breakthrough.', [[3, 'win', 4, 'breakthrough', 'Onboarding shipped, investors replied'], [4, 'loss', 1, 'attrition', 'Skipped the gym']]),
   ];
 }
 boot().catch(err => { document.body.insertAdjacentHTML('beforeend', `<pre style="position:fixed;inset:auto 0 0 0;z-index:99;background:#400;color:#fff;padding:12px;white-space:pre-wrap">${esc(err.stack || err)}</pre>`); });

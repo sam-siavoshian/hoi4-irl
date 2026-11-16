@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { simulate, territory, statusOf, sitrep, ACTIONS, DAY, enemyForce, objective, frontCaps, frontNote, weatherOf, mapMeta, shortName } from '../js/engine.js';
 
-const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
+const map = JSON.parse(fs.readFileSync(new URL('../data/maps/iran.json', import.meta.url)));
 const T0 = Date.UTC(2026, 10, 1);
 const rep = (i, items, dt = i) => ({ id: 'r' + i, ts: T0 + dt * DAY, text: 't', items });
 const it = (front, outcome, severity, action) => ({ front, outcome, severity, action, headline: 'h' });
@@ -136,7 +136,7 @@ test('new events, operations, nicknames, weather and quiet fronts', () => {
   assert.ok(bad.log[2].fx.some(x => /The enemy opens Operation/.test(x.text)));
   const vets = simulate(map, Array.from({ length: 30 }, (_, i) => rep(i, [it('cau', 'win', 3, 'offensive')])), T0 + 31 * DAY);
   assert.ok(vets.divisions.some(d => d.nick)); assert.ok(vets.log.some(l => l.fx.some(x => /earns the name/.test(x.text))));
-  assert.equal(weatherOf('cau', Date.UTC(2026, 0, 10)).kind, 'snow'); assert.equal(weatherOf('glf', Date.UTC(2026, 6, 10)).kind, 'heat'); assert.equal(weatherOf('irq', Date.UTC(2026, 0, 10)), null);
+  assert.equal(weatherOf(map, 'cau', Date.UTC(2026, 0, 10)).kind, 'snow'); assert.equal(weatherOf(map, 'glf', Date.UTC(2026, 6, 10)).kind, 'heat'); assert.equal(weatherOf(map, 'irq', Date.UTC(2026, 0, 10)), null);
   const one = t => simulate(map, [{ id: 'w', ts: t, items: [it('cau', 'win', 4, 'offensive')] }], t + 1000).fronts.cau.pos;
   assert.ok(one(Date.UTC(2027, 0, 10)) > one(Date.UTC(2027, 4, 10)), 'snow slows the advance');
   const quiet = simulate(map, [rep(1, [it('tur', 'win', 2, 'offensive')])], T0 + 40 * DAY);

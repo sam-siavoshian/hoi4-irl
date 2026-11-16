@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { llmConfig, createLLM } from './server/llm.mjs';
 import { createStore } from './server/storage.mjs';
-import { createAutomation } from './server/automation.mjs';
+import { createAutomation, scenarioDir } from './server/automation.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +38,7 @@ let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
 const store = createStore(PRIVATE);
 const { readJSON, writeJSON } = store;
 const llm = createLLM(cfg);
-const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge });
+const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.ARTESH_EXTRA_SCENARIOS || null });
 
 // ---- sessions ----
 const sessions = new Map(Object.entries(readJSON('sessions.json', {})));
@@ -63,7 +63,10 @@ setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.le
 // ---- helpers ----
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png' };
 const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png']); // needed to install to the home screen
-const APP_FILES = /^\/(index\.html|sw\.js|css\/[\w.-]+\.css|js\/[\w.-]+\.js|data\/map\.json)$/;
+const APP_FILES = /^\/(index\.html|sw\.js|css\/[\w.-]+\.css|js\/[\w.-]+\.js|data\/scenarios\.json|data\/maps\/[\w-]+\.json)$/;
+// Test hook: a directory of extra built maps (<id>.json) offered next to the ones in data/maps/. Never set in normal use.
+const EXTRA = process.env.ARTESH_EXTRA_SCENARIOS ? path.resolve(process.env.ARTESH_EXTRA_SCENARIOS) : null;
+const extras = scenarioDir(EXTRA);
 const SECURITY = { 'x-robots-tag': 'noindex, nofollow, noarchive', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'cache-control': 'no-store' };
 function send(res, status, body, headers = {}) { const b = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body); res.writeHead(status, { 'content-type': typeof body === 'object' && !Buffer.isBuffer(body) ? 'application/json' : 'text/plain; charset=utf-8', ...SECURITY, ...headers }); res.end(b); }
 // an oversized body is refused with 413 and the rest of it is thrown away as it arrives
@@ -147,7 +150,9 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/')) return send(res, 404, { error: 'Not found' });
 
     if (req.method === 'GET' && APP_FILES.test(p)) {
-      const file = path.join(ROOT, p); if (!fs.existsSync(file)) return send(res, 404, 'Not found');
+      if (extras && p === '/data/scenarios.json') return send(res, 200, JSON.stringify(extras.index(JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8')))), { 'content-type': TYPES['.json'], 'cache-control': 'no-cache' });
+      let file = path.join(ROOT, p); if (!fs.existsSync(file) && extras) file = extras.file(p) || file;
+      if (!fs.existsSync(file)) return send(res, 404, 'Not found');
       res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', ...SECURITY, 'cache-control': 'no-cache' }); return fs.createReadStream(file).pipe(res);
     }
     send(res, 404, 'Not found');

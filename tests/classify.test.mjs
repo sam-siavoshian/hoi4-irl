@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { simulate } from '../js/engine.js';
 import { classifyLocal, classifyLLM, classify, buildSystem, assess } from '../js/classify.js';
 
-const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
+const map = JSON.parse(fs.readFileSync(new URL('../data/maps/iran.json', import.meta.url)));
 const labels = Object.fromEntries(map.fronts.map(f => [f.id, f.defaultLabel]));
 const st = simulate(map, [], Date.now());
 

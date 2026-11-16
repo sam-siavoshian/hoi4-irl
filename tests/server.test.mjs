@@ -50,7 +50,7 @@ test.before(async () => {
 test.after(() => { for (const p of procs) p.kill(); mock.close(); mock2.close(); for (const d of [dir, dirChat, dirLocal, home]) fs.rmSync(d, { recursive: true, force: true }); });
 
 test('nothing is served without the password', async () => {
-  for (const p of ['/', '/js/app.js', '/data/map.json', '/css/style.css', '/sw.js']) { const r = await req(p); assert.equal(r.status, 401, p); }
+  for (const p of ['/', '/js/app.js', '/data/maps/iran.json', '/css/style.css', '/sw.js']) { const r = await req(p); assert.equal(r.status, 401, p); }
   const home = await (await req('/')).text(); assert.match(home, /type="password"/); assert.doesNotMatch(home, /mapwrap/);
   for (const p of ['/api/state', '/api/config', '/api/llm', '/api/transcribe']) assert.equal((await req(p, { method: p === '/api/llm' ? 'POST' : 'GET' })).status, 401, p);
   for (const [p, method] of [['/api/report', 'POST'], ['/api/sitrep', 'GET'], ['/api/journal', 'GET'], ['/api/state', 'PUT'], ['/api/transcribe', 'POST']]) assert.equal((await req(p, { method })).status, 401, p);
@@ -141,7 +141,7 @@ test('the first save of the day keeps a dated backup; only the newest 30 are kep
 
 test('the automation token opens /api/report, /api/sitrep and /api/journal — and nothing else', async () => {
   assert.equal((await bearer('/api/sitrep')).status, 200); assert.equal((await bearer('/api/journal')).status, 200);
-  for (const p of ['/', '/js/app.js', '/api/state', '/api/config', '/data/map.json']) assert.equal((await bearer(p)).status, 401, p);
+  for (const p of ['/', '/js/app.js', '/api/state', '/api/config', '/data/maps/iran.json']) assert.equal((await bearer(p)).status, 401, p);
   assert.equal((await bearer('/api/llm', { method: 'POST', body: '{}' })).status, 401); assert.equal((await bearer('/api/transcribe', { method: 'POST', body: 'x' })).status, 401);
   assert.equal((await bearer('/api/state', { method: 'PUT', body: JSON.stringify({ rev: 5, data: { reports: [] } }) })).status, 401);
   for (const t of ['wrong-token-0123456789abcdef', TOKEN + 'x', TOKEN.slice(0, -1), 'open sesame']) { assert.equal((await bearer('/api/sitrep', {}, t)).status, 401); assert.equal((await report('I failed my exam', t)).status, 401); }

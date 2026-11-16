@@ -1,7 +1,7 @@
 // Turns a spoken/written life update into battle orders.
 // When the private server has an OpenAI key the report is judged there (the key never reaches the browser);
 // otherwise a local keyword classifier is used.
-import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf, frontCaps } from './engine.js';
+import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf, frontCaps, flavor } from './engine.js';
 import { AREAS, areasForLabel } from './presets.js';
 
 const schemaFor = (map, off = []) => ({
@@ -35,7 +35,7 @@ export function buildSystem(map, labels, notes = {}, off = []) {
   const act = map.fronts.filter(f => !off.includes(f.id)); const ports = act.filter(f => frontCaps(map, f.id).port).map(f => f.id), fleets = act.filter(f => frontCaps(map, f.id).sea).map(f => f.id);
   const list = side => Object.entries(ACTIONS).filter(([, a]) => a.side === side).map(([k, a]) => `  - ${k}: ${a.means}`).join('\n');
   const geo = `Geography: only these fronts have a port: ${ports.join(', ') || 'none'}. Only these have a fleet: ${fleets.join(', ') || 'none'}. Every other front is land — never use port_strike, naval_victory or naval_defeat there.`;
-  return `You are the chief of the general staff for a personal life tracker drawn as a 1936 grand-strategy war map of Iran. Each border front stands for one area of the user's real life. The user tells you, in plain speech, what happened; you convert it into battle results. It is a metaphor for their life, not a game and not real warfare.
+  return `You are the chief of the general staff for a personal life tracker drawn as ${flavor(map).pitch}. Each border front stands for one area of the user's real life. The user tells you, in plain speech, what happened; you convert it into battle results. It is a metaphor for their life, not a game and not real warfare.
 
 Fronts and the life area each one represents:
 ${fronts}
@@ -61,7 +61,7 @@ Then write "summary": a 1–3 sentence communiqué covering the whole report in 
 }
 
 export function buildUser(map, st, labels, text) {
-  const sit = map.fronts.map(f => { const fr = st.fronts[f.id]; return `${f.id} (${labels[f.id] || f.defaultLabel}): ${statusOf(fr.pos).text}, position ${Math.round(fr.pos)} (−100 = all objectives taken, 0 = border, +100 = Tehran falls)`; }).join('\n');
+  const sit = map.fronts.map(f => { const fr = st.fronts[f.id]; return `${f.id} (${labels[f.id] || f.defaultLabel}): ${statusOf(fr.pos, map).text}, position ${Math.round(fr.pos)} (−100 = all objectives taken, 0 = border, +100 = ${flavor(map).capital} falls)`; }).join('\n');
   const recent = st.log.slice(-8).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${i.front} ${i.outcome} ${i.severity}] ${i.headline}`).join('; ') || l.summary || ''}`).join('\n');
   return `Current situation:\n${sit}\n\nRecent dispatches (for continuity):\n${recent || '(none yet)'}\n\nToday's report from the user:\n"""\n${text}\n"""`;
 }
@@ -193,7 +193,7 @@ export function classifyLocal({ map, labels, text, off = [], notes = {} }) {
     let action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish'; let reason = '';
     for (const [re, act] of outcome === 'win' ? WIN_RULES : outcome === 'loss' ? LOSS_RULES : []) { const m = lc.match(re); if (m) { action = act; reason = m[0].trim(); break; } }
     const f = map.fronts.find(x => x.id === front);
-    if (!(f.naval || f.id === 'cau' || f.id === 'tks') && action === 'port_strike') action = 'supply_hub_bombed';
+    if (!frontCaps(map, f.id).port && action === 'port_strike') action = 'supply_hub_bombed';
     const head = c.length > 90 ? c.slice(0, 87) + '…' : c;
     const days_ago = /day before yesterday|two days ago|2 days ago/i.test(lc) ? 2 : /three days ago|3 days ago/i.test(lc) ? 3 : /yesterday/i.test(lc) ? 1 : 0;
     const dup = items.find(i => i.front === front && i.outcome === outcome && i.days_ago === days_ago);
@@ -224,9 +224,9 @@ export { WIN_ACTIONS, LOSS_ACTIONS };
 // ---------- staff assessment ----------
 export async function assessLLM({ map, st, labels, off = [], fetchImpl = fetch }) {
   const active = map.fronts.filter(f => !off.includes(f.id));
-  const sit = active.map(f => { const fr = st.fronts[f.id]; return `${f.id} — ${labels[f.id] || f.defaultLabel} (${f.name}): ${statusOf(fr.pos).text}, position ${Math.round(fr.pos)}, streak ${fr.streak}, record ${fr.wins}W/${fr.losses}L`; }).join('\n');
+  const sit = active.map(f => { const fr = st.fronts[f.id]; return `${f.id} — ${labels[f.id] || f.defaultLabel} (${f.name}): ${statusOf(fr.pos, map).text}, position ${Math.round(fr.pos)}, streak ${fr.streak}, record ${fr.wins}W/${fr.losses}L`; }).join('\n');
   const recent = st.log.filter(l => !l.kind).slice(-20).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${labels[i.front] || i.front} ${i.outcome} ${i.severity}] ${i.headline}`).join('; ')}`).join('\n');
-  const d = await callJudge({ name: 'staff_assessment', system: `You are the chief of staff in a personal life tracker drawn as a 1936 war map of Iran. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`, user: `Fronts (position −100 = all objectives taken, 0 = border, +100 = Tehran falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}`, schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false }, fetchImpl });
+  const d = await callJudge({ name: 'staff_assessment', system: `You are the chief of staff in a personal life tracker drawn as ${flavor(map).pitch}. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`, user: `Fronts (position −100 = all objectives taken, 0 = border, +100 = ${flavor(map).capital} falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}`, schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false }, fetchImpl });
   return { assessment: String(d.assessment || ''), orders: (d.orders || []).filter(o => active.some(f => f.id === o.front)).slice(0, 3), source: 'llm' };
 }
 export function assessLocal({ map, st, labels, off = [] }) {
@@ -236,9 +236,9 @@ export function assessLocal({ map, st, labels, off = [] }) {
   const parts = [];
   const w = worst[0], b = best[0];
   if (!st.log.length) return { assessment: 'No dispatches yet. The borders are quiet and the staff has nothing to assess. Report how your day went and the picture will form.', orders: [], source: 'local' };
-  if (st.fronts[w.id].pos > 4) parts.push(`${L(w)} is the weakest sector: ${statusOf(st.fronts[w.id].pos).text.toLowerCase()}${st.fronts[w.id].streak <= -2 ? `, ${-st.fronts[w.id].streak} defeats running` : ''}.`);
+  if (st.fronts[w.id].pos > 4) parts.push(`${L(w)} is the weakest sector: ${statusOf(st.fronts[w.id].pos, map).text.toLowerCase()}${st.fronts[w.id].streak <= -2 ? `, ${-st.fronts[w.id].streak} defeats running` : ''}.`);
   else parts.push('No front is currently behind the border.');
-  if (st.fronts[b.id].pos < -4) parts.push(`${L(b)} is carrying the war: ${statusOf(st.fronts[b.id].pos).text.toLowerCase()}.`);
+  if (st.fronts[b.id].pos < -4) parts.push(`${L(b)} is carrying the war: ${statusOf(st.fronts[b.id].pos, map).text.toLowerCase()}.`);
   if (quiet.length) parts.push(`Nothing has been heard from ${quiet.map(L).join(', ')} for over a week.`);
   parts.push(`Overall stability stands at ${st.nation.stability}%.`);
   const orders = [];

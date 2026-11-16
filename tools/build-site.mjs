@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, '_site');
-const APP = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'data/map.json', 'icons'];
+const APP = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'data/maps', 'data/scenarios.json', 'icons'];
 const skip = name => name.startsWith('_') || name.startsWith('.'); // site/_dev holds the screenshot tooling
 
 const written = [];

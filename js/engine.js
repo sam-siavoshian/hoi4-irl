@@ -153,7 +153,7 @@ const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 const pluralOf = w => (/[^aeiou]y$/i.test(w) ? w.slice(0, -1) + 'ies' : /(s|x|ch|sh)$/i.test(w) ? w + 'es' : w + 's');
 export const capitalOf = map => map.capital ?? map.tehran; // maps built before scenarios only carry the old key
 // road distance from a front's border to the capital: the last entry of its home order is the capital itself
-const dCap = f => f.dCap ?? f.iranOrder[f.iranOrder.length - 1][1];
+export const capKm = f => f.dCap ?? f.iranOrder[f.iranOrder.length - 1][1];
 export function flavor(map) {
   let F = flavorCache.get(map);
   if (F) return F;
@@ -205,7 +205,7 @@ export function flavor(map) {
 
   const landmarks = arr(m.landmarks).filter(l => l && l.city).slice(0, 2).map(l => ({ city: String(l.city), medal: l.medal || `Conqueror of ${l.city}`, desc: l.desc || `Capture ${l.city}` }));
   const days = arr(m.days).filter(d => d && d.text && d.month >= 1 && d.month <= 12 && d.day >= 1 && d.day <= 31);
-  const names = m.medalNames || {};
+  const names = m.medalNames || {}, descs = m.medalDescs || {};
   const own = { // the decorations whose wording depends on the country
     babylon: landmarks[0] && [landmarks[0].medal, landmarks[0].desc], sardis: landmarks[1] && [landmarks[1].medal, landmarks[1].desc],
     cyrus: landmarks[1] && ['Twin Triumph', `Take ${landmarks[0].city} and ${landmarks[1].city} within seven days`],
@@ -213,7 +213,7 @@ export function flavor(map) {
     sarvan: [null, `Reach the rank of ${ranks[4][1]}`], sartip: [null, `Reach the rank of ${ranks[7][1]}`], marshal: [null, `Reach the rank of ${ranks[11][1]}`],
     nowruz: days[0] && [null, null],
   };
-  const medals = MEDALS.filter(([id]) => !(id in own) || own[id]).map(([id, n, d, secret]) => [id, names[id] || (own[id] && own[id][0]) || n, (own[id] && own[id][1]) || d, secret]);
+  const medals = MEDALS.filter(([id]) => !(id in own) || own[id]).map(([id, n, d, secret]) => [id, names[id] || (own[id] && own[id][0]) || n, descs[id] || (own[id] && own[id][1]) || d, secret]);
 
   const st0 = m.stateStart;
   const w = m.weather || {};
@@ -324,7 +324,7 @@ export function territory(map, st, lite = false) {
   for (const f of map.fronts) {
     const pos = st.fronts[f.id].pos;
     if (pos > 0) {
-      const thr = (pos / 100) * dCap(f) + (pos >= 100 ? 1 : 0);
+      const thr = (pos / 100) * capKm(f) + (pos >= 100 ? 1 : 0);
       let next = null, n = 0;
       for (const [id, d] of f.iranOrder) { if (d <= thr) { n++; if (!occ.has(id)) { occ.set(id, f.id); nOcc[f.id]++; } } else { next = id; break; } }
       len[f.id] = n;
@@ -346,7 +346,7 @@ export function territory(map, st, lite = false) {
 }
 // the province being fought over on one front (the same answer territory().contested gives, without building the whole picture)
 function contestedOn(f, pos) {
-  if (pos > 0) { const thr = (pos / 100) * dCap(f) + (pos >= 100 ? 1 : 0); for (const [id, d] of f.iranOrder) if (d > thr) return id; }
+  if (pos > 0) { const thr = (pos / 100) * capKm(f) + (pos >= 100 ? 1 : 0); for (const [id, d] of f.iranOrder) if (d > thr) return id; }
   else if (pos < 0) { const thr = Math.pow(-pos / 100, 1.3) * f.dMax + (pos <= -100 ? 1 : 0); for (const [id, d] of f.enemyOrder) if (d > thr) return id; }
   return null;
 }

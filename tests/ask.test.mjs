@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { simulate } from '../js/engine.js';
 import { ask, buildAskRequest, retrieve, askLocal, buildMemory, parseTime, stem } from '../js/ask.js';
 
-const map = JSON.parse(fs.readFileSync(new URL('../data/map.json', import.meta.url)));
+const map = JSON.parse(fs.readFileSync(new URL('../data/maps/iran.json', import.meta.url)));
 const fx = JSON.parse(fs.readFileSync(new URL('./ask-fixture.json', import.meta.url)));
 const labels = Object.fromEntries(map.fronts.map(f => [f.id, f.defaultLabel]));
 // ten weeks of a life, in local time: Mon 7 Sep 2026 → Mon 16 Nov 2026, 20:00

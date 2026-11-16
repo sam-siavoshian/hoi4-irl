@@ -87,6 +87,11 @@ export const META = {
     hundreddays: 'Order of Khorshid', year: 'Order of Pahlavi', elite: 'The Immortals', kaveh: 'Kaveh the Blacksmith', nowruz: 'Haft-Seen', cyrus: 'King of the Four Corners',
     hotgates: 'The Hot Gates', artemisia: 'Artemisia',
   },
+  medalDescs: {
+    rasti: 'Report a defeat three days running — a Persian is taught to ride, to shoot and to tell the truth', nowruz: 'File a dispatch on Nowruz, the first day of spring',
+    cyrus: 'Take Sardis and Babylon within seven days, as Cyrus took them within seven years', hotgates: 'Three defeats on one front, then a decisive victory — Xerxes at Thermopylae',
+    artemisia: 'Answer a naval defeat with a naval victory — “my men have become women, and my women men”',
+  },
   masthead: "ETTELA'AT-E ARTESH",
   calendar: 'persian',
   days: [{ month: 3, day: 21, text: 'Nowruz Pirouz. A new year on every front.' }, { month: 12, day: 21, text: 'Shab-e Yalda. The longest night ends at dawn.' }, { month: 10, day: 29, text: '7 Aban — Cyrus the Great Day.' }],
