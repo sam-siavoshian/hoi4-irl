@@ -35,9 +35,10 @@
     "start": "node server.mjs",
     "serve": "node tools/serve.mjs",
     "build:map": "node tools/build-map.mjs",
-    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "docker": "docker build -t artesh ."
+    "docker": "docker build -t artesh .",
+    "test:all": "npm test && node --test tests/ask.test.mjs && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
   },
   "devDependencies": {
     "@iconify-json/game-icons": "^1.2.4",

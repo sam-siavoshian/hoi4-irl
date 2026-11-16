@@ -188,156 +188,89 @@ reachable.
 
 ---
 
-## The automation API
+## Automation API
 
-> **Status: new.** These endpoints are being added alongside this document. The shapes below are the
-> intended contract; if the server you are running behaves differently, the server is right and this
-> page needs fixing. Please open an issue.
-
-For filing reports without opening the app.
-
-### Authentication
-
-Set a token in `.env` and restart:
-
-```bash
-echo "ARTESH_TOKEN=$(openssl rand -hex 32)" >> .env
-```
-
-Send it on every request:
-
-```http
-Authorization: Bearer <your token>
-```
-
-The token is separate from the password. It can file reports and read the situation report; it cannot
-open the app or read the API key. While `ARTESH_TOKEN` is empty these endpoints are disabled. A missing
-or wrong token gets `401`.
+For iOS Shortcuts, Siri, scripts and cron. Set `ARTESH_TOKEN` (16+ characters) in `.env`, then send
+`Authorization: Bearer $ARTESH_TOKEN`. The token works for `/api/report`, `/api/sitrep` and `/api/journal` only;
+everything else needs a logged-in browser session. These endpoints share a per-address rate limit
+(`ARTESH_RATE_LIMIT`, default 60 per minute; `429` with `Retry-After` when exceeded).
 
 ### `POST /api/report`
 
-File a report in plain words. The server judges it (with the configured model, or the offline judge if
-there is no key), appends it to the campaign and saves. Your other devices see it the next time they
-sync.
+File a report in plain words. It is judged on the server with the same prompt the app uses (or the offline judge if
+no provider is configured or the provider fails), applied to the campaign, and journaled.
 
-Plain text:
-
-```bash
-curl -X POST http://localhost:8080/api/report \
-  -H "Authorization: Bearer $ARTESH_TOKEN" \
-  -H "Content-Type: text/plain" \
-  --data "Aced the chemistry midterm. Skipped the gym again."
-```
-
-Or JSON:
+Body: `text/plain`, or JSON `{ "text": "...", "when"?: ISO time | ms | "YYYY-MM-DD", "front"?: id or label, "outcome"?: "win" | "loss" }`. Maximum 8 KB.
 
 ```bash
 curl -X POST http://localhost:8080/api/report \
-  -H "Authorization: Bearer $ARTESH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Aced the chemistry midterm. Skipped the gym again."}'
+  -H "Authorization: Bearer $ARTESH_TOKEN" -H "Content-Type: text/plain" \
+  --data "Failed the calculus midterm, but hit a PR at the gym."
 ```
 
-Response:
+Success (`200`):
 
 ```json
-{
-  "summary": "A breakthrough on the Afghan Front; the Baluchistan line gives a little ground.",
-  "items": [
-    { "front": "afg", "outcome": "win",  "severity": 3, "action": "breakthrough",
-      "reason": "studied hard and it paid off", "headline": "Chemistry midterm aced" },
-    { "front": "raj", "outcome": "loss", "severity": 1, "action": "attrition",
-      "reason": "skipped again, slow neglect", "headline": "Gym skipped again" }
-  ]
-}
+{ "ok": true, "summary": "…", "source": "llm", "items": [
+    { "front": "afg", "label": "School", "outcome": "loss", "severity": 4, "action": "enemy_breakthrough", "headline": "…", "days_ago": 0 } ],
+  "speech": "One or two sentences suitable for Siri to read aloud.", "rev": 12, "reports": ["id…"] }
 ```
 
-- `summary`: the staff's communiqué, one to three sentences. Good for Siri to read back.
-- `items`: one entry per event the judge found. An empty list means nothing in the text could be
-  classified; nothing is added to the campaign in that case.
+`source` is `llm`, `local` (offline judge; a `warning` explains why) or `manual`.
 
-Errors: `400` empty text, `401` bad token, `413` text too long, `502` the model failed.
+If the judge cannot tell what the text is about, nothing is saved and you get (`200`):
+
+```json
+{ "ok": false, "reason": "unclear", "fronts": [{ "id": "afg", "label": "School" }], "speech": "…" }
+```
+
+Retry with `{ "text": "...", "front": "School", "outcome": "win" }` to log it by hand.
+
+Errors: `400` `{ok:false, reason:"empty"|"bad_request"|"bad_front"|"bad_outcome"|"no_fronts"}`, `401`, `413`, `429`.
 
 ### `GET /api/sitrep`
 
-The current situation, as text you can read or speak and as data.
+The situation report as `text/plain`, using your front names.
 
 ```bash
 curl -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
 ```
 
-```json
-{
-  "summary": "Advancing in the east, holding in the west. The enemy is massing on the Caucasus Front.",
-  "items": [
-    { "front": "afg", "name": "Afghan Front", "label": "School", "position": -34, "status": "Advancing" },
-    { "front": "cau", "name": "Caucasus Front", "label": "Family", "position": 8, "status": "Under pressure" }
-  ]
-}
-```
+### `GET /api/journal?since=<ISO time>`
 
-`position` runs from −100 (every objective taken) through 0 (the border) to +100 (Tehran falls).
+The append-only journal as a JSON array, oldest first (newest 5000 at most). Each line is one of
+`{t, op:"add", id, report, src}`, `{t, op:"edit", id, before, after, src}`, `{t, op:"delete", id, report, src}`,
+`{t, op:"settings", changes, src}`; `src` is `app` or `api`.
 
 ### `GET /healthz`
 
-Liveness check for monitors and container health checks. No authentication, no private information.
+No authentication. Returns `200` with the plain text `ok`.
+
+## Command line
+
+`bin/artesh.mjs` wraps the automation API. It reads `ARTESH_URL` and `ARTESH_TOKEN` from the environment or from
+`~/.config/artesh/config.json` (`{"url": "...", "token": "..."}`).
 
 ```bash
-curl http://localhost:8080/healthz
-```
-
-```json
-{ "ok": true }
-```
-
-### Command line
-
-`bin/artesh.mjs` wraps these endpoints. It reads the address and token from the environment.
-
-```bash
-export ARTESH_URL=https://artesh.example.ts.net
-export ARTESH_TOKEN=...
-
-node bin/artesh.mjs report "Shipped the release. Slept four hours."
+node bin/artesh.mjs report "Shipped the onboarding flow"
 node bin/artesh.mjs sitrep
-echo "Ran 5k before work" | node bin/artesh.mjs report
+node bin/artesh.mjs journal --since 2026-11-01
+node bin/artesh.mjs --help
 ```
 
-Run `node bin/artesh.mjs --help` for the exact options. To have `artesh` on your `PATH`, run `npm link`
-in the repository.
+Exit codes: `0` done, `1` error, `2` the judge found the report unclear.
 
-### iOS Shortcuts and Siri
+## iOS Shortcut recipe
 
-1. Open the Shortcuts app and create a shortcut named, say, **Report to staff**.
-2. Add **Dictate Text** (or **Ask for Input** if you prefer to type).
-3. Add **Get Contents of URL**:
-   - URL: `https://<your address>/api/report`
-   - Method: `POST`
-   - Headers: `Authorization` = `Bearer <your token>`, `Content-Type` = `text/plain`
-   - Request Body: *File*, set to the dictated text. (Or choose *JSON* with one field, `text`.)
-4. Add **Get Dictionary Value**: key `summary`.
-5. Add **Speak Text** (or **Show Notification**) with that value.
+1. Add a "Dictate Text" action (or "Ask for Input").
+2. Add "Get Contents of URL": URL `https://your-host/api/report`, method POST, header `Authorization: Bearer <token>`,
+   request body "File" or "Text" with the dictated text.
+3. Add "Get Dictionary Value" for `speech`, then "Speak Text".
 
-Now "Hey Siri, report to staff" takes your update and reads the communiqué back. The same shortcut
-works from the Action Button, a Home Screen icon, or an automation ("when I leave the gym").
+Say "Hey Siri, report to the staff" and it files the report and reads the result back.
 
-The phone must be able to reach the server: on your tailnet, or at your public HTTPS address.
-
-### Other recipes
-
-A daily nudge from cron that files nothing but tells you where things stand:
+## A nightly situation report by cron
 
 ```cron
-0 21 * * *  curl -s -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep | jq -r .summary
+0 21 * * *  curl -s -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
 ```
-
-A git hook that reports each commit to your work front:
-
-```bash
-#!/bin/sh
-# .git/hooks/post-commit
-curl -s -X POST "$ARTESH_URL/api/report" -H "Authorization: Bearer $ARTESH_TOKEN" \
-  -H "Content-Type: text/plain" --data "Committed to work project: $(git log -1 --pretty=%s)" >/dev/null &
-```
-
-Go easy with automated reports. The map is only worth reading if it reflects things that mattered.

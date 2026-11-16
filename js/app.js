@@ -345,7 +345,7 @@ function cardData(kind) {
   const headline = fresh ? (m.kind === 'normal' || m.kind === 'levelup' || m.kind === 'medal' ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front';
   const tone = fresh ? (m.kind === 'normal' ? (main?.outcome === 'loss' ? 'bad' : 'good') : m.tone) : 'gold';
   if (kind === 'bulletin') return renderBulletin({ map: shot.canvas, focus: shot.focus, nation, date: live.now, headline, sub: fresh && main ? `${L[main.front]} · ${main.battle || ACTIONS[main.action].label}` : `${live.nation.stability}% stability`, tone, stability: live.nation.stability, streak: live.dayStreak, rank: c.title, fronts });
-  if (kind === 'frontpage') return renderFrontPage({ map: shot.canvas, date: live.now, persianDate: true, tone, headline: e ? headlineOf(e, L) : 'All quiet on every front', deck: e?.summary || '',
+  if (kind === 'frontpage') return renderFrontPage({ map: shot.canvas, date: live.now, persianDate: true, tone, headline: e ? (['levelup', 'medal', 'order_done', 'streak', 'normal'].includes(m.kind) ? main?.headline || headlineOf(e, L) : m.title) : 'All quiet on every front', deck: e?.summary || '',
     body: e ? [e.items.map(i => `**${L[i.front]}.** ${i.headline}.`).join(' '), e.fx.filter(x => x.tone).map(x => x.text).slice(0, 5).join('. ') + '.', sitrep(map, live, L).split('\n').slice(-1)[0]].filter(t => t.length > 3) : ['The borders are quiet.'],
     sidebar: fronts.map(f => `${f.label}: ${f.status.toLowerCase()}`) });
   if (kind === 'recap') { const r = weeklyRecap(map, live, L); const col = Object.fromEntries(map.fronts.map(f => [f.id, FRONT_COLORS[f.id]]));
