@@ -1,5 +1,7 @@
 // Builds _site/ for static hosting (GitHub Pages): the landing page at the root, the app at /demo/.
 // The app is the built interface (dist/, made here with tools/ensure-build.mjs) plus the maps, icons and manifest.
+// The landing page's hero draws with the app's own renderer and engine, so those three modules ship beside it (demo/js/).
+// robots.txt and sitemap.xml come from site/ like everything else there.
 // Every URL in the build is relative, so it runs under any sub-path.
 //   node tools/build-site.mjs            build
 //   node tools/build-site.mjs --serve    build, then preview on http://localhost:$PORT (default 8080)
@@ -14,7 +16,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, '_site');
 // [from, to under demo/]: the built files first, then what the server would serve beside them
-const APP = [['dist', ''], ['manifest.webmanifest', 'manifest.webmanifest'], ['data/maps', 'data/maps'], ['data/scenarios.json', 'data/scenarios.json'], ['icons', 'icons']];
+const APP = [['dist', ''], ['manifest.webmanifest', 'manifest.webmanifest'], ['data/maps', 'data/maps'], ['data/scenarios.json', 'data/scenarios.json'], ['icons', 'icons'],
+  ['js/map.js', 'js/map.js'], ['js/engine.js', 'js/engine.js'], ['js/icons.js', 'js/icons.js']];
 { const r = spawnSync(process.execPath, [path.join(root, 'tools', 'ensure-build.mjs')], { stdio: 'inherit' }); if (r.status !== 0) process.exit(r.status || 1); }
 const skip = name => name.startsWith('_') || name.startsWith('.'); // site/_dev holds the screenshot tooling
 

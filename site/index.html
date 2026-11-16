@@ -3,24 +3,44 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ARTESH · Your life, as a war map</title>
-<meta name="description" content="ARTESH turns your week into a 1936 grand-strategy map. Each border front is one part of your life. Say what happened, and the front moves. Open source, self-hosted, private.">
+<title>ARTESH · Your life as a 1936 war map</title>
+<meta name="description" content="ARTESH is a self-hosted life tracker drawn as a 1936 war map. Each front is one part of your life. Say what happened today and the front moves.">
 <meta name="theme-color" content="#0b0e10">
 <meta name="color-scheme" content="dark">
-<link rel="canonical" href="./">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://sam-siavoshian.github.io/hoi4-irl/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ARTESH">
-<meta property="og:title" content="ARTESH · Your life, as a war map">
-<meta property="og:description" content="Each border front is one part of your life. Say what happened today, and the front moves. Open source and self-hosted.">
-<meta property="og:url" content="./">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="ARTESH · Your life as a 1936 war map">
+<meta property="og:description" content="Each border front is one part of your life. Say what happened today, and the front moves. Eight countries. Open source and self-hosted.">
+<meta property="og:url" content="https://sam-siavoshian.github.io/hoi4-irl/">
 <meta property="og:image" content="img/og.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="A war map of Iran with front lines, divisions and battle markers, titled: Your life, as a war map.">
+<meta property="og:image:alt" content="The ARTESH map of Iran in 1936, with division counters along every border, beside the words: Your life, as a war map.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ARTESH · Your life, as a war map">
+<meta name="twitter:title" content="ARTESH · Your life as a 1936 war map">
 <meta name="twitter:description" content="Each border front is one part of your life. Say what happened today, and the front moves.">
 <meta name="twitter:image" content="img/og.png">
+<meta name="twitter:image:alt" content="The ARTESH map of Iran in 1936, with division counters along every border, beside the words: Your life, as a war map.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "ARTESH",
+  "description": "A self-hosted life tracker drawn as a 1936 grand-strategy war map. Report your day, a general staff judges it, and the fronts move.",
+  "applicationCategory": "LifestyleApplication",
+  "operatingSystem": "Web, iOS, Android",
+  "url": "https://github.com/sam-siavoshian/hoi4-irl",
+  "codeRepository": "https://github.com/sam-siavoshian/hoi4-irl",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "image": "https://sam-siavoshian.github.io/hoi4-irl/img/og.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
 <link rel="icon" type="image/png" href="demo/icons/icon-192.png">
 <link rel="apple-touch-icon" href="demo/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="site.css">
@@ -52,7 +72,7 @@
   <div class="wrap nav-in">
     <a class="brand" href="./" aria-label="ARTESH home"><svg class="roundel"><use href="#i-roundel"/></svg><span>ARTESH</span></a>
     <nav class="links" aria-label="Sections">
-      <a href="#how">How it works</a><a href="#features">Features</a><a href="#selfhost">Self-host</a><a href="#faq">FAQ</a>
+      <a href="#how">How it works</a><a href="#features">Features</a><a href="#countries">Countries</a><a href="#selfhost">Self-host</a><a href="#faq">FAQ</a>
     </nav>
     <a class="btn sm ghost" href="https://github.com/sam-siavoshian/hoi4-irl"><svg class="ic"><use href="#i-git"/></svg>GitHub</a>
   </div>
@@ -73,7 +93,7 @@
 
   <figure class="stage">
     <div class="map" id="hero-map">
-      <img src="img/hero.png" width="1130" height="904" alt="The ARTESH map: Iran in green, front lines along every border, division counters and battle markers.">
+      <img src="img/hero.png" width="1130" height="904" alt="The ARTESH map of Iran in 1936: the country in green, division counters along every border, a supply line from the Gulf to Tehran and battle markers in the east.">
       <canvas id="hero-base" aria-hidden="true"></canvas><canvas id="hero-over" aria-hidden="true"></canvas>
     </div>
     <div class="console" aria-live="off">
@@ -121,7 +141,7 @@
       <p>An LLM general staff sorts it by front, decides win or loss and how big, and states its reason in your terms before it picks a battle type. Disagree? Edit or undo in one tap.</p>
     </li>
     <li>
-      <div class="ill ill-map"><img src="img/step-map.png" width="640" height="400" loading="lazy" alt="A close view of the eastern front: an advance arrow and a battle marker where the counter-attack crosses the border near Herat."></div>
+      <div class="ill ill-map"><img src="img/step-map.png" width="640" height="400" loading="lazy" alt="A close view of the eastern front near Herat: the School front, its divisions along the line and a hatched strip of occupied ground."></div>
       <h3><span class="n">3</span>The map moves</h3>
       <p>Fronts advance or collapse province by province. Cities fall and are retaken, and a named division takes the honour or the blow.</p>
     </li>
@@ -154,14 +174,33 @@
     <li><svg class="ic"><use href="#i-mic"/></svg><h3>Voice or text</h3><p>Dictate on the walk home or type one line. Several fronts in one sentence is fine.</p></li>
     <li><svg class="ic"><use href="#i-eye"/></svg><h3>A judge that explains itself</h3><p>Every verdict carries its reason, saved with the entry and shown in History.</p></li>
     <li><svg class="ic"><use href="#i-medal"/></svg><h3>Named divisions, battle honours</h3><p>The 5th Birjand Cavalry leads the counter-attack, gains experience and keeps the battle on its record.</p></li>
-    <li><svg class="ic"><use href="#i-target"/></svg><h3>Operations, weather, satrapies</h3><p>Three wins in a row launch a named operation. Snow closes the passes in winter. Retaken regions return under their Old Persian names.</p></li>
+    <li><svg class="ic"><use href="#i-target"/></svg><h3>Operations, weather, old provinces</h3><p>Three wins in a row launch a named operation. Snow closes the passes in winter. Retaken regions return under the names the old empire gave them.</p></li>
     <li><svg class="ic"><use href="#i-flame"/></svg><h3>Streaks, ranks and daily orders</h3><p>A day streak, divisions that rise from Green to Elite, decorations, and the staff’s read on where to act next.</p></li>
     <li><svg class="ic"><use href="#i-share"/></svg><h3>Share cards</h3><p>Save the map as an image with a short communiqué, ready for the group chat.</p></li>
     <li><svg class="ic"><use href="#i-play"/></svg><h3>History and replay</h3><p>A calendar of every entry, each one editable, and the whole war replayed on the map.</p></li>
     <li><svg class="ic"><use href="#i-shield"/></svg><h3>Private and self-hosted</h3><p>One password, your own machine. The campaign is a single JSON file you can back up.</p></li>
     <li><svg class="ic"><use href="#i-box"/></svg><h3>OpenAI or local models</h3><p>Bring an OpenAI key, or point it at Ollama and keep every word on your own hardware.</p></li>
-    <li><svg class="ic"><use href="#i-phone"/></svg><h3>Installable on iPhone</h3><p>Add to Home Screen from Safari. Full screen, with an offline shell and no App Store.</p></li>
-    <li><svg class="ic"><use href="#i-layers"/></svg><h3>No build step</h3><p>Vanilla ES modules and a canvas. One Node server with no dependencies to install.</p></li>
+    <li><svg class="ic"><use href="#i-phone"/></svg><h3>Installable on a phone</h3><p>Add to Home Screen from Safari or Chrome. Full screen, with an offline shell and no app store.</p></li>
+    <li><svg class="ic"><use href="#i-layers"/></svg><h3>Phone and desktop, light and dark</h3><p>A sheet under the map on a phone, a panel beside it on a wide screen. Light, dark or automatic.</p></li>
+  </ul>
+</section>
+
+<section class="sec wrap" id="countries">
+  <header class="sec-head">
+    <p class="eyebrow">Countries</p>
+    <h2>Eight countries, each with an empire to restore.</h2>
+    <p class="sub">Every country has its own 1936 borders, seven fronts, divisions and place names. Change country in Settings. Each one keeps its own campaign.</p>
+  </header>
+  <figure class="lands"><img src="img/countries.png" width="1760" height="1642" loading="lazy" alt="Eight phone-sized maps, one per country: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with division counters along its borders."></figure>
+  <ul class="lands-list" aria-label="Countries and the empires they restore">
+    <li><b>Iran</b><span>Achaemenid Empire</span></li>
+    <li><b>Ethiopia</b><span>Aksumite Empire</span></li>
+    <li><b>France</b><span>French Empire</span></li>
+    <li><b>Greece</b><span>Byzantine Empire</span></li>
+    <li><b>Mexico</b><span>Mexican Empire</span></li>
+    <li><b>Peru</b><span>Tawantinsuyu</span></li>
+    <li><b>Siam</b><span>Greater Siam</span></li>
+    <li><b>Turkey</b><span>Ottoman Empire</span></li>
   </ul>
 </section>
 
@@ -169,22 +208,22 @@
   <header class="sec-head wrap">
     <p class="eyebrow">The app</p>
     <h2>Three screens and a microphone.</h2>
-    <p class="sub">Real screenshots at iPhone size, from the same campaign the demo opens with.</p>
+    <p class="sub">Screenshots at phone size, taken from the demo campaign in Iran.</p>
   </header>
   <div class="shots" tabindex="0" role="group" aria-label="Screenshots">
-    <figure><img src="img/shot-map.png" width="780" height="1328" loading="lazy" alt="The map: Iran with front lines on every border, division counters and battle markers."><figcaption><b>The map</b>Every front, every division, today.</figcaption></figure>
-    <figure><img src="img/shot-report.png" width="780" height="1328" loading="lazy" alt="The report sheet: a text box with a sentence about the day, a microphone and a Send button."><figcaption><b>Report</b>Say it or type it. Press Send.</figcaption></figure>
-    <figure><img src="img/shot-front.png" width="780" height="1328" loading="lazy" alt="A front page: status bar from Tehran to the objective, next objective, Win and Loss buttons, divisions."><figcaption><b>A front</b>Status, next objective, one-tap win or loss.</figcaption></figure>
-    <figure><img src="img/shot-division.png" width="780" height="1328" loading="lazy" alt="A division page: commander, strength, experience and a list of battle honours."><figcaption><b>A division</b>Commander, record and honours.</figcaption></figure>
-    <figure><img src="img/shot-history.png" width="780" height="1328" loading="lazy" alt="History: a calendar heat map, a replay button and a list of entries with the staff's reasoning."><figcaption><b>History</b>Calendar, every entry, replay.</figcaption></figure>
+    <figure><img src="img/shot-map.png" width="780" height="1328" loading="lazy" alt="The map at phone size: Iran with division counters on every border, the country and date at the top, and a bar with Fronts, a microphone and History at the bottom."><figcaption><b>The map</b>Every front, every division, today.</figcaption></figure>
+    <figure><img src="img/shot-report.png" width="780" height="1328" loading="lazy" alt="The Report sheet: a text box holding a sentence about the day, a microphone button, a Send button and the orders of the day."><figcaption><b>Report</b>Say it or type it. Press Send.</figcaption></figure>
+    <figure><img src="img/shot-front.png" width="780" height="1328" loading="lazy" alt="The Startup front: a progress bar from Tehran towards Babylonia, the next objective, Win and Loss buttons and the front's four divisions."><figcaption><b>A front</b>Status, next objective, one-tap win or loss.</figcaption></figure>
+    <figure><img src="img/shot-division.png" width="780" height="1328" loading="lazy" alt="A division: its commander, strength, organisation and experience, and its battle honours."><figcaption><b>A division</b>Commander, record and honours.</figcaption></figure>
+    <figure><img src="img/shot-history.png" width="780" height="1328" loading="lazy" alt="History: a question box, a calendar of reported days, a Replay on map button and the entries with what each one did."><figcaption><b>History</b>Calendar, every entry, replay.</figcaption></figure>
   </div>
 </section>
 
 <section class="sec wrap split" id="selfhost">
   <header class="sec-head">
     <p class="eyebrow">Self-host</p>
-    <h2>Running in 60 seconds.</h2>
-    <p class="sub">Node 20 or newer. Nothing to install, nothing to build.</p>
+    <h2>Clone, install, start.</h2>
+    <p class="sub">Node 20 or newer. The interface builds itself the first time you start it.</p>
     <ul class="ticks">
       <li>Works without a key, using the offline judge.</li>
       <li>Docker and local models (Ollama) are covered in the README.</li>
@@ -198,7 +237,8 @@
 <span data-cmd>cd hoi4-irl</span>
 <span class="c"># 2. set a password</span>
 <span data-cmd>cp .env.example .env</span>
-<span class="c"># 3. run it (localhost:8080)</span>
+<span class="c"># 3. install and run it (localhost:8080)</span>
+<span data-cmd>npm install</span>
 <span data-cmd>npm start</span></code></pre>
   </div>
 </section>
@@ -226,7 +266,7 @@
     <details><summary>Does it need an API key?</summary><p>No. Without one it uses a simple offline keyword judge and your keyboard’s dictation key. With an OpenAI key or a local model you get the full staff: reasons, battle types that fit, and voice transcription.</p></details>
     <details><summary>Can I change the map?</summary><p>You can rename every front and pause the ones you do not need. Eight countries are included: Iran, Turkey, Greece, France, Ethiopia, Siam, Peru and Mexico, each with its 1936 borders and an empire to restore. Adding another is one file in the repository.</p></details>
     <details><summary>Is my data private?</summary><p>Self-hosted, it sits on your machine behind your password, and search engines are told to stay away. In the demo, entries stay in this browser’s local storage and are sent nowhere.</p></details>
-    <details><summary>Does it work on Android?</summary><p>It is a web app, so it runs in Chrome on Android and can be added to the home screen from the browser menu. It is designed and tested at iPhone size first, so expect a rough edge or two.</p></details>
+    <details><summary>Does it work on Android?</summary><p>It is a web app, so it runs in Chrome on Android and can be added to the home screen from the browser menu. It is tested at iPhone size and on a desktop browser, so expect a rough edge or two elsewhere.</p></details>
   </div>
 </section>
 
@@ -245,7 +285,7 @@
       <a class="brand" href="./"><svg class="roundel"><use href="#i-roundel"/></svg><span>ARTESH</span></a>
       <p>Life Front Command. MIT licence.</p>
     </div>
-    <p class="credits">Unit silhouettes from <a href="https://game-icons.net">Game-icons.net</a> by Lorc, Delapouite and contributors, CC BY 3.0. Interface icons by <a href="https://lucide.dev">Lucide</a>, ISC. Borders from <a href="https://www.naturalearthdata.com">Natural Earth</a>, public domain.</p>
+    <p class="credits">ARTESH is not affiliated with Paradox Interactive. Unit silhouettes from <a href="https://game-icons.net">Game-icons.net</a> by Lorc, Delapouite and contributors, CC BY 3.0. Interface icons by <a href="https://lucide.dev">Lucide</a>, ISC. Borders from <a href="https://www.naturalearthdata.com">Natural Earth</a>, public domain.</p>
     <a class="btn sm ghost" href="https://github.com/sam-siavoshian/hoi4-irl"><svg class="ic"><use href="#i-git"/></svg>GitHub</a>
   </div>
 </footer>
