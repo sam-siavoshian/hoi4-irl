@@ -3,3 +3,5 @@ node_modules/
 tests/shots/
 .env
 private/
+.claude/
+_site/
