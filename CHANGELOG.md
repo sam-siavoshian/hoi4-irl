@@ -1,0 +1,93 @@
+# Changelog
+
+Notable changes to ARTESH. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+The step from a personal tool to something anyone can self-host.
+
+### Added
+
+- **Model providers.** Any OpenAI-compatible endpoint through `OPENAI_BASE_URL` (Ollama, LM Studio,
+  OpenRouter, Groq), with a chat-completions fallback (`LLM_API=chat`) for servers without the Responses
+  API. OpenAI remains the default (`gpt-6-luna` judge, `gpt-transcribe` voice). The offline keyword judge
+  still covers the case of no key at all.
+- **Persona presets** on first run (Student, Founder, Athlete, Creator, Parent and more) that name the
+  fronts for you. Everything stays renameable, and fronts can be paused.
+- **Journal and backups.** An append-only journal of every change (`private/journal.ndjson`) and daily
+  backups of the campaign.
+- **Automation API.** Token-authenticated `POST /api/report` (plain text in, judged on the server, map
+  updated) for iOS Shortcuts, Siri, scripts and cron; `GET /api/sitrep`; `GET /healthz`. A small
+  command-line client, `bin/artesh.mjs`.
+- **Progress.** Commander XP and ranks, three daily "orders of the day", combos for reporting several
+  fronts in one day, 30+ decorations and a weekly recap.
+- **Feedback.** Synthesised sound effects, confetti and sparks, screen shake, haptics and number
+  roll-ups. All optional; all respect reduced-motion.
+- **Shareable images.** A daily bulletin card, a newspaper front page for big events and a weekly recap
+  card.
+- **Ask the staff.** Question answering over your own history.
+- **Landing page and offline demo** (`site/`), deployed to GitHub Pages.
+- **Docker.** `Dockerfile`, `docker-compose.yml` and `npm run docker`.
+- **Project files.** MIT licence, third-party notices, contributing guide, code of conduct, security
+  policy, issue and pull request templates, CI (unit, server and browser tests), and documentation for
+  architecture, self-hosting, the HTTP API and common questions.
+
+### Changed
+
+- README rewritten for a general audience. The self-hosting section moved to `docs/SELF_HOSTING.md`.
+- `package.json` gained licence, repository, keywords, homepage and a `bin` entry.
+
+## [1.0.0] - 2026-11-15
+
+The first complete version: a private, self-hosted life tracker drawn as a 1936 grand-strategy map of
+Iran.
+
+### The map and the engine
+
+- A generated map (`data/map.json`) built from Natural Earth borders regrouped into their 1936 shape,
+  cut into provinces, with hand-authored cities, terrain, rivers, lakes and railways.
+- Seven fronts, each standing for one area of life, that advance or retreat province by province between
+  the enemy's objectives and Tehran.
+- A pure, deterministic engine: the whole state is replayed from the list of reports, so deleting or
+  editing an entry rewinds the war correctly.
+- 29 battle types, each tied to a real-life meaning. Events respect geography: port strikes only where
+  there is a port, naval battles only where there is sea, every strike drawn where it hit.
+- Named divisions with commanders, experience, ranks, battle honours and nicknames. The right arm of
+  service leads each kind of battle and pays for defeats.
+- Named battles, operations after three wins in a row, a main effort, weather that follows the calendar,
+  quiet fronts where the enemy masses, bombing damage and repairs over time, new divisions and ships.
+- Satrapies restored under their Old Persian names, 16 decorations, and the restoration of the
+  Achaemenid Empire when every objective is taken.
+
+### Reporting
+
+- Speak or type what happened and press Send. An LLM judge splits the report into events and returns,
+  under a strict JSON schema, the front, win or loss, severity, the reason, the matching battle type, a
+  headline and how many days ago it happened.
+- The battle type follows from a stated reason, with a plain offensive as the fallback.
+- An offline keyword judge for use without a key, and as the fallback when the model call fails.
+- Voice: recording transcribed on the server, the browser's speech recognition, or the keyboard's
+  dictation key, whichever is available.
+- One question when a report is unclear, one-tap Win / Loss per front, and one-tap undo.
+
+### The app
+
+- Three places: the microphone, Fronts and History (calendar, edit, delete, replay of the whole war).
+- An overview with the staff's assessment, decorations, share and settings. Fronts can be renamed,
+  described and paused.
+- Division and province pages, map layers, export and import of backups.
+- Installs to the iPhone Home Screen and opens offline (service worker, network-first).
+- Icons from Game-icons.net (units and buildings) and Lucide (interface).
+
+### The server
+
+- One dependency-free Node file. Password wall with year-long per-device sessions and login throttling.
+- The OpenAI key stays on the host; judging and transcription are proxied.
+- The campaign is stored in `private/state.json` with a revision check, so the phone and the desktop
+  show the same war and cannot silently overwrite each other.
+- `noindex` headers and a deny-all `robots.txt`.
+- Tests for the engine, the classifier and the server, and end-to-end browser tests at iPhone size.
+
+[Unreleased]: https://github.com/sam-siavoshian/hoi4-irl/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/sam-siavoshian/hoi4-irl/releases/tag/v1.0.0

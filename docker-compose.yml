@@ -1,0 +1,21 @@
+# docker compose up -d      (create .env from .env.example first)
+services:
+  artesh:
+    build: .
+    image: artesh
+    container_name: artesh
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8080"
+      ARTESH_DATA_DIR: /app/private
+    ports:
+      # Published on this machine only. Put HTTPS (Tailscale, Caddy) in front of it,
+      # or change to "8080:8080" if you accept that the password is then the only lock.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - artesh-data:/app/private
+
+volumes:
+  artesh-data:
