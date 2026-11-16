@@ -21,6 +21,8 @@
 //           Enter on one. `columns` sets 2 or 4 across instead, for a choice
 //           of that many (how you sound on X: who's talking, the tone); four
 //           go two across in a narrow column.
+//           (Home Front: `tiles` takes `columns={2}` too, two across at any
+//           width, for a grid of tiles inside a narrow side panel.)
 //   chips   a row of capsules, the chosen one lit (the style's "switch to"
 //           row, the Gmail to read from). `size="lg"`: big capsules a thumb
 //           finds.
@@ -114,7 +116,8 @@ export function ChoiceCards<T extends string>({
   size?: "md" | "lg";
   /** Pressing the chosen option again clears the choice: an optional question. */
   onClear?: () => void;
-  /** How many across: `preview` (3 when left out), `sample` (2 or 4; five, or three in a narrow column, when left out). */
+  /** How many across: `preview` (3 when left out), `sample` (2 or 4; five, or three in a narrow column, when left out),
+   *  `tiles` (2: two across at any width, for tiles in a narrow panel; three, or two on a phone, when left out). */
   columns?: 2 | 3 | 4;
   /** `thumbs`: `wrap` (a row that wraps), `scroll` (one line, sideways), `column` (stacked, the picture before the name). */
   flow?: "wrap" | "scroll" | "column";
@@ -167,7 +170,7 @@ export function ChoiceCards<T extends string>({
       aria-label={label}
       data-slot="choice-cards"
       data-variant={variant}
-      data-columns={variant === "sample" && columns ? columns : undefined}
+      data-columns={(variant === "sample" || variant === "tiles") && columns ? columns : undefined}
       data-size={variant === "chips" || variant === "tiles" ? size : undefined}
       data-flow={variant === "thumbs" && flow !== "wrap" ? flow : undefined}
       className={cn(

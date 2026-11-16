@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
+import { mockAnthropic } from './mock-providers.mjs';
 import { testland, FIXTURES } from './fixtures/build.mjs';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
@@ -16,8 +17,9 @@ const repo = new URL('..', import.meta.url).pathname;
 const shots = new URL('./shots/', import.meta.url).pathname; fs.rmSync(shots, { recursive: true, force: true }); fs.mkdirSync(shots, { recursive: true });
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-e2e-'));
 const mock = await mockOpenAI(8124);
+const STAFF_KEY = 'sk-ant-e2e-test-key-not-real-7c1d'; const anthropic = await mockAnthropic(8126, { key: STAFF_KEY }); // the provider a key is set for in Settings
 const TL = (await testland()).fronts.map(f => f.id); // a second country, served through the test hook, to prove the app is scenario-driven
-const server = spawn('node', ['server.mjs'], { cwd: repo, env: { ...process.env, PORT, HOST: '127.0.0.1', HOMEFRONT_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', HOMEFRONT_DATA_DIR: dataDir, HOMEFRONT_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
+const server = spawn('node', ['server.mjs'], { cwd: repo, env: { ...process.env, PORT, HOST: '127.0.0.1', HOMEFRONT_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:8126/v1', HOMEFRONT_DATA_DIR: dataDir, HOMEFRONT_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
 const login = async p => { await p.goto(URL_); if (await p.locator('#p').count()) { await p.fill('#p', 'open sesame'); await p.click('button'); } await p.waitForFunction(() => window.__homefront?.st); };
 await new Promise(r => setTimeout(r, 700));
 const browser = await chromium.launch();
@@ -182,7 +184,7 @@ try {
 
   await step('judged by gpt-6-luna through the server; paused fronts are left out', async () => {
     await settings(p);
-    assert.match(await body(p), /Judged by gpt-6-luna/); assert.match(await body(p), /gpt-transcribe/); assert.equal(await p.locator('input[type=password]').count(), 0);
+    await p.waitForSelector(`${T('open-staff')}[data-provider=openai]`); assert.match(await body(p), /General staff.*OpenAI.*gpt-6-luna\. Voice by gpt-transcribe\./s); assert.equal(await p.locator('input[type=password]').count(), 0);
     await p.click(`${T('front-switch')}[data-front=raj]`); assert.deepEqual(await p.evaluate(() => window.__homefront.data.off), ['raj']); await shot(p, '13-settings');
     await send(p, 'We closed the seed round! But I missed my flight home.'); await saved(p);
     const req = mock.seen.filter(x => x.path === '/v1/responses').at(-1).body;
@@ -218,6 +220,61 @@ try {
     await p.click(`${SHEET} [role=radio]:has-text("Auto")`); await p.waitForFunction(() => document.documentElement.dataset.appearance === 'system');
     // motion off quiets the celebrations and the interface alike
     await p.click(T('motion')); assert.equal(await p.evaluate(() => document.documentElement.dataset.motion), 'reduce'); await p.click(T('motion')); assert.equal(await p.evaluate(() => window.__homefront.data.settings.motion), true);
+  });
+
+  await step('general staff: set your own key in Settings, test it, judge through it, remove it', async () => {
+    const cfg = () => p.evaluate(() => window.__homefront.cfg); const status = s => p.waitForSelector(`${T('staff-provider')} ${T('staff-status')}[data-status=${s}]`);
+    const undo = async () => { await p.click('[data-slot=toast-viewport] button:has-text("Undo")'); await p.waitForFunction(() => /Undone/.test(document.querySelector('[data-slot=toast-viewport]')?.textContent || '')); };
+    const before = (await st(p)).log;
+    // through the status card: the flag counts its presses (every seventh says the motto), and this step must not shift that count
+    const toSettings = async () => { await shut(p); await p.click(T('status')); await p.waitForSelector(SHEET); await p.click(T('open-settings')); await p.waitForFunction(() => window.__homefront.ui.sheet === 'settings'); };
+    // Settings names who judges now: the key in .env, which the app can use but not read or remove
+    await toSettings(); await p.waitForSelector(`${T('open-staff')}[data-provider=openai]`); assert.match(await p.textContent(T('open-staff')), /OpenAI.*gpt-6-luna.*Voice by gpt-transcribe.*Ready/s);
+    await p.click(T('open-staff')); await p.waitForSelector(T('provider')); assert.equal(await title(p), 'General staff');
+    assert.deepEqual(await p.locator(T('provider')).evaluateAll(els => els.map(e => e.dataset.id)), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'ollama', 'lmstudio', 'custom', 'offline']);
+    assert.deepEqual(await p.locator(`${T('provider')} svg[data-mark=brand]`).evaluateAll(els => els.map(e => e.dataset.providerLogo)), ['anthropic', 'gemini', 'mistral', 'openrouter', 'ollama', 'lmstudio'], 'real marks, in the ink of the tile');
+    assert.equal(await p.locator(`${T('provider')} svg`).evaluateAll(els => els.every(e => getComputedStyle(e).fill !== '' && !e.querySelector('[fill^="#"]'))), true);
+    assert.equal(await p.getAttribute(`${T('provider')}[data-id=openai]`, 'aria-checked'), 'true'); await status('ready');
+    assert.match(await p.textContent(T('key-saved')), /Set on the server/); assert.equal(await p.locator(T('key-remove')).count(), 0); assert.equal(await p.locator(T('key-tail')).count(), 0);
+    // another provider: no key yet, so the offline judge is in force until there is one
+    await p.click(`${T('provider')}[data-id=anthropic]`); await status('no_key'); assert.match(await p.textContent(T('staff-provider')), /Anthropic.*No key/s);
+    assert.equal(await p.inputValue(T('staff-model')), 'claude-haiku-5-5', 'the small model is filled in'); assert.match(await p.textContent(T('staff-provider')), /A small model is enough/);
+    assert.equal(await p.getAttribute(T('key-input'), 'type'), 'password'); assert.equal(await p.getAttribute(T('key-link'), 'href'), 'https://console.anthropic.com/settings/keys');
+    assert.equal(await p.isDisabled(T('staff-test')), true); assert.equal((await cfg()).judge, null); await shot(p, '13c-staff-no-key');
+    // a wrong key is saved, tried, and refused in plain words
+    await p.fill(T('key-input'), 'sk-ant-wrong-key-0000'); await p.click(T('key-save')); await p.waitForSelector(T('key-saved')); assert.equal(await p.textContent(T('key-tail')), '•••• 0000'); await status('ready');
+    await p.click(T('staff-test')); await p.waitForSelector(`${T('test-result')}[data-ok=no]`); assert.match(await p.textContent(T('test-result')), /The provider rejected the key\. Check it, or replace it\./);
+    await status('rejected'); assert.match(await p.textContent(T('staff-provider')), /Key rejected/);
+    // the right one, pasted over it: Ready, and the test passes against the stand-in
+    await p.click(T('key-replace')); await p.fill(T('key-input'), STAFF_KEY); await p.press(T('key-input'), 'Enter'); await status('ready'); assert.equal(await p.textContent(T('key-tail')), `•••• ${STAFF_KEY.slice(-4)}`);
+    await p.click(T('staff-test')); await p.waitForSelector(`${T('test-result')}[data-ok=yes]`); assert.match(await p.textContent(T('test-result')), /Works\. claude-haiku-5-5 answered/); await shot(p, '13d-staff-ready');
+    assert.equal(anthropic.seen.at(-1).key, STAFF_KEY); assert.match(anthropic.seen.at(-1).body.system, /connection test/);
+    // the key went to the server and did not come back: not in the page, not in storage, not in what the app holds
+    const held = await p.evaluate(() => document.documentElement.outerHTML + JSON.stringify(localStorage) + JSON.stringify(sessionStorage) + JSON.stringify(window.__homefront.ai) + JSON.stringify(window.__homefront.cfg) + JSON.stringify(window.__homefront.data));
+    assert.equal(held.includes(STAFF_KEY), false); assert.equal(held.includes('wrong-key'), false); assert.equal((await cfg()).judge, 'claude-haiku-5-5');
+    // the model can be changed, and put back
+    await p.fill(T('staff-model'), 'claude-some-other-model'); await p.press(T('staff-model'), 'Enter'); await p.waitForSelector(T('model-default')); assert.equal((await cfg()).judge, 'claude-some-other-model');
+    await p.click(T('model-default')); await p.waitForSelector(T('model-default'), { state: 'detached' }); assert.equal(await p.inputValue(T('staff-model')), 'claude-haiku-5-5');
+    // Anthropic cannot turn speech into text: voice is chosen apart, and stays on this device
+    assert.match(await p.textContent(T('staff-voice')), /Anthropic can’t turn speech into text.*On this device/s); assert.equal((await cfg()).transcribe, null); assert.equal(await p.locator(T('voice-test')).count(), 0);
+    // a report is judged through the chosen provider
+    let n = anthropic.seen.length; const m = mock.seen.length;
+    await send(p, 'I failed my exam'); await gone(p); await p.waitForFunction(b => window.__homefront.live.log.length === b + 1, before);
+    assert.equal(anthropic.seen.length, n + 1); assert.equal(mock.seen.length, m, 'not through the provider in .env');
+    const sent = anthropic.seen.at(-1); assert.equal(sent.body.model, 'claude-haiku-5-5'); assert.equal(sent.version, '2026-10-21'); assert.equal(sent.body.output_config.format.type, 'json_schema'); assert.deepEqual(sent.body.output_config.format.schema.required, ['summary', 'items']);
+    assert.deepEqual(await p.evaluate(() => { const r = window.__homefront.data.reports.at(-1); return [r.source, r.items[0].front, r.items[0].headline]; }), ['llm', 'afg', 'Exam failed']); await undo();
+    await toSettings(); await p.waitForSelector(`${T('open-staff')}[data-provider=anthropic]`); assert.match(await p.textContent(T('open-staff')), /Anthropic.*claude-haiku-5-5.*Voice on this device.*Ready/s);
+    assert.equal(await p.locator(`${T('open-staff')} svg[data-provider-logo=anthropic][data-mark=brand]`).count(), 1); await shot(p, '13e-settings-staff');
+    // remove the key: a question first, then the offline judge takes over
+    await p.click(T('open-staff')); await p.waitForSelector(T('key-remove')); await p.click(T('key-remove')); await p.waitForSelector(T('confirm')); assert.match(await p.textContent(T('confirm')), /Remove the Anthropic key\?.*judged offline/s);
+    await confirmYes(p); await status('no_key'); assert.equal(await p.locator(T('key-input')).count(), 1); assert.equal((await cfg()).judge, null);
+    n = anthropic.seen.length;
+    await send(p, 'Great day at school, I aced the exam.'); await gone(p); await p.waitForFunction(b => window.__homefront.live.log.length === b + 1, before);
+    assert.equal(anthropic.seen.length, n); assert.equal(mock.seen.length, m, 'nothing left the server');
+    assert.deepEqual(await p.evaluate(() => { const r = window.__homefront.data.reports.at(-1); return [r.source, r.items[0].outcome]; }), ['local', 'win']); await undo();
+    // back to the provider in .env, as the rest of this run expects
+    await toSettings(); await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`); await status('ready');
+    assert.deepEqual(await cfg().then(c => [c.judge, c.transcribe]), ['gpt-6-luna', 'gpt-transcribe']); assert.equal((await st(p)).log, before);
   });
 
   await step('backup: export → reset → import', async () => {
@@ -341,6 +398,6 @@ try {
     await p.evaluate(() => { const a = window.__homefront; const [x, y] = a.view.proj(50, 33); a.view.flyTo(x, y, a.view.minS, false); }); await shot(p, '20-empire');
   });
   await c3.close();
-} finally { await browser.close(); server.kill(); mock.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+} finally { await browser.close(); server.kill(); mock.close(); anthropic.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
 console.log(`\n${passed} passed, ${errors.length} problem(s)`);
 if (errors.length) { console.log(errors.join('\n')); process.exit(1); }

@@ -14,9 +14,10 @@ import { fronts, frontSheet, units, division, province } from './sheets/fronts.j
 import { history, edit } from './sheets/history.jsx';
 import { report } from './sheets/report.jsx';
 import { overview, share, settings, welcome } from './sheets/nation.jsx';
+import { staff } from './sheets/staff.jsx';
 import { Picker } from './picker.jsx';
 
-const SHEETS = { fronts, front: frontSheet, units, division, province, history, edit, report, overview, share, settings, welcome };
+const SHEETS = { fronts, front: frontSheet, units, division, province, history, edit, report, overview, share, settings, staff, welcome };
 
 const WIDE = '(min-width: 768px)';
 function useWide() {

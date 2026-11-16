@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
+import { mockAnthropic, mockGemini } from './mock-providers.mjs';
 
 // main server: OpenAI Responses API, password, automation token
 const PORT = 8141, MOCK = 8142, U = `http://127.0.0.1:${PORT}`;
@@ -312,4 +313,226 @@ test('logging out ends the session; the server will not start without a password
   assert.equal(await exitCode({ ...env, HOMEFRONT_PASSWORD: '' }), 1);
   assert.equal(await exitCode({ ...env, HOMEFRONT_TOKEN: 'short' }), 1, 'a guessable token is refused');
   assert.equal(await exitCode({ ...env, LLM_API: 'telepathy' }), 1);
+});
+
+// ---------- the general staff: providers and keys set in the app (/api/ai) ----------
+// One more server. Its .env has an OpenAI key and model (the fallback); every provider's address points at a stand-in.
+// Everything this server ever says, and everything it writes outside ai.json, is kept for the last test: none of it
+// may contain a key.
+const AI = 8161, UA = `http://127.0.0.1:${AI}`, M_OPENAI = 8162, M_ANTHROPIC = 8163, M_GEMINI = 8164, M_CHAT = 8165;
+const K = { env: 'sk-env-key-zz11-ENVFALLBACK', openai: 'sk-app-OPENAI-key-0a1b2c3d4e5f', anthropic: 'sk-ant-api03-ANTHROPIC-test-key-9f8e', wrong: 'sk-ant-api03-WRONG-key-7777', gemini: 'AIzaSyTEST-GEMINI-key-000111222', groq: 'gsk_GROQ_test_key_abcdef012345', mistral: 'MISTRALtestKEY0123456789abcd', openrouter: 'sk-or-v1-OPENROUTER-test-key-4242' };
+const dirAI = tmp(); let aiCookie = '', aiLog = ''; const said = []; // every response body and header this server gave
+const mocks = {};
+const envAI = { ...base, PORT: AI, HOMEFRONT_PASSWORD: 'staff pw', HOMEFRONT_TOKEN: TOKEN, HOMEFRONT_DATA_DIR: dirAI, OPENAI_API_KEY: K.env, OPENAI_BASE_URL: `http://127.0.0.1:${M_OPENAI}/v1`, OPENAI_MODEL: 'gpt-env-model',
+  ANTHROPIC_BASE_URL: `http://127.0.0.1:${M_ANTHROPIC}/v1`, GEMINI_BASE_URL: `http://127.0.0.1:${M_GEMINI}/v1beta`, GROQ_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1`, MISTRAL_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1`, OPENROUTER_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1` };
+const ai = async (p, init = {}, cookie = aiCookie) => {
+  const r = await fetch(UA + p, { ...init, headers: { ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}), ...(init.headers || {}), ...(cookie ? { cookie } : {}) }, redirect: 'manual' });
+  const text = await r.text(); said.push(`${init.method || 'GET'} ${p} → ${r.status} ${JSON.stringify([...r.headers])} ${text}`);
+  let json = null; try { json = JSON.parse(text); } catch { /* not json */ }
+  return { status: r.status, json, text, headers: r.headers };
+};
+const setAI = body => ai('/api/ai', { method: 'PUT', body: JSON.stringify(body) });
+const judgeAI = (user, s = schema) => ai('/api/llm', { method: 'POST', body: JSON.stringify({ name: 'battle_report', system: 'sys', user, schema: s }) });
+const testAI = (what = 'judge') => ai('/api/ai/test', { method: 'POST', body: JSON.stringify({ what }) });
+const of = (view, id) => view.providers.find(p => p.id === id);
+const aiFile = () => path.join(dirAI, 'ai.json');
+const reportAI = text => ai('/api/report', { method: 'POST', body: JSON.stringify({ text }), headers: { authorization: `Bearer ${TOKEN}` } }, '');
+
+test('the general staff: /api/ai needs the session, and the automation token does not open it', async () => {
+  mocks.openai = await mockOpenAI(M_OPENAI, { key: null }); mocks.anthropic = await mockAnthropic(M_ANTHROPIC, { key: K.anthropic });
+  mocks.gemini = await mockGemini(M_GEMINI, { key: K.gemini }); mocks.chat = await mockOpenAI(M_CHAT, { key: null });
+  const proc = spawn('node', ['server.mjs'], { env: envAI, stdio: ['ignore', 'pipe', 'pipe'] }); procs.push(proc);
+  proc.stdout.on('data', d => aiLog += d); proc.stderr.on('data', d => aiLog += d);
+  for (let i = 0; i < 60; i++) { try { await fetch(UA + '/healthz'); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
+  for (const [p, method] of [['/api/ai', 'GET'], ['/api/ai', 'PUT'], ['/api/ai/key/openai', 'DELETE'], ['/api/ai/test', 'POST']]) {
+    assert.equal((await ai(p, { method, body: method === 'GET' || method === 'DELETE' ? undefined : '{}' }, '')).status, 401, `${method} ${p}`);
+    assert.equal((await ai(p, { method, headers: { authorization: `Bearer ${TOKEN}` } }, '')).status, 401, `${method} ${p} with the automation token`);
+  }
+  const login = await fetch(UA + '/api/login', { method: 'POST', body: JSON.stringify({ password: 'staff pw' }) }); aiCookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal(fs.existsSync(aiFile()), false, 'nothing is written until something is chosen');
+});
+test.after(() => { for (const m of Object.values(mocks)) m.close(); fs.rmSync(dirAI, { recursive: true, force: true }); });
+
+test('the general staff: with nothing chosen in the app, .env is in force and its key is only "set on the server"', async () => {
+  const v = (await ai('/api/ai')).json;
+  assert.equal(v.provider, 'openai'); assert.equal(v.source, 'env'); assert.equal(v.status, 'ready'); assert.equal(v.model, 'gpt-env-model');
+  assert.deepEqual(v.providers.map(p => p.id), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'ollama', 'lmstudio', 'custom', 'offline']);
+  const o = of(v, 'openai'); assert.equal(o.hasKey, true); assert.equal(o.keySource, 'server'); assert.equal(o.last4, '', 'not even the tail of a key from .env is shown');
+  for (const p of v.providers) { assert.ok(!('key' in p)); if (p.id !== 'openai') assert.equal(p.hasKey, false, p.id); }
+  // the small, cheap defaults, and who can turn speech into text
+  assert.deepEqual(Object.fromEntries(v.providers.map(p => [p.id, [p.defaultModel, p.defaultStt]])), { openai: ['gpt-6-luna', 'gpt-transcribe'], anthropic: ['claude-haiku-5-5', null], gemini: ['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite'],
+    groq: ['openai/gpt-oss-20b', 'whisper-large-v3-turbo'], mistral: ['mistral-small-latest', 'voxtral-mini-latest'], openrouter: ['openai/gpt-6-luna', null], ollama: ['llama3.2', null], lmstudio: ['openai/gpt-oss-20b', null], custom: ['', null], offline: ['', null] });
+  assert.equal((await judgeAI('we closed the round')).status, 200); const sent = mocks.openai.seen.at(-1);
+  assert.equal(sent.path, '/v1/responses'); assert.equal(sent.auth, `Bearer ${K.env}`); assert.equal(sent.body.model, 'gpt-env-model');
+  // a key from .env cannot be removed from the app
+  const d = await ai('/api/ai/key/openai', { method: 'DELETE' }); assert.equal(d.status, 200); assert.equal(of(d.json, 'openai').hasKey, true); assert.equal(of(d.json, 'openai').keySource, 'server');
+  assert.equal((await ai('/api/ai/key/nobody', { method: 'DELETE' })).status, 404); assert.equal((await ai('/api/ai', { method: 'POST', body: '{}' })).status, 405);
+});
+
+test('the general staff: writes from another site are refused, and bad input is refused without being repeated', async () => {
+  const body = JSON.stringify({ provider: 'offline' });
+  for (const headers of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }, { origin: 'null' }]) {
+    assert.equal((await ai('/api/ai', { method: 'PUT', body, headers })).status, 403, JSON.stringify(headers));
+    assert.equal((await ai('/api/ai/key/openai', { method: 'DELETE', headers })).status, 403); assert.equal((await ai('/api/ai/test', { method: 'POST', body: '{}', headers })).status, 403);
+  }
+  assert.equal((await ai('/api/ai')).json.provider, 'openai', 'nothing changed');
+  for (const headers of [{ origin: UA, 'sec-fetch-site': 'same-origin' }, { origin: UA }, { 'sec-fetch-site': 'none' }]) assert.equal((await ai('/api/ai', { method: 'PUT', body: '{}', headers })).status, 200, JSON.stringify(headers));
+  const refused = async (b, re) => { const r = await setAI(b); assert.equal(r.status, 400, JSON.stringify(b)); assert.match(r.json.error, re); return r.json.error; };
+  await refused({ provider: 'skynet' }, /Unknown provider/);
+  for (const u of ['ftp://files.example/v1', 'javascript:alert(1)', 'file:///etc/passwd', 'localhost:11434', 'not a url']) assert.doesNotMatch(await refused({ bases: { ollama: u } }, /must start with http/), /files\.example|alert|passwd/);
+  await refused({ bases: { ollama: 'http://user:hunter2@localhost:11434/v1' } }, /user name and password/);
+  await refused({ bases: { anthropic: 'http://127.0.0.1:1/v1' } }, /fixed address/);
+  assert.doesNotMatch(await refused({ keys: { anthropic: 'sk-ant with a space in it' } }, /look like a key/), /sk-ant/);
+  await refused({ keys: { anthropic: 'short' } }, /look like a key/); await refused({ keys: { ollama: 'sk-not-needed-here' } }, /takes no key/);
+  await refused({ models: { openai: 'gpt 6; drop table' } }, /model name/); await refused({ transcribe: { mode: 'anthropic' } }, /speech into text/);
+  // all or nothing: a good choice beside a bad key saves neither
+  await refused({ provider: 'anthropic', keys: { anthropic: 'x' } }, /look like a key/); assert.equal((await ai('/api/ai')).json.provider, 'openai');
+  assert.equal((await ai('/api/ai', { method: 'PUT', body: '{nope' })).status, 400);
+  assert.equal(JSON.parse(fs.readFileSync(aiFile())).provider, null); assert.deepEqual(JSON.parse(fs.readFileSync(aiFile())).keys, {});
+});
+
+test('the general staff: a key set in the app wins over .env, is stored 0600, and never comes back', async () => {
+  const r = await setAI({ provider: 'openai', keys: { openai: K.openai }, models: { openai: 'gpt-6-luna' } }); assert.equal(r.status, 200);
+  const o = of(r.json, 'openai'); assert.equal(r.json.source, 'app'); assert.equal(o.keySource, 'app'); assert.equal(o.last4, K.openai.slice(-4)); assert.equal(o.model, 'gpt-6-luna'); assert.doesNotMatch(r.text, /sk-app|sk-env/);
+  assert.equal(fs.statSync(aiFile()).mode & 0o777, 0o600); assert.equal(fs.existsSync(aiFile() + '.tmp'), false, 'written to a temporary file, then moved into place');
+  assert.equal(JSON.parse(fs.readFileSync(aiFile())).keys.openai, K.openai, 'the one place a key is kept');
+  assert.equal((await judgeAI('we closed the round')).json.model, 'gpt-6-luna'); let sent = mocks.openai.seen.at(-1);
+  assert.equal(sent.auth, `Bearer ${K.openai}`, 'the app key, not the one in .env'); assert.equal(sent.body.model, 'gpt-6-luna', 'the app model, not OPENAI_MODEL');
+  assert.deepEqual((await ai('/api/config')).json, { server: true, judge: 'gpt-6-luna', transcribe: 'gpt-transcribe', login: true, provider: '127.0.0.1', api: 'responses' });
+  assert.deepEqual(await testAI().then(t => [t.status, t.json.ok, t.json.model]), [200, true, 'gpt-6-luna']); assert.match(mocks.openai.seen.at(-1).body.input[0].content, /connection test/);
+  // speech goes to the same provider with the same key; its test sends half a second of silence
+  const t = await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7), headers: { 'content-type': 'audio/mp4' } }); assert.equal(t.json.text, 'I failed my exam.'); assert.equal(t.json.model, 'gpt-transcribe');
+  sent = mocks.openai.seen.at(-1); assert.equal(sent.path, '/v1/audio/transcriptions'); assert.equal(sent.auth, `Bearer ${K.openai}`);
+  assert.deepEqual(await testAI('transcribe').then(x => [x.json.ok, x.json.model]), [true, 'gpt-transcribe']); assert.match(mocks.openai.seen.at(-1).raw.toString('latin1'), /RIFF[\s\S]*WAVE/);
+  // "Use default" clears the model; removing the key puts the one in .env back in force
+  assert.equal(of((await setAI({ models: { openai: null } })).json, 'openai').model, 'gpt-env-model');
+  const d = await ai('/api/ai/key/openai', { method: 'DELETE' }); assert.equal(of(d.json, 'openai').keySource, 'server'); assert.equal('openai' in JSON.parse(fs.readFileSync(aiFile())).keys, false);
+  await judgeAI('we closed the round'); assert.equal(mocks.openai.seen.at(-1).auth, `Bearer ${K.env}`);
+});
+
+test('Anthropic: the Messages API with structured outputs, the current Haiku by default', async () => {
+  let v = (await setAI({ provider: 'anthropic' })).json; assert.equal(v.status, 'no_key'); assert.equal(v.model, null);
+  assert.deepEqual((await ai('/api/config')).json, { server: true, judge: null, transcribe: null, login: true, provider: null, api: 'responses' }, 'no key yet: the offline judge');
+  assert.equal((await judgeAI('we closed the round')).status, 503); assert.deepEqual(await testAI().then(t => [t.json.ok, t.json.reason]), [false, 'off']);
+  v = (await setAI({ keys: { anthropic: K.anthropic } })).json; assert.equal(v.status, 'ready'); assert.equal(v.model, 'claude-haiku-5-5'); assert.equal(of(v, 'anthropic').last4, K.anthropic.slice(-4));
+  assert.equal(v.transcribe.mode, 'device', 'Anthropic has no speech-to-text'); assert.equal((await ai('/api/config')).json.transcribe, null);
+  const r = await judgeAI('we closed the round'); assert.equal(r.status, 200); assert.equal(r.json.result.items[0].front, 'irq'); assert.equal(r.json.model, 'claude-haiku-5-5');
+  const sent = mocks.anthropic.seen.at(-1);
+  assert.equal(sent.path, '/v1/messages'); assert.equal(sent.key, K.anthropic); assert.equal(sent.version, '2026-10-21'); assert.equal(sent.auth, undefined, 'x-api-key, not a bearer token');
+  assert.equal(sent.body.model, 'claude-haiku-5-5'); assert.equal(sent.body.system, 'sys'); assert.deepEqual(sent.body.messages.map(m => m.role), ['user']);
+  assert.deepEqual(sent.body.output_config, { effort: 'low', format: { type: 'json_schema', schema } }, 'the schema goes with the request'); assert.ok(sent.body.max_tokens >= 1000);
+  assert.deepEqual(await testAI().then(t => [t.json.ok, t.json.model]), [true, 'claude-haiku-5-5']);
+  assert.equal((await judgeAI('REFUSE')).status, 422);
+  for (const word of ['BADSHAPE', 'MALFORMED']) { const b = await judgeAI(word); assert.equal(b.status, 502, word); assert.match(b.json.error, /expected shape/); }
+  assert.equal((await judgeAI('PROVIDER_DOWN')).status, 502);
+  assert.equal((await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7) })).status, 503);
+  // an older model: no `effort`, then no structured outputs at all. The schema goes in the prompt and the answer is checked here.
+  try {
+    mocks.anthropic.effort = false; let n = mocks.anthropic.seen.length; assert.equal((await judgeAI('we closed the round')).status, 200); assert.equal(mocks.anthropic.seen.length, n + 2);
+    assert.deepEqual(mocks.anthropic.seen.at(-1).body.output_config, { format: { type: 'json_schema', schema } });
+    mocks.anthropic.structured = false; n = mocks.anthropic.seen.length; assert.equal((await judgeAI('we closed the round')).json.result.items.length, 2); assert.equal(mocks.anthropic.seen.length, n + 3);
+    const last = mocks.anthropic.seen.at(-1).body; assert.equal('output_config' in last, false); assert.match(last.system, /JSON Schema/); assert.ok(last.system.includes(JSON.stringify(schema)));
+    assert.equal((await judgeAI('BADSHAPE')).status, 502, 'JSON of the wrong shape is still refused');
+  } finally { mocks.anthropic.effort = true; mocks.anthropic.structured = true; }
+});
+
+test('a rejected key: a plain result, "Key rejected" in Settings, and the key is never repeated', async () => {
+  let v = (await setAI({ keys: { anthropic: K.wrong } })).json; assert.equal(v.status, 'ready', 'not known to be wrong until it is tried');
+  const t = await testAI(); assert.equal(t.status, 200); assert.equal(t.json.ok, false); assert.equal(t.json.reason, 'key_rejected'); assert.match(t.json.message, /rejected the key\. Check it/);
+  assert.doesNotMatch(t.text, /sk-ant|WRONG|7777/, 'the provider quoted the key back; the server does not');
+  v = (await ai('/api/ai')).json; assert.equal(v.status, 'rejected'); assert.equal(of(v, 'anthropic').status, 'rejected');
+  const r = await judgeAI('we closed the round'); assert.equal(r.status, 502); assert.equal(r.json.error, 'The provider rejected the key.');
+  // the automation API uses the same provider, and falls back to the offline judge as it always did
+  const rep = await reportAI('I failed my exam at school.');
+  assert.equal(rep.json.ok, true); assert.equal(rep.json.source, 'local'); assert.match(rep.json.warning, /rejected the key/); assert.doesNotMatch(rep.text, /sk-ant|WRONG/);
+  v = (await setAI({ keys: { anthropic: K.anthropic } })).json; assert.equal(v.status, 'ready', 'a new key starts clean');
+  const n = mocks.anthropic.seen.length; const ok = await reportAI('I failed my exam at school.');
+  assert.equal(ok.json.source, 'llm'); assert.equal(ok.json.items[0].front, 'afg'); assert.equal(mocks.anthropic.seen.length, n + 1); assert.equal(mocks.anthropic.seen.at(-1).body.model, 'claude-haiku-5-5');
+});
+
+test('Gemini: the Interactions API with a response schema, and speech through the same model', async () => {
+  const v = (await setAI({ provider: 'gemini', keys: { gemini: K.gemini } })).json; assert.equal(v.status, 'ready'); assert.equal(v.model, 'gemini-3.5-flash-lite'); assert.deepEqual(v.transcribe, { mode: 'same', provider: 'gemini', model: 'gemini-3.5-flash-lite', status: 'ready' });
+  const r = await judgeAI('we closed the round'); assert.equal(r.status, 200); assert.equal(r.json.result.items[1].front, 'glf');
+  let sent = mocks.gemini.seen.at(-1);
+  assert.equal(sent.path, '/v1beta/interactions'); assert.equal(sent.key, K.gemini); assert.equal(sent.revision, '2026-05-20'); assert.equal(sent.auth, undefined);
+  assert.equal(sent.body.model, 'gemini-3.5-flash-lite'); assert.equal(sent.body.system_instruction, 'sys'); assert.equal(sent.body.store, false, 'nothing is kept at Google after the call');
+  assert.deepEqual(sent.body.response_format, { type: 'text', mime_type: 'application/json', schema });
+  assert.equal((await testAI()).json.ok, true);
+  for (const word of ['BADSHAPE', 'MALFORMED', 'REFUSE', 'PROVIDER_DOWN']) assert.equal((await judgeAI(word)).status, 502, word);
+  try { mocks.gemini.schema = false; const n = mocks.gemini.seen.length; assert.equal((await judgeAI('we closed the round')).status, 200); assert.equal(mocks.gemini.seen.length, n + 2); assert.match(mocks.gemini.seen.at(-1).body.system_instruction, /JSON Schema/); }
+  finally { mocks.gemini.schema = true; }
+  const t = await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7), headers: { 'content-type': 'audio/webm' } }); assert.equal(t.status, 200); assert.equal(t.json.text, 'I failed my exam.'); assert.equal(t.json.model, 'gemini-3.5-flash-lite');
+  sent = mocks.gemini.seen.at(-1); const audio = sent.body.input.find(p => p.type === 'audio'); assert.equal(audio.mime_type, 'audio/webm'); assert.equal(Buffer.from(audio.data, 'base64').length, 4000); assert.equal(sent.body.store, false);
+  assert.equal((await testAI('transcribe')).json.ok, true);
+  // a wrong key: Google answers 403 and quotes it
+  await setAI({ keys: { gemini: 'AIzaSyWRONG-GEMINI-key-999888' } }); const bad = await testAI(); assert.equal(bad.json.reason, 'key_rejected'); assert.doesNotMatch(bad.text, /AIza/);
+  await setAI({ keys: { gemini: K.gemini } });
+});
+
+test('Groq, Mistral and OpenRouter: Chat Completions with a strict schema, each with its own small model and key', async () => {
+  for (const [id, model, stt, extra] of [['groq', 'openai/gpt-oss-20b', 'whisper-large-v3-turbo', undefined], ['mistral', 'mistral-small-latest', 'voxtral-mini-latest', undefined], ['openrouter', 'openai/gpt-6-luna', null, { require_parameters: true }]]) {
+    const v = (await setAI({ provider: id, keys: { [id]: K[id] } })).json; assert.equal(v.status, 'ready', id); assert.equal(v.model, model);
+    const r = await judgeAI('we closed the round'); assert.equal(r.status, 200, id); assert.equal(r.json.model, model);
+    let sent = mocks.chat.seen.at(-1); assert.equal(sent.path, '/v1/chat/completions'); assert.equal(sent.auth, `Bearer ${K[id]}`); assert.equal(sent.body.model, model);
+    assert.deepEqual(sent.body.response_format, { type: 'json_schema', json_schema: { name: 'battle_report', strict: true, schema } }); assert.deepEqual(sent.body.provider, extra, id);
+    assert.equal((await judgeAI('BADSHAPE')).status, 502); assert.equal((await judgeAI('MALFORMED')).status, 502); assert.equal((await judgeAI('REFUSE')).status, 422);
+    const t = await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7), headers: { 'content-type': 'audio/webm' } });
+    if (!stt) { assert.equal(t.status, 503, `${id} cannot turn speech into text`); assert.equal(v.transcribe.mode, 'device'); continue; }
+    assert.equal(t.json.model, stt); sent = mocks.chat.seen.at(-1); assert.equal(sent.path, '/v1/audio/transcriptions'); assert.equal(sent.auth, `Bearer ${K[id]}`); assert.match(sent.raw.toString('latin1'), new RegExp(`name="model"\\s+${stt}`));
+  }
+  // a provider without structured outputs: one retry in JSON mode, the schema in the prompt
+  try { mocks.chat.chat = 'object'; const n = mocks.chat.seen.length; assert.equal((await judgeAI('we closed the round')).status, 200); assert.equal(mocks.chat.seen.length, n + 2); assert.equal(mocks.chat.seen.at(-1).body.response_format.type, 'json_object'); }
+  finally { mocks.chat.chat = 'schema'; }
+});
+
+test('speech is chosen apart from the staff: another provider with its own key, or this device', async () => {
+  // the staff is OpenRouter (no speech-to-text); Groq writes down what is said
+  let v = (await setAI({ transcribe: { mode: 'groq' } })).json; assert.deepEqual(v.transcribe, { mode: 'groq', provider: 'groq', model: 'whisper-large-v3-turbo', status: 'ready' }); assert.equal(v.provider, 'openrouter');
+  const t = await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7), headers: { 'content-type': 'audio/webm' } }); assert.equal(t.json.model, 'whisper-large-v3-turbo'); assert.equal(mocks.chat.seen.at(-1).auth, `Bearer ${K.groq}`, 'its own key');
+  await judgeAI('we closed the round'); assert.equal(mocks.chat.seen.at(-1).auth, `Bearer ${K.openrouter}`);
+  v = (await ai('/api/ai/key/groq', { method: 'DELETE' })).json; assert.equal(v.transcribe.status, 'no_key'); assert.equal(v.transcribe.provider, null); assert.equal((await ai('/api/config')).json.transcribe, null);
+  v = (await setAI({ keys: { groq: K.groq }, transcribe: { mode: 'device' } })).json; assert.deepEqual(v.transcribe, { mode: 'device', provider: null, model: null, status: 'device' });
+  assert.equal((await ai('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7) })).status, 503);
+  v = (await setAI({ provider: 'groq', transcribe: { mode: 'same' } })).json; assert.equal(v.transcribe.model, 'whisper-large-v3-turbo');
+});
+
+test('local models need no key; "offline" turns the model off', async () => {
+  let v = (await setAI({ provider: 'ollama' })).json; assert.equal(v.status, 'ready'); assert.equal(v.model, 'llama3.2'); assert.equal(of(v, 'ollama').base, 'http://localhost:11434/v1'); assert.equal(of(v, 'ollama').needsKey, false);
+  v = (await setAI({ bases: { ollama: `http://127.0.0.1:${M_CHAT}/v1/` }, models: { ollama: 'qwen3:8b' } })).json; assert.equal(of(v, 'ollama').base, `http://127.0.0.1:${M_CHAT}/v1`);
+  assert.equal((await judgeAI('we closed the round')).json.model, 'qwen3:8b'); const sent = mocks.chat.seen.at(-1); assert.equal(sent.auth, undefined, 'no Authorization header'); assert.equal(sent.body.model, 'qwen3:8b');
+  v = (await setAI({ provider: 'lmstudio', bases: { lmstudio: 'http://127.0.0.1:9/v1' } })).json; assert.equal(v.status, 'ready');
+  const down = await testAI(); assert.equal(down.json.ok, false); assert.equal(down.json.reason, 'unreachable'); assert.match(down.json.message, /Check the address/);
+  v = (await setAI({ provider: 'custom' })).json; assert.equal(v.status, 'no_address');
+  v = (await setAI({ bases: { custom: `http://127.0.0.1:${M_CHAT}/v1` } })).json; assert.equal(v.status, 'no_model');
+  v = (await setAI({ models: { custom: 'any-model' }, keys: { custom: 'optional-key-123456' } })).json; assert.equal(v.status, 'ready'); await judgeAI('we closed the round'); assert.equal(mocks.chat.seen.at(-1).auth, 'Bearer optional-key-123456');
+  v = (await setAI({ provider: 'offline' })).json; assert.equal(v.status, 'offline'); assert.equal(v.model, null);
+  assert.deepEqual((await ai('/api/config')).json, { server: true, judge: null, transcribe: null, login: true, provider: null, api: 'responses' });
+  const n = Object.values(mocks).reduce((a, m) => a + m.seen.length, 0);
+  assert.equal((await judgeAI('we closed the round')).status, 503);
+  const rep = await reportAI('I failed my exam at school.'); assert.equal(rep.json.source, 'local'); assert.equal(rep.json.warning, undefined);
+  assert.equal(Object.values(mocks).reduce((a, m) => a + m.seen.length, 0), n, 'nothing leaves the machine');
+  // provider null: back to what .env says
+  v = (await setAI({ provider: null })).json; assert.equal(v.source, 'env'); assert.equal(v.provider, 'openai'); assert.equal(v.model, 'gpt-env-model');
+});
+
+test('no key ever leaves the server: not in a response, the journal, a backup, the export, the log or an error', async () => {
+  // a full session has run above. Add what the app itself does: save a campaign, read it back, read the journal.
+  const s0 = (await ai('/api/state')).json; const put = await ai('/api/state', { method: 'PUT', body: JSON.stringify({ rev: s0.rev, data: { ...(s0.data || {}), reports: [...(s0.data?.reports || []), { id: 'leak1', ts: Date.now(), text: 'x', summary: '', source: 'manual', items: [] }] } }) }); assert.equal(put.status, 200);
+  await setAI({ provider: 'anthropic' }); await judgeAI('we closed the round'); await testAI();
+  for (const p of ['/api/state', '/api/journal', '/api/config', '/api/ai', '/api/sitrep', '/', '/sw.js', '/private/ai.json']) await ai(p);
+  assert.equal((await ai('/ai.json')).status, 404); assert.equal((await ai('/api/ai.json')).status, 404);
+  const keys = [...Object.values(K), 'optional-key-123456', 'AIzaSyWRONG-GEMINI-key-999888'];
+  const leak = (where, text) => { for (const k of keys) assert.equal(text.includes(k), false, `${where} contains a key (${k.slice(0, 6)}…)`); };
+  assert.ok(said.length > 120, `every response of the session was kept (${said.length})`); said.forEach((line, i) => leak(`response ${i}: ${line.slice(0, 60)}`, line));
+  leak('the server log', aiLog); assert.match(aiLog, /Home Front on/);
+  // on disk: ai.json is the only file with a key in it, and it is the owner's alone
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const files = walk(dirAI); assert.ok(files.some(f => f.endsWith('journal.ndjson')) && files.some(f => f.endsWith('state.json')));
+  for (const f of files) { if (f === aiFile()) continue; leak(path.relative(dirAI, f), fs.readFileSync(f, 'latin1')); }
+  assert.equal(fs.statSync(aiFile()).mode & 0o777, 0o600); assert.ok(fs.readFileSync(aiFile(), 'utf8').includes(K.anthropic));
+  // the app's export is the campaign the server hands it: no provider settings in it
+  assert.doesNotMatch((await ai('/api/state')).text, /"keys"|ai\.json|anthropic/);
+  // the built interface, which the service worker caches, has no key in it either
+  for (const f of walk(new URL('../dist', import.meta.url).pathname)) if (/\.(js|html|css)$/.test(f)) leak(f, fs.readFileSync(f, 'latin1'));
+  assert.equal(JSON.parse(fs.readFileSync(aiFile())).provider, 'anthropic');
 });

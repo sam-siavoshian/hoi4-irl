@@ -35,6 +35,7 @@ export function scenarioDir(dir) {
   };
 }
 
+// llm: { judge(request) }. judgeOn(): whether a model is set up right now (it can change while the server runs).
 export function createAutomation({ root, store, llm, judgeOn, extraScenarios = null }) {
   // the engine and the classifier are loaded once, on first use (the app's own modules: no DOM in them); each country's map
   // is loaded the first time the stored state asks for it
@@ -114,7 +115,7 @@ export function createAutomation({ root, store, llm, judgeOn, extraScenarios = n
         const headline = text ? (text.length > 90 ? text.slice(0, 87) + '…' : text) : outcome === 'win' ? 'A good day' : 'A bad day';
         res = { summary: '', source: 'manual', items: [{ front: f.id, outcome, severity: 2, action: outcome === 'win' ? 'offensive' : 'enemy_offensive', headline }] };
       } else {
-        const opts = { map, st, labels, notes: data.notes, off: data.off, text, remote: judgeOn, fetchImpl: judgeFetch };
+        const opts = { map, st, labels, notes: data.notes, off: data.off, text, remote: judgeOn(), fetchImpl: judgeFetch };
         try { res = await cls.classify(opts); }
         catch (e) { res = cls.classifyLocal(opts); res.warning = `Judge unavailable (${e?.status ? e.message : 'internal error'}). Used the offline classifier instead.`; }
       }

@@ -21,7 +21,8 @@ export const app = {
   ready: false, error: null, demo: false,
   map: null, view: null, data: null, st: null, live: null, scenarios: [],
   cfg: { server: false, judge: null, transcribe: null }, // what the private server offers
-  ui: { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, picker: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false },
+  ai: null, // the general staff as the server describes it (GET /api/ai): the provider in use and each provider's state, never a key
+  ui: { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, picker: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false, staff: { busy: null, test: null, voiceTest: null, error: '' } },
 };
 const ui = app.ui;
 let version = 0; const listeners = new Set();
@@ -88,10 +89,11 @@ export async function boot(base, over, wrap) {
   document.addEventListener('pointerdown', () => fx.unlock(), { passive: true });
   app.ready = true;
   refresh();
+  loadAI();
   if (firstRun()) { if (app.scenarios.length > 1) openPicker(); else openSheet('welcome'); } else greet();
   if (app.demo) { try { ui.demoNote = !sessionStorage.getItem('homefront.demo-note'); } catch { ui.demoNote = true; } change(); }
   if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__homefront = { save: persist, get cfg() { return app.cfg; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry, browse };
+  window.__homefront = { save: persist, get cfg() { return app.cfg; }, get ai() { return app.ai; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry, browse };
 }
 let fxRoot = null;
 export function closeDemoNote() { ui.demoNote = false; try { sessionStorage.setItem('homefront.demo-note', '1'); } catch { /* fine */ } change(); }
@@ -244,11 +246,12 @@ export function openSheet(name, arg = null, push = true) {
   ui.sheet = name; ui.arg = arg;
   if (name === 'report' && !ui.report) ui.report = newReport();
   if (name === 'overview') autoAssess();
+  if (name === 'settings' || name === 'staff') { ui.staff = { busy: null, test: null, voiceTest: null, error: '' }; loadAI(); }
   change();
 }
 export function closeSheet() {
   if (ui.dict) stopDictation();
-  if (ui.sheet === 'welcome') { app.data.onboarded = true; persist(); }
+  if (ui.sheet === 'welcome' || ui.stack.some(s => s[0] === 'welcome')) { app.data.onboarded = true; persist(); } // the welcome, or a step opened from it
   ui.sheet = null; ui.stack = []; app.view.select(null);
   change();
 }
@@ -257,7 +260,7 @@ export function back() { const p = ui.stack.pop(); if (p) openSheet(p[0], p[1], 
 export function toggleSheet(name) { if (ui.sheet === name) closeSheet(); else openSheet(name); }
 
 function onMapTap(d) {
-  if (ui.picker || ['report', 'welcome', 'settings', 'edit'].includes(ui.sheet)) return;
+  if (ui.picker || ['report', 'welcome', 'settings', 'staff', 'edit'].includes(ui.sheet)) return;
   if (d.kind === 'province') { app.view.select(d.id); openSheet('province', d.id); }
   else if (d.kind === 'front') openSheet('front', d.id);
   else if (d.kind === 'division') openSheet('division', d.id);
@@ -406,6 +409,49 @@ export function card(kind) { try { return (cardCache[kind] = cardData(kind)); } 
 export function shareCard(kind) {
   const c = cardCache[kind]; if (!c) return;
   shareCanvas(c, { filename: `homefront-${kind}.png`, text: sitrep(app.map, app.live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved.', 3200, null, 'The report is copied too.'); });
+}
+
+// ---------- the general staff: which provider judges, and which writes down speech ----------
+// The keys are the owner's own. They go to the private server and stay there: what comes back (app.ai) says only
+// whether a provider has one, and its last 4 characters. A static demo has no server, so there is nothing to set.
+const staffSay = async (path, init) => {
+  const r = await fetch(path, init); let j = null; try { j = await r.json(); } catch { /* not json */ }
+  if (!r.ok) throw new Error(r.status === 401 ? 'You’re signed out. Reload and sign in again.' : j?.error || 'The server couldn’t save that. Try again.');
+  return j;
+};
+const asJson = (method, body) => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const staffIdle = () => ({ busy: null, test: null, voiceTest: null, error: '' });
+// the judge and the voice engine follow what the server now offers
+async function followConfig() { try { const r = await fetch('api/config'); if (r.ok) app.cfg = await r.json(); } catch { /* offline: keep what was known */ } ui.assess = null; }
+export async function loadAI() {
+  if (!app.cfg.server) return;
+  try { app.ai = await staffSay('api/ai'); } catch { /* the screen keeps waiting, and asks again the next time it opens */ }
+  change();
+}
+export const staffOf = id => app.ai?.providers.find(p => p.id === id) || null;
+// One change: the provider, a model, an address or a key. → true when the server took it; what went wrong is in ui.staff.error.
+export async function saveStaff(patch, busy = 'save') {
+  const st = ui.staff = { ...staffIdle(), voiceTest: patch.transcribe || patch.keys || patch.provider ? null : ui.staff.voiceTest, busy }; change();
+  try { app.ai = await staffSay('api/ai', asJson('PUT', patch)); await followConfig(); return true; }
+  catch (e) { st.error = e.message; return false; }
+  finally { st.busy = null; change(); }
+}
+export const chooseProvider = id => saveStaff({ provider: id }, 'choose');
+export async function dropStaffKey(id) {
+  const p = staffOf(id); if (!p) return;
+  if (!(await confirm(`Remove the ${p.name} key?`, 'The key is deleted from your server. Until you add another, reports are judged offline.', 'Remove'))) return;
+  const st = ui.staff = { ...staffIdle(), busy: 'drop' }; change();
+  try { app.ai = await staffSay(`api/ai/key/${id}`, { method: 'DELETE' }); await followConfig(); toast('Key removed.'); }
+  catch (e) { st.error = e.message; }
+  finally { st.busy = null; change(); }
+}
+// One small call that proves the key and the model work. what: 'judge' or 'transcribe'.
+export async function testStaff(what = 'judge') {
+  const st = ui.staff, slot = what === 'transcribe' ? 'voiceTest' : 'test'; st.busy = slot; st[slot] = null; st.error = ''; change();
+  try { st[slot] = await staffSay('api/ai/test', asJson('POST', { what })); }
+  catch (e) { st[slot] = { ok: false, message: e.message }; }
+  try { app.ai = await staffSay('api/ai'); } catch { /* keep the last answer */ } // a rejected key shows in the status at once
+  st.busy = null; change();
 }
 
 // ---------- settings ----------

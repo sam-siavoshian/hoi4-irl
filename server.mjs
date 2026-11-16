@@ -1,6 +1,7 @@
 // Home Front private server. No dependencies; Node 20+.
 // - serves the built app (dist/, made by `npm run build`) only to someone who has logged in with HOMEFRONT_PASSWORD
-// - keeps the LLM key on this machine and proxies judging and transcription (OpenAI or any OpenAI-compatible API)
+// - keeps the model keys on this machine (set in the app, or in .env) and proxies judging and transcription to the
+//   provider chosen in Settings: OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, a local server, or none
 // - stores the campaign in ./private/state.json so every device sees the same war, journals every change
 //   to ./private/journal.ndjson and keeps dated backups in ./private/backups/
 // - offers a small automation API (POST /api/report, GET /api/sitrep, GET /api/journal) for Shortcuts and scripts
@@ -10,7 +11,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { llmConfig, createLLM } from './server/llm.mjs';
+import { createAI } from './server/providers.mjs';
 import { createStore } from './server/storage.mjs';
 import { createAutomation, scenarioDir } from './server/automation.mjs';
 
@@ -41,11 +42,11 @@ const die = msg => { console.error(msg); process.exit(1); };
 
 if (!PASSWORD && process.env.HOMEFRONT_OPEN !== '1') die('Refusing to start without HOMEFRONT_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set HOMEFRONT_OPEN=1.');
 if (TOKEN && TOKEN.length < 16) die('HOMEFRONT_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
-let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
 const store = createStore(PRIVATE);
 const { readJSON, writeJSON } = store;
-const llm = createLLM(cfg);
-const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.HOMEFRONT_EXTRA_SCENARIOS || null });
+// the provider in use: what was chosen in the app (ai.json in the data folder), or else what .env says
+let ai; try { ai = createAI({ env: process.env, store }); } catch (e) { die(e.message); }
+const auto = createAutomation({ root: ROOT, store, llm: ai, judgeOn: ai.judgeOn, extraScenarios: process.env.HOMEFRONT_EXTRA_SCENARIOS || null });
 
 // ---- sessions ----
 const sessions = new Map(Object.entries(readJSON('sessions.json', {})));
@@ -63,7 +64,7 @@ const safeEq = (a, b) => { const x = hash(a), y = hash(b); return crypto.timingS
 const TOKEN_PATHS = new Set(['/api/report', '/api/sitrep', '/api/journal']);
 function bearer(req, p) { if (!TOKEN || !TOKEN_PATHS.has(p)) return false; const m = /^Bearer\s+(\S+)\s*$/i.exec(req.headers.authorization || ''); return !!m && safeEq(m[1], TOKEN); }
 // per-address limit on the endpoints that cost money or write on someone's behalf
-const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report']); const hits = new Map(); // ip → [timestamps]
+const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report', '/api/ai/test']); const hits = new Map(); // ip → [timestamps]
 function limited(ip) { if (!RATE) return 0; const now = Date.now(); const a = (hits.get(ip) || []).filter(t => now - t < 60e3); hits.set(ip, a); if (a.length >= RATE) return Math.max(1, Math.ceil((a[0] + 60e3 - now) / 1000)); a.push(now); return 0; }
 setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.length || now - a.at(-1) > 60e3) hits.delete(k); for (const [k, a] of attempts) if (!a.length || now - a.at(-1) > 10 * 60e3) attempts.delete(k); }, 5 * 60e3).unref();
 
@@ -83,6 +84,15 @@ function send(res, status, body, headers = {}) { const b = typeof body === 'stri
 // an oversized body is refused with 413 and the rest of it is thrown away as it arrives
 function readBody(req, limit) { return new Promise((resolve, reject) => { let chunks = [], n = 0; req.on('data', c => { n += c.length; if (n > limit) { if (chunks) reject(Object.assign(new Error('Too large'), { status: 413 })); chunks = null; } else chunks?.push(c); }); req.on('end', () => chunks && resolve(Buffer.concat(chunks))); req.on('error', reject); }); }
 const secure = req => req.headers['x-forwarded-proto'] === 'https' || !!req.socket.encrypted;
+// A write to the provider settings must come from this app's own pages. The session cookie is SameSite=Lax, which
+// already keeps it off cross-site POST, PUT and DELETE; this refuses them outright as well. A browser says where a
+// request comes from (Sec-Fetch-Site, or Origin on older ones); a script with the session cookie sends neither.
+function sameOrigin(req) {
+  const site = req.headers['sec-fetch-site']; if (site) return site === 'same-origin' || site === 'none';
+  const origin = req.headers.origin; if (!origin) return true;
+  let host = null; try { host = new URL(origin).host; } catch { return false; }
+  return host === req.headers.host || host === String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+}
 
 // The login page stands alone (nothing from the app is served before login), so it carries the design system's
 // neutral paints by hand: light or dark with the device, no accent colour.
@@ -117,7 +127,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`${COOKIE}=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
-    if (p === '/api/config') return send(res, 200, { server: true, judge: cfg.judge ? cfg.model : null, transcribe: cfg.transcribe ? cfg.sttModel : null, login: !!PASSWORD, provider: cfg.provider, api: cfg.api });
+    if (p === '/api/config') { const c = ai.config(); return send(res, 200, { server: true, judge: c.judge, transcribe: c.transcribe, login: !!PASSWORD, provider: c.provider, api: c.api }); }
     if (LIMITED.has(p) && req.method === 'POST') { const wait = limited(ip); if (wait) return send(res, 429, { error: 'Too many requests. Try again shortly.' }, { 'retry-after': String(wait) }); }
 
     if (p === '/api/state') {
@@ -142,13 +152,32 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/llm' && req.method === 'POST') {
       const b = JSON.parse((await readBody(req, 200e3)).toString());
       if (!b || typeof b.system !== 'string' || typeof b.user !== 'string' || !b.schema || typeof b.schema !== 'object') return send(res, 400, { error: 'Bad request' });
-      return send(res, 200, { result: await llm.judge(b), model: cfg.model });
+      const model = ai.config().judge; return send(res, 200, { result: await ai.judge(b), model });
     }
 
     if (p === '/api/transcribe' && req.method === 'POST') {
       const audio = await readBody(req, 25e6); if (audio.length < 500) return send(res, 400, { error: 'No audio' });
       const type = (req.headers['content-type'] || 'audio/webm').split(';')[0];
-      return send(res, 200, { text: await llm.transcribe(audio, type), model: cfg.sttModel });
+      const model = ai.config().transcribe; return send(res, 200, { text: await ai.transcribe(audio, type), model });
+    }
+
+    // the general staff: which provider judges and transcribes, and its keys. A key goes in and never comes out:
+    // every answer here is ai.view(), which carries hasKey and the last 4 characters only.
+    if (p === '/api/ai' || p.startsWith('/api/ai/')) {
+      if (req.method !== 'GET' && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
+      if (p === '/api/ai') {
+        if (req.method === 'GET') return send(res, 200, ai.view());
+        if (req.method === 'PUT') return send(res, 200, ai.update(JSON.parse((await readBody(req, 16e3)).toString() || '{}')));
+        return send(res, 405, { error: 'Use GET or PUT' }, { allow: 'GET, PUT' });
+      }
+      const key = /^\/api\/ai\/key\/([a-z]+)$/.exec(p);
+      if (key) { if (req.method !== 'DELETE') return send(res, 405, { error: 'Use DELETE' }, { allow: 'DELETE' }); return send(res, 200, ai.removeKey(key[1])); }
+      if (p === '/api/ai/test') {
+        if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { allow: 'POST' });
+        const b = JSON.parse((await readBody(req, 4096)).toString() || '{}');
+        return send(res, 200, await ai.test(b && b.what === 'transcribe' ? 'transcribe' : 'judge'));
+      }
+      return send(res, 404, { error: 'Not found' });
     }
 
     // automation: file a report in one request (iOS Shortcuts, Siri, scripts)
@@ -183,4 +212,4 @@ const server = http.createServer(async (req, res) => {
     if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Your data is kept in ${PRIVATE}`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Your data is kept in ${PRIVATE}`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, ${ai.describe()}, automation token ${TOKEN ? 'on' : 'off'}`); });

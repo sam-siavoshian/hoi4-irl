@@ -18,7 +18,7 @@ Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-s
 git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
 cd homefront
 npm install               # the build tools for the interface
-cp .env.example .env      # then set HOMEFRONT_PASSWORD (and OPENAI_API_KEY if you use a model)
+cp .env.example .env      # then set HOMEFRONT_PASSWORD
 npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
@@ -37,8 +37,24 @@ All settings are listed in the [README](../README.md#configuration). The ones th
 | `HOMEFRONT_DATA_DIR` | Where data is stored. `~/.homefront` by default, outside the source folder. (An older install that already has `./private` keeps using it.) |
 | `HOMEFRONT_TOKEN` | Enables the automation API. Generate one with `openssl rand -hex 32`. |
 
-Without `OPENAI_API_KEY` the app still works, with the offline keyword judge and the keyboard's
-dictation key.
+### The model: your own key, set in the app
+
+Open the app, go to **Settings → General staff**, choose a provider and paste your own key. Press **Test**
+to prove the key and the model work. The providers, their small default models and what was verified are
+listed in the [README](../README.md#configuration).
+
+- The key is stored in `ai.json` in the data folder (`~/.homefront/ai.json`, mode `0600`, written to a
+  temporary file and renamed into place). It is never sent back to the browser.
+- What is set in the app wins over `.env`. An existing install with `OPENAI_API_KEY` in `.env` keeps
+  working with no action; that key shows in the app as "set on the server" and can only be changed in
+  `.env`. Removing a key in the app puts the `.env` one, if any, back in force.
+- With no key anywhere the app still works, with the offline keyword judge and dictation on the device.
+- `ai.json` is part of your data folder, so a copy of the folder carries your keys with it. The dated
+  backups in `backups/` and the app's Export contain the campaign only, never a key.
+- Behind a reverse proxy, pass the browser's `Host` header through (Caddy does; in nginx add
+  `proxy_set_header Host $host;`). The provider settings refuse a write that does not come from the
+  app's own pages, and modern browsers say so themselves (`Sec-Fetch-Site`), so this matters only for
+  old ones.
 
 ## Mac (launchd)
 
