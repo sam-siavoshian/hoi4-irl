@@ -3,18 +3,19 @@
 //   node site/_dev/shots.cjs http://localhost:8153/  (in another; needs Playwright with Chromium)
 //   python3 site/_dev/optimize.py                    (palette-quantises the PNGs; needs Pillow)
 // then build again so _site/ picks the new images up.
-// A second argument picks groups: site,docs,hero,countries,cards (default: all of them).
+// A second argument picks groups: site,docs,hero,countries,cards,select (default: all of them).
 //
 //   site/img/  hero.png (the landing page's hero map), shot-*.png and step-map.png (phone, 390×664 @2x),
 //              og.png (1200×630, from og.html), countries.png
 //   docs/img/  hero.png (desktop, 1440×900 @2x), map/report/front/division/history.png (phone, 390×844 @2x),
-//              countries.png, social-preview.png (1280×640, from social.html)
+//              countries.png, social-preview.png (1280×640, from social.html),
+//              select.png (phone) and select-desktop.png (1440×900 @2x): the first run's country picker, France highlighted
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const base = (process.argv[2] || 'http://localhost:8153/').replace(/\/*$/, '/');
-const only = (process.argv[3] || 'site,docs,hero,countries,cards').split(',');
+const only = (process.argv[3] || 'site,docs,hero,countries,cards,select').split(',');
 const root = path.join(__dirname, '..', '..');
 const SITE = path.join(root, 'site', 'img'), DOCS = path.join(root, 'docs', 'img');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-shots-'));
@@ -144,6 +145,26 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     fs.copyFileSync(path.join(DOCS, 'countries.png'), path.join(SITE, 'countries.png'));
     wrote(path.join(DOCS, 'countries.png')); wrote(path.join(SITE, 'countries.png'));
     await ctx.close();
+  }
+
+  if (only.includes('select')) {
+    // the first thing a first run shows: the country picker, with France highlighted and its map behind
+    for (const [file, width, height, phone] of [['select.png', 390, 844, true], ['select-desktop.png', 1440, 900, false]]) {
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, ...(phone ? { isMobile: true, hasTouch: true, userAgent: PHONE_UA } : {}) });
+      const p = await ctx.newPage();
+      p.on('pageerror', e => console.log('PAGE ERROR', e.message));
+      await p.addInitScript(([key, appearance]) => localStorage.setItem(key, appearance), [APPEARANCE_KEY, APPEARANCE]);
+      await p.goto(base + 'demo/'); // no ?demo=1: nothing has been chosen yet
+      await p.waitForSelector(T('picker'));
+      await p.addStyleTag({ content: QUIET });
+      await p.click(`${T('country')}[data-id=france]`);
+      await p.waitForFunction(() => window.__homefront.view.map.id === 'france' && !window.__homefront.ui.picker.busy);
+      await p.evaluate(() => document.fonts.ready);
+      await settle(p);
+      await p.screenshot({ path: path.join(DOCS, file) });
+      wrote(path.join(DOCS, file));
+      await ctx.close();
+    }
   }
 
   if (only.includes('cards')) {

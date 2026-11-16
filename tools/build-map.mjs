@@ -355,6 +355,16 @@ const isolated = provinces.filter(p => !adj[p.id].size && p.tag === HOME).map(p 
 if (isolated.length) problems.push(`home provinces with no neighbours: ${isolated.join(', ')}`);
 if (iran.length < 40) problems.push(`only ${iran.length} home provinces — lower the home country's spacing`);
 if (fronts.length !== S.FRONTS.length) problems.push('some fronts could not be built');
+// the flag (META.flag, optional): h3 | v3 with three colours, or h | v with stripes; every paint a #rrggbb
+{ const fl = (S.META || {}).flag, paint = c => /^#[0-9a-f]{6}$/i.test(c);
+  if (fl) {
+    if (fl.type === 'h3' || fl.type === 'v3') { if (!Array.isArray(fl.colors) || fl.colors.length !== 3 || !fl.colors.every(paint)) problems.push(`flag: ${fl.type} needs colors: three #rrggbb paints`); }
+    else if (fl.type === 'h' || fl.type === 'v') { if (!Array.isArray(fl.stripes) || !fl.stripes.length || !fl.stripes.every(s => Array.isArray(s) && paint(s[0]) && s[1] > 0)) problems.push('flag: stripes must be a list of [#rrggbb, weight]'); }
+    else problems.push(`flag: unknown type ${fl.type} (h3, v3, h or v)`);
+    for (const k of ['disc']) if (fl[k] != null && !paint(fl[k])) problems.push(`flag: ${k} must be a #rrggbb paint`);
+    if (fl.canton && !(paint(fl.canton.color) && fl.canton.w > 0 && fl.canton.w <= 1 && fl.canton.h > 0 && fl.canton.h <= 1)) problems.push('flag: canton needs color, w and h (0–1)');
+    if (fl.cross && !(paint(fl.cross.color) && fl.cross.width > 0 && fl.cross.width <= 1)) problems.push('flag: cross needs color and width (0–1)');
+  } }
 const json = JSON.stringify(out);
 say(`  ${S.ID}: ${provinces.length} provinces (${iran.length} home), ${(json.length / 1024).toFixed(0)} KB, ${W}x${H}`);
 for (const pr of problems) say('  PROBLEM:', pr);

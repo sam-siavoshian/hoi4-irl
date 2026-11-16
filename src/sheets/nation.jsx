@@ -1,11 +1,12 @@
-// The nation: overview (rank, orders, decorations), share cards, settings, the country picker and the first run.
+// The nation: overview (rank, orders, decorations), share cards, settings and the first run's welcome.
+// (Choosing a country is its own screen: ../picker.jsx.)
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, CardButton, ChoiceCards, FileInput, Input, ListGroup, ListRow, ListRowButton, ListSection, ProgressMeter, Segmented, StatTile, Switch } from '@sam/design-system';
+import { Button, CardButton, ChoiceCards, FileInput, Input, ListGroup, ListRow, ListRowButton, ListSection, ProgressMeter, Segmented, StatTile, Switch } from '@sam/design-system';
 import { setAppearance, useTheme } from '@sam/design-system/theme';
 import { DownloadIcon, LogOutIcon, MedalIcon, PlayIcon, SettingsIcon, ShareIcon, TargetIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { medalOf, medalProgress } from '../../js/engine.js';
 import { PRESETS } from '../../js/presets.js';
-import { app, F, CARDS, altDate, card, choosePreset, closeSheet, exportBackup, firstRun, fmtDate, importBackup, labels, loadDemo, logOut, openSheet, pickCountry, reset, setLabel, shareCard, toggleFront, toggleFx } from '../core.js';
+import { app, F, CARDS, altDate, card, choosePreset, closeSheet, exportBackup, fmtDate, importBackup, labels, loadDemo, logOut, openPicker, openSheet, reset, setLabel, shareCard, toggleFront, toggleFx } from '../core.js';
 import { Flag } from '../parts.jsx';
 import { Orders } from './report.jsx';
 
@@ -112,7 +113,7 @@ function SettingsBody() {
       </ListSection>
       <ListSection title="Country">
         {many
-          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={() => openSheet('country')} />
+          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={openPicker} />
           : <ListRow variant="item" media={<Flag flag={F().flag} />} title={F().name} description={F().long} />}
       </ListSection>
       <ListSection title="Staff">
@@ -138,26 +139,6 @@ function SettingsBody() {
   );
 }
 export const settings = { title: () => 'Settings', Body: SettingsBody };
-
-// The country picker: the first step of a first run, and "Change country" in Settings.
-export const country = {
-  title: () => (firstRun() ? 'Choose your country' : 'Country'),
-  Body() {
-    const { scenarios, data } = app; const first = firstRun();
-    return (
-      <>
-        <p className={quiet}>{first ? '7 borders, 7 parts of your life. Pick the country whose map you want to fight on. You can change it later.' : 'Each country keeps its own campaign. Nothing is lost by switching.'}</p>
-        <ListGroup>
-          {scenarios.map(c => (
-            <ListRowButton key={c.id} data-testid="country" data-id={c.id} media={<Flag flag={c.flag} />} title={c.name}
-              description={<>{c.empire ? <span className="block font-medium text-foreground">{c.empire}</span> : null}{c.blurb ? <span className="block">{c.blurb}</span> : null}</>}
-              status={c.id === data.scenario && !first ? <Badge variant="secondary">Playing</Badge> : null} onClick={() => pickCountry(c.id)} />
-          ))}
-        </ListGroup>
-      </>
-    );
-  },
-};
 
 export const welcome = {
   title: () => 'Your fronts',

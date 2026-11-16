@@ -342,7 +342,7 @@ export const META = {
   blurb: 'Seven fronts from the Shan hills to the Malay sultanates. Restore the tributary realm of the early Chakri kings.',
   pitch: 'a 1936 grand-strategy war map of Siam',
   // the Trairanga (1917) has five stripes, red-white-blue-white-red; three bands can only suggest it
-  flag: { type: 'h3', colors: ['#a51931', '#2d2a4a', '#a51931'] },
+  flag: { type: 'h', stripes: [['#a51931', 1], ['#f4f1e6', 1], ['#2d2a4a', 2], ['#f4f1e6', 1], ['#a51931', 1]] },
   regionWord: 'Monthon',
   // 1936 region → the name it bore in the Bangkok chronicles
   regions: {

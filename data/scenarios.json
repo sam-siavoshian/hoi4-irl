@@ -56,12 +56,17 @@
   "year": 1936,
   "blurb": "Three mountain borders and four seas. Restore the empire of Basil II, from the Danube to Antioch.",
   "flag": {
-   "type": "h3",
-   "colors": [
-    "#0d5eaf",
-    "#f4f1e6",
-    "#0d5eaf"
-   ]
+   "type": "h",
+   "stripes": [
+    [
+     "#0d5eaf",
+     1
+    ]
+   ],
+   "cross": {
+    "color": "#f4f1e6",
+    "width": 0.2
+   }
   }
  },
  {
@@ -105,11 +110,28 @@
   "year": 1936,
   "blurb": "Seven fronts from the Shan hills to the Malay sultanates. Restore the tributary realm of the early Chakri kings.",
   "flag": {
-   "type": "h3",
-   "colors": [
-    "#a51931",
-    "#2d2a4a",
-    "#a51931"
+   "type": "h",
+   "stripes": [
+    [
+     "#a51931",
+     1
+    ],
+    [
+     "#f4f1e6",
+     1
+    ],
+    [
+     "#2d2a4a",
+     2
+    ],
+    [
+     "#f4f1e6",
+     1
+    ],
+    [
+     "#a51931",
+     1
+    ]
    ]
   }
  },
