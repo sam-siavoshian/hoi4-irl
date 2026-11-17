@@ -36,6 +36,23 @@ The step from a personal tool to something anyone can self-host.
   `PUT /api/ai`, `DELETE /api/ai/key/<provider>`, `POST /api/ai/test`. `.env` remains the fallback, so
   existing installs keep working untouched; a key from `.env` shows as "set on the server".
 - Provider marks from Simple Icons (CC0) where the project may ship them; a plain icon for OpenAI and Groq.
+- **Local models, any of them.** One **Local model** choice in Settings → General staff covers every server
+  that speaks the standard OpenAI-compatible API, with presets for Ollama, LM Studio, llama.cpp, vLLM,
+  LocalAI, Jan, text-generation-webui, KoboldCpp, MLX and llamafile, and any address on your network.
+  **Find local models** looks on this machine only (loopback and `host.docker.internal`, the runtimes'
+  own ports) and lists what each server has, with sizes and quantisation; any tag, repository or `.gguf`
+  path can be typed, and one the server lacks is named with its install command. Structured output is
+  negotiated per server (strict schema, then JSON mode, then plain text read for its JSON, past
+  `<think>` blocks and code fences) and remembered per address and model; answers are mended where safe
+  and asked for once more with the error. Test says whether the server is down, the model missing or the
+  JSON unusable, with speed when the server reports it, and Settings shows "Model server not running".
+  Advanced: key, timeout (180 s by default), JSON mode, most tokens, temperature, and for Ollama context
+  length and keep-alive. New endpoints `POST /api/ai/discover` and `GET /api/ai/models`; `.env` fallbacks
+  `LOCAL_BASE_URL`, `LOCAL_MODEL`, `LOCAL_API_KEY`, `LOCAL_TIMEOUT_MS`. The guide:
+  [docs/LOCAL_MODELS.md](docs/LOCAL_MODELS.md). Settings for Ollama, LM Studio and "Other server" carry over.
+- **Local speech to text.** A speech server of your own under Voice (Speaches, whisper.cpp, LocalAI,
+  Ollama, KoboldCpp, vLLM), with its address and model; a recording is converted to WAV in the browser for
+  servers that take only WAV. The speech model is now editable for cloud providers too.
 
 - **Eight countries.** Iran, Turkey, Greece, France, Ethiopia, Siam, Peru and Mexico, each with its own
   1936 map, seven fronts, order of battle, fleets, air wings, commanders, ranks, decorations and an

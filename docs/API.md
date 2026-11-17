@@ -205,10 +205,16 @@ token does not open it. **A key never appears in this answer**, only whether one
 
 | Field | Meaning |
 |---|---|
-| `provider` | `openai`, `anthropic`, `gemini`, `groq`, `mistral`, `openrouter`, `ollama`, `lmstudio`, `custom` or `offline` |
+| `provider` | `openai`, `anthropic`, `gemini`, `groq`, `mistral`, `openrouter`, `local` (a model server of your own) or `offline`. The list also has `speech`, a local speech-to-text server, which can only be chosen under `transcribe`. |
 | `source` | `app` (chosen in Settings), `env` (nothing chosen: `.env` is in force) or `none` |
-| `status` | `ready`, `no_key`, `no_address`, `no_model`, `rejected` (the provider refused the key the last time it was tried) or `offline` |
-| `transcribe.mode` | `same` (the judge's provider), `device`, or a provider id |
+| `status` | `ready`, `no_key`, `no_address`, `no_model`, `rejected` (the provider refused the key the last time it was tried), `server_down` (a local server did not answer the last time it was tried) or `offline` |
+| `transcribe.mode` | `same` (the judge's provider), `device`, or a provider id (`speech` for a local speech server). `transcribe.wav: true` when that server takes WAV only. |
+| `providers[].sttModel` | the speech model in use for that provider; editable for every provider that has one |
+| `local` provider only | `runtime` (`ollama`, `lmstudio`, `llamacpp`, `vllm`, `localai`, `jan`, `textgen`, `koboldcpp`, `mlx`, `llamafile` or `other`), `learned` (how this address and model last gave JSON: `json_schema`, `json_object`, `text`, or `null`), `defaultTimeout` (seconds), `options` (`mode`, `timeout`, `maxTokens`, `context`, `keepAlive`, `temperature`; `null` or `""` for the default) |
+| `runtimes`, `speechRuntimes` | the presets: `{ id, name, base, ... }` for each kind of local server |
+
+Ollama, LM Studio and "Other server" were providers of their own before 2026-11-17. A saved `ai.json` or a
+`PUT` that names `ollama`, `lmstudio` or `custom` is read as `local`, with that runtime and its address.
 | `keySource` | `app` (saved here, `last4` shown), `server` (from `.env`: no `last4`, cannot be removed here) or `null` |
 
 ### `PUT /api/ai`
@@ -229,8 +235,13 @@ Content-Type: application/json
 | `provider` | A provider id, or `null` to go back to what `.env` says |
 | `keys` | `{ "<provider>": "<key>" }`. 8 to 512 characters, no spaces. Stored in `ai.json` (mode `0600`) in the data folder |
 | `models` | `{ "<provider>": "<model>" }`; `null` for the provider's small default |
-| `bases` | `{ "<provider>": "<address>" }`, for `ollama`, `lmstudio` and `custom` only. Must be `http://` or `https://`, with no user name or password in it; `null` for the default |
+| `bases` | `{ "<provider>": "<address>" }`, for `local` and `speech` only. Must be `http://` or `https://`, with no user name or password in it; `null` for the default |
 | `transcribe` | `{ "mode": "same" \| "device" \| "<provider>", "models": { "<provider>": "<model>" } }` |
+| `local` | `{ "runtime", "mode": "auto" \| "json_schema" \| "json_object" \| "text", "timeout": 5–3600 (seconds), "maxTokens": 16–200000, "context": 256–4000000, "keepAlive": "10m" \| "1h" \| "-1" \| "0", "temperature": 0–2 }`; `null` for a default |
+| `speech` | `{ "runtime": "speaches" \| "whispercpp" \| "localai" \| "ollama" \| "koboldcpp" \| "vllm" \| "other", "wav": true \| false \| null }` |
+
+A local model's name may be any tag, repository or file path the server takes (up to 300 characters, no
+control characters, quotes or angle brackets).
 
 - `400 {"error": "..."}` says what was wrong, without repeating what was sent.
 - `403` the request did not come from the app's own pages (see below).
@@ -254,7 +265,48 @@ with a plain result. Counts against the rate limit.
 `reason` is one of `key_rejected`, `rate_limited`, `not_found` (the model or the address), `unreachable`,
 `timeout`, `bad_answer`, `provider_down`, `refused` or `off` (nothing is set up).
 
-**Writes must come from the app.** `PUT`, `DELETE` and `POST` under `/api/ai` are refused with `403` when
+A local model is tested in two steps, so the answer can say which part is wrong: is a server there (its
+model list), then does this model answer with JSON. A success also carries `mode` (how the JSON was asked
+for) and `tps` (tokens a second, when the server reports it, or `null`). Extra reasons: `model_missing`
+(the server is there; the message gives the runtime's own install command, such as `ollama pull <model>`),
+`no_api` (something answered, but not this API: usually a missing `/v1`) and `cut_short` (the model ran out
+of tokens). `unreachable` says what to check, including the `host.docker.internal` address to use from
+Docker.
+
+```json
+{ "ok": true, "model": "qwen3:4b", "ms": 2140, "mode": "json_schema", "tps": 31.3 }
+{ "ok": false, "reason": "model_missing", "message": "The server answered, but it has no model called qwen3:8b. Run ollama pull qwen3:8b, or pick one from the list." }
+```
+
+### `POST /api/ai/discover`
+
+Finds model servers running on this machine. It tries the runtimes' well-known ports (11434, 1234, 9931,
+8080, 8000, 1337, 5000, 5001) on `127.0.0.1` and `host.docker.internal` only, in parallel, with a short
+timeout, and answers with those that listed their models. Nothing else is ever contacted. Counts against the
+rate limit.
+
+```json
+{ "found": [ { "runtime": "ollama", "name": "Ollama", "base": "http://127.0.0.1:11434/v1",
+               "models": [ { "id": "llama3.2:latest", "size": 2019393189, "params": "3.2B", "quant": "Q4_K_M" } ] } ],
+  "tried": 16 }
+```
+
+### `GET /api/ai/models?provider=local`
+
+The models the configured local server has (`provider=speech` for the speech server): its `/v1/models`,
+and Ollama's own `/api/tags` when that is missing or for the sizes it reports. `size` is in bytes; `params`
+and `quant` are given when the runtime reports them, otherwise `null`.
+
+```json
+{ "ok": true, "provider": "local", "base": "http://127.0.0.1:11434/v1", "runtime": "ollama", "listed": true,
+  "models": [ { "id": "qwen3:4b", "size": 2497280000, "params": "4.0B", "quant": "Q4_K_M" } ],
+  "model": "qwen3:8b", "installed": false, "get": "ollama pull qwen3:8b" }
+{ "ok": false, "provider": "local", "reason": "unreachable", "message": "Nothing answered at 127.0.0.1:11434. ..." }
+```
+
+`installed` is `null` when the server lists no models (some load a model by name on request).
+
+**Writes must come from the app.** `PUT`, `DELETE` and `POST` under `/api/ai`, and `GET /api/ai/models`, are refused with `403` when
 the browser says the request came from another site (`Sec-Fetch-Site` other than `same-origin`, or an
 `Origin` that is not this server). The session cookie is `SameSite=Lax` as well, so another site's page
 cannot send it with a write in the first place. A script that holds the session cookie sends neither

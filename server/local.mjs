@@ -109,6 +109,9 @@ export const SPEECH_RUNTIMES = [
   // Ollama. /v1/audio/transcriptions "with models that accept audio input"; file: WAV. The page names no model,
   // so none is filled in. https://docs.ollama.com/api/openai-compatibility — checked 2026-11-17.
   { id: 'ollama', name: 'Ollama', base: 'http://127.0.0.1:11434/v1', model: '', wav: true, url: 'https://ollama.com/download', get: m => `ollama pull ${m}` },
+  // KoboldCpp with --whispermodel: /v1/audio/transcriptions, WAV only (clients sending webm or mp3 "need to convert
+  // to WAV"); the model is the file it was started with. https://github.com/LostRuins/koboldcpp/wiki — checked 2026-11-17.
+  { id: 'koboldcpp', name: 'KoboldCpp', base: 'http://127.0.0.1:5001/v1', model: 'whisper', wav: true, url: 'https://github.com/LostRuins/koboldcpp', get: () => 'koboldcpp --whispermodel <whisper .bin file>' },
   // vLLM serving a speech model: Transcriptions API "only for Automatic Speech Recognition models".
   // https://github.com/vllm-project/vllm/blob/main/docs/serving/online_serving/openai_compatible_server.md — checked 2026-11-17.
   { id: 'vllm', name: 'vLLM', base: 'http://127.0.0.1:8000/v1', model: '', wav: false, url: 'https://docs.vllm.ai/', get: m => `vllm serve ${m}` },

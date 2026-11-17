@@ -49,6 +49,9 @@ listed in the [README](../README.md#configuration).
   working with no action; that key shows in the app as "set on the server" and can only be changed in
   `.env`. Removing a key in the app puts the `.env` one, if any, back in force.
 - With no key anywhere the app still works, with the offline keyword judge and dictation on the device.
+- A model of your own needs no key: choose **Local model**, press **Find local models**, pick one and
+  **Test**. Hardware, runtimes, Docker and a model on another machine:
+  [LOCAL_MODELS.md](LOCAL_MODELS.md).
 - `ai.json` is part of your data folder, so a copy of the folder carries your keys with it. The dated
   backups in `backups/` and the app's Export contain the campaign only, never a key.
 - Behind a reverse proxy, pass the browser's `Host` header through (Caddy does; in nginx add
@@ -172,9 +175,11 @@ Notes:
 - In a container, leave `HOST` and `HOMEFRONT_DATA_DIR` alone; the image sets them (`0.0.0.0`,
   `/app/private`).
 - `--env-file` passes values literally. Do not put quotes around them in `.env`.
-- To use a model running on the host (Ollama, LM Studio), point `OPENAI_BASE_URL` at
-  `http://host.docker.internal:11434/v1`. On Linux, add `--add-host=host.docker.internal:host-gateway`
-  (or the matching `extra_hosts` entry in compose).
+- A model running on the host (Ollama, LM Studio, llama.cpp) is at `http://host.docker.internal:<port>/v1`,
+  and **Find local models** looks there. `docker-compose.yml` maps that name on Linux (`extra_hosts`); with
+  `docker run`, add `--add-host=host.docker.internal:host-gateway`. On Linux the model server must accept
+  connections from the Docker bridge too (Ollama: `OLLAMA_HOST=0.0.0.0:11434`). See
+  [LOCAL_MODELS.md](LOCAL_MODELS.md#docker).
 - The image has a health check against `/robots.txt`; `docker ps` shows `healthy` once it is up.
 - To keep the data in a folder instead of a volume, use `-v "$PWD/private:/app/private"`. The container
   runs as uid 1000, so that folder must be writable by uid 1000.

@@ -38,7 +38,7 @@ multi-user service and was not designed to face the open internet without someth
   server replaces that with "The provider rejected the key." and cuts anything key-shaped out of any
   other provider message before it reaches the app, the automation API or the log.
 - **A custom address must be `http://` or `https://`**, with no user name or password in it, and only
-  the local providers (Ollama, LM Studio, another server) have one to set.
+  the local model and the local speech server have one to set.
 - **The password is the lock.** Until a device has logged in, the server returns only the login page,
   `robots.txt` and the icons needed for Home Screen install. The app's code, the map and every API
   endpoint return `401`.
@@ -83,12 +83,19 @@ multi-user service and was not designed to face the open internet without someth
   | Groq | the same text, to `api.groq.com` | the recording, to the same host | |
   | Mistral | the same text, to `api.mistral.ai` | the recording, to the same host | |
   | OpenRouter | the same text, to `openrouter.ai`, which passes it to the model's host | nothing | OpenRouter's and that host's policies both apply |
-  | Ollama, LM Studio, another server | the same text, to the address you set | nothing | on your own machine nothing leaves it |
+  | Local model (Ollama, LM Studio, llama.cpp, any OpenAI-compatible server) | the same text, to the address you set | the recording, to the local speech server you set, if any | on your own machine or network nothing leaves it |
   | Offline judge | nothing | nothing | keywords, on your server |
 
   The key goes only to its own provider, in that provider's auth header. "On this device" voice uses the
   browser's speech recognition, which in some browsers sends audio to the browser's maker, or the
   keyboard's dictation. Use a local model or the offline judge to keep everything on your machine.
+- **Finding local models touches this machine only.** `POST /api/ai/discover` tries a fixed list of
+  well-known ports (11434, 1234, 9931, 8080, 8000, 1337, 5000, 5001) on `127.0.0.1` and
+  `host.docker.internal`, once each, with a short timeout, and follows no redirect. It is not a network
+  scan: every address it may try is checked against that list of hosts before it is contacted, and the
+  test suite asserts it. It needs the session and is refused from another site's page, as the other
+  `/api/ai` writes are; `GET /api/ai/models`, which calls the configured server, is refused from another
+  site too.
 - **A custom address is a request the server makes for you.** Whoever is signed in can point a local
   provider at any `http(s)` address the server can reach, and the server will post report text there.
   That person is you; it is one more reason the password matters.

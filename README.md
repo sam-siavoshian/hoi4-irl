@@ -86,7 +86,7 @@ The far goal is the same in every country: take every objective and the country'
 restored. Let everything slide and the capital falls. Most of life happens in between.
 
 - **Private by design.** One user, one password, your own machine. Your API key never reaches the browser.
-- **Works with any model, or none.** OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, or the built-in offline judge. Your own key, set in the app.
+- **Works with any model, or none.** OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, any model you run yourself (Ollama, LM Studio, llama.cpp, vLLM and the rest), or the built-in offline judge. Your own key, set in the app.
 - **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
 
@@ -178,8 +178,9 @@ why something happened, not just that it did:
 
 - Persona presets on first run (Student, Founder, Athlete, Creator, Parent and more) name the fronts for
   you. Everything can be renamed, and any front can be paused.
-- Your own key, set in the app: OpenAI, Anthropic, Google Gemini, Groq, Mistral, OpenRouter, or a local model in
-  Ollama or LM Studio, each on its small default model. With no key at all, an offline keyword judge keeps the app working.
+- Your own key, set in the app: OpenAI, Anthropic, Google Gemini, Groq, Mistral or OpenRouter, each on its small
+  default model, or any model you run yourself through the standard OpenAI-compatible API: the app finds the
+  server on your machine and lists its models. With no key at all, an offline keyword judge keeps the app working.
 
 **Running it**
 
@@ -296,9 +297,7 @@ choose a country. Nothing about it needs a restart.
 | Groq | `openai/gpt-oss-20b` | `whisper-large-v3-turbo` | Chat Completions, `json_schema`, strict | [models](https://console.groq.com/docs/models), [structured outputs](https://console.groq.com/docs/structured-outputs), [speech to text](https://console.groq.com/docs/speech-to-text), 2026-11-16 |
 | Mistral | `mistral-small-latest` | `voxtral-mini-latest` | Chat Completions, `json_schema`; JSON mode if refused | Ids from the examples in [Mistral's API reference](https://docs.mistral.ai/api/), 2026-11-16. **Not confirmed**: which snapshot each alias points to, and the exact `json_schema` body. |
 | OpenRouter | `openai/gpt-6-luna` | none | Chat Completions, `json_schema`, strict, `provider.require_parameters` | [model index](https://openrouter.ai/api/v1/models), [structured outputs](https://openrouter.ai/docs/features/structured-outputs), 2026-11-16 |
-| Ollama | `llama3.2` | none | Chat Completions, `json_schema`; JSON mode if refused | [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility), 2026-11-16 |
-| LM Studio | `openai/gpt-oss-20b` | none | Chat Completions, `json_schema`; JSON mode if refused | [structured output](https://lmstudio.ai/docs/developer/openai-compat/structured-output), 2026-11-16. The default model name is a guess, **unverified**: LM Studio names a model after whatever you loaded. |
-| Other server | none | none | Chat Completions, `json_schema`; JSON mode if refused | any OpenAI-compatible server |
+| Local model | the one you pick from your server's list, or any name it takes | a local speech server (Speaches, whisper.cpp, LocalAI, ...) | `json_schema`, then JSON mode, then plain text read for its JSON; what works is remembered per model | Ollama, LM Studio, llama.cpp, vLLM, LocalAI, Jan, text-generation-webui, KoboldCpp, MLX, llamafile: each runtime's documentation, 2026-11-17, in [docs/LOCAL_MODELS.md](docs/LOCAL_MODELS.md) |
 | Offline judge | keywords, no model | this device | not a model | built in |
 
 What "checked" means: on the date shown, the default model id, the request shape and the address were read
@@ -309,7 +308,7 @@ refuses the schema, the server asks for plain JSON instead and checks the answer
 back to the offline judge, as any failure does.
 
 The marks on the provider tiles are the real ones where the project may ship them (Anthropic, Google
-Gemini, Mistral, OpenRouter, Ollama, LM Studio: Simple Icons, CC0). OpenAI and Groq wear a plain icon:
+Gemini, Mistral, OpenRouter: Simple Icons, CC0). OpenAI and Groq wear a plain icon, and a local model a server:
 neither is in that set, and Groq's trademark policy does not allow its logo in an interface without a
 licence. Names and logos belong to their owners.
 
@@ -338,42 +337,26 @@ The model can also be set here, as it always could. These are used while nothing
 | `LLM_API` | `responses` | Set to `chat` to use chat completions on servers that do not offer the Responses API. |
 | `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` | empty | A key for that provider kept in `.env` instead of the app. Choose the provider in Settings; the key shows as "set on the server". |
 | `ANTHROPIC_BASE_URL`, `GEMINI_BASE_URL`, `GROQ_BASE_URL`, `MISTRAL_BASE_URL`, `OPENROUTER_BASE_URL` | each provider's own | Another address for that provider: a gateway or a proxy. |
+| `LOCAL_BASE_URL`, `LOCAL_MODEL`, `LOCAL_API_KEY`, `LOCAL_TIMEOUT_MS`, `LOCAL_STT_BASE_URL`, `LOCAL_STT_MODEL` | empty; 180000 ms | A model server of your own, and a speech server: see [docs/LOCAL_MODELS.md](docs/LOCAL_MODELS.md#setting-it-in-env-instead). |
 
 ## Local models
 
-Nothing leaves your machine with a local model. In **Settings → General staff** choose **Ollama** or
-**LM Studio** (or **Other server** for anything else that speaks OpenAI's Chat Completions). There is no
-key. Check the address, type the name of a model you have, and press **Test**.
-
-With [Ollama](https://ollama.com):
+Run the model yourself and nothing leaves your network. Any server that speaks the standard
+OpenAI-compatible API works: Ollama, LM Studio, llama.cpp, vLLM, LocalAI, Jan, text-generation-webui,
+KoboldCpp, MLX, llamafile, or one on another machine of yours.
 
 ```bash
-ollama pull llama3.2      # the small default; any model you have works
+ollama pull llama3.2      # for example: a 3B instruct model is enough to judge a day
 ```
 
-| Server | Address (the default in the app) |
-|---|---|
-| Ollama | `http://localhost:11434/v1` |
-| LM Studio | `http://localhost:1234/v1` |
+Then **Settings → General staff → Local model → Find local models**, pick a model from the list (or type
+any tag, repository or `.gguf` path the server takes), and press **Test**. The server looks for model
+servers on this machine only. Voice can stay local too, with a speech server such as Speaches or
+whisper.cpp.
 
-The same can be done in `.env`, as before the app had this screen:
-
-```ini
-# .env
-HOMEFRONT_PASSWORD=choose-something-long
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_MODEL=llama3.2
-LLM_API=chat
-```
-
-Notes:
-
-- The judge asks for JSON that matches a schema. Pick a model that handles structured output well;
-  small models sometimes choose odd battle types. A server without schema support is asked for plain
-  JSON, and the answer is checked on your server.
-- Local servers are not used for voice: choose "On this device", or another provider, under Voice.
-- Running Home Front in Docker and Ollama on the host? Use `http://host.docker.internal:11434/v1`.
-- The address must start with `http://` or `https://`.
+The full guide, with what hardware runs what, step by step for Ollama, LM Studio and llama.cpp, every
+runtime's address, Docker, a model on another machine and troubleshooting:
+**[docs/LOCAL_MODELS.md](docs/LOCAL_MODELS.md)**.
 
 ## On your iPhone
 
