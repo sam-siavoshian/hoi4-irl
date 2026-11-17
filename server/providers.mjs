@@ -369,7 +369,11 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
   function current(body) {
     const b = { ...obj(body) }, old = OLD_LOCAL[b.provider];
     for (const k of ['models', 'bases', 'keys']) { const m = { ...obj(b[k]) }; for (const id of Object.keys(OLD_LOCAL)) if (id in m) { m.local = m[id]; delete m[id]; } if (k in b) b[k] = m; }
-    if (old) { b.provider = 'local'; b.local = { runtime: old, ...obj(b.local) }; if (RUNTIME[old].base) b.bases = { local: RUNTIME[old].base, ...obj(b.bases) }; }
+    if (old) {
+      b.provider = 'local'; b.local = { runtime: old, ...obj(b.local) }; if (RUNTIME[old].base) b.bases = { local: RUNTIME[old].base, ...obj(b.bases) };
+      const was = { ollama: 'llama3.2', lmstudio: 'openai/gpt-oss-20b' }[body.provider]; // the small model each was set up with
+      if (was && !saved.models.local && !obj(b.models).local) b.models = { ...obj(b.models), local: was };
+    }
     return b;
   }
   function update(body) {
@@ -442,7 +446,8 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
     down.delete(id);
     if (list.keyRejected) { rejected.add(id); return { ok: false, provider: id, base, reason: 'key_rejected', message: LOCAL_WORDS.key_rejected() }; }
     const model = id === 'local' ? modelOf(id) : speechModel();
-    return { ok: true, provider: id, base, runtime, listed: list.listed, models: list.models, model, installed: model && list.listed && list.models.length ? hasModel(list.models, model) : null };
+    const installed = model && list.listed && list.models.length ? hasModel(list.models, model) : null;
+    return { ok: true, provider: id, base, runtime, listed: list.listed, models: list.models, model, installed, get: installed === false ? who.get(model) : null };
   }
 
   // one tiny call that proves the key and the model work. → { ok: true, model, ms } or { ok: false, reason, message }

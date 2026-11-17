@@ -30,11 +30,12 @@ export function llmConfig(env) {
 // ---- reading an answer that is not clean JSON (small local models) ----
 // A reasoning model thinks out loud first: <think>…</think> (also <thinking>, <reasoning>). The thinking is dropped:
 // a closed block anywhere, everything up to a lone closing tag (a chat template that swallowed the opening one),
-// and a lone opening tag (the model ran out of room while thinking).
+// and everything after a lone opening tag (the model ran out of room while thinking).
 export function stripThinking(text) {
   let s = String(text).replace(/<(think|thinking|reasoning)>[\s\S]*?<\/\1>/gi, '');
   const close = /<\/(?:think|thinking|reasoning)>/i.exec(s); if (close) s = s.slice(close.index + close[0].length);
-  return s.replace(/<(?:think|thinking|reasoning)>/gi, '').trim();
+  const open = /<(?:think|thinking|reasoning)>/i.exec(s); if (open) s = s.slice(0, open.index); // still thinking when it stopped: no answer after it
+  return s.trim();
 }
 // The first balanced {...} in the text that parses, read with strings and escapes in mind. → the object, or undefined.
 export function firstObject(text) {
@@ -102,7 +103,7 @@ export function check(schema, v, at = 'the answer') {
   const t = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
   const kind = Array.isArray(v) ? 'an array' : v === null ? 'null' : typeof v === 'object' ? 'an object' : `a ${typeof v}`;
   if (t.length && !matches({ type: t }, v)) return `${at} must be ${t.map(k => (/^[aeio]/.test(k) ? 'an ' : 'a ') + k).join(' or ')}, but it is ${kind}.`;
-  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const e = check(schema.items, v[i], `${at === 'the answer' ? 'item' : at} ${i + 1}`); if (e) return e; } return null; }
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const e = check(schema.items, v[i], `item ${i + 1}${at === 'the answer' ? '' : ` of ${at}`}`); if (e) return e; } return null; }
   if (v && typeof v === 'object') {
     for (const k of schema.required || []) if (!(k in v)) return `"${k}" is missing from ${at}.`;
     for (const [k, sub] of Object.entries(schema.properties || {})) if (k in v) { const e = check(sub, v[k], `"${k}"${at === 'the answer' ? '' : ` of ${at}`}`); if (e) return e; }

@@ -164,7 +164,8 @@ const server = http.createServer(async (req, res) => {
     // the general staff: which provider judges and transcribes, and its keys. A key goes in and never comes out:
     // every answer here is ai.view(), which carries hasKey and the last 4 characters only.
     if (p === '/api/ai' || p.startsWith('/api/ai/')) {
-      if (req.method !== 'GET' && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
+      // a write, or a read that makes the server call out (a model server's list), must come from the app's own pages
+      if ((req.method !== 'GET' || p === '/api/ai/models') && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
       if (p === '/api/ai') {
         if (req.method === 'GET') return send(res, 200, ai.view());
         if (req.method === 'PUT') return send(res, 200, ai.update(JSON.parse((await readBody(req, 16e3)).toString() || '{}')));

@@ -11,7 +11,8 @@
 // A model that is not in `models` is answered as Ollama does: 404, "model "x" not found, try pulling it first".
 // Magic words in the report, on top of mock-openai's: SLOPPY (an answer that needs mending: numbers as strings, out of
 // range, a fixed choice in the wrong case, keys nobody asked for), FIXME (the first answer lacks "summary"; once told
-// what was wrong, the model answers properly), HOPELESS (never JSON at all).
+// what was wrong, the model answers properly), HOPELESS (never JSON at all). `garbage: true` on the returned object makes
+// every answer prose with no JSON in it, the connection test's included.
 import http from 'node:http';
 import { answer, reportOf, frontsOf } from './mock-openai.mjs';
 
@@ -50,8 +51,8 @@ export function mockLocal(port, { kind = 'schema', models = ['qwen3:4b', 'llama3
       let out = answer(sys, user, frontsOf(raw));
       if (/SLOPPY/.test(user) && out?.items) out = { ...out, mood: 'grim', items: out.items.map((x, i) => ({ ...x, severity: i ? 9 : String(x.severity), outcome: x.outcome.toUpperCase(), confidence: 0.9 })) };
       if (/FIXME/.test(user) && !told) { const { summary, ...rest } = out; out = rest; }
-      let text = /HOPELESS/.test(user) ? 'I am sorry, I cannot do that in JSON.' : JSON.stringify(out);
-      if (k === 'prose') text = `<think>\nThe user wants JSON. Something like {"draft": true} maybe.\n</think>\nHere is the report you asked for:\n\n\`\`\`json\n${JSON.stringify(out, null, 2)}\n\`\`\`\nLet me know if you need anything else.`;
+      let text = /HOPELESS/.test(user) || state.garbage ? 'I am sorry, I cannot do that in JSON.' : JSON.stringify(out);
+      if (k === 'prose' && !state.garbage) text = `<think>\nThe user wants JSON. Something like {"draft": true} maybe.\n</think>\nHere is the report you asked for:\n\n\`\`\`json\n${JSON.stringify(out, null, 2)}\n\`\`\`\nLet me know if you need anything else.`;
       if (url === '/api/chat') return json(200, { model: body.model, message: { role: 'assistant', content: text }, done: true, done_reason: 'stop', eval_count: 40, eval_duration: 2e9 });
       return json(200, { choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: text } }], usage: { completion_tokens: 40 }, ...(k === 'schema' ? { timings: { predicted_per_second: 31.25 } } : {}) });
     });
