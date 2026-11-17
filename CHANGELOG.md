@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-16
+
 The step from a personal tool to something anyone can self-host.
 
 ### Changed
@@ -19,6 +21,18 @@ The step from a personal tool to something anyone can self-host.
 
 ### Added
 
+- **Long voice reports.** A recording runs up to 10 minutes with a running clock, keeps going while the
+  screen stays on, and stops with a note if the microphone is lost or the app is hidden. Pressing Send while
+  recording sends as soon as the words are in. A failed transcription keeps the audio, with a Retry button.
+- **Transcription hints.** The fronts and the names used in earlier reports go with each recording, so they
+  are spelled the same way every time. A provider that refuses hints gets one plain retry.
+- **Every event keeps its details**, not just the headline: shown under each event, under "What you said"
+  in History, and editable. Long reports no longer get cut off (judges have room for 16000 output tokens).
+- **Crash-safe storage.** Saves are flushed to disk before they replace the old file; an unreadable campaign
+  is restored from the newest good backup at start, and `/healthz` fails when the campaign cannot be read
+  or the data folder cannot be written. The server stops cleanly on SIGTERM.
+- **Mac service** (`deploy/install-macos.sh`): the server and a watchdog as LaunchDaemons that start at
+  boot with nobody logged in, restart a stuck server, keep the private tailnet address and trim logs.
 - **Country selection screen.** A full-screen "choose your country" step on first run and in Settings:
   the live map changes behind as you browse, with each nation's forces and seven fronts laid out.
 - **Setup skill for coding agents** (`.claude/skills/setup-home-front`, `AGENTS.md`): install, verify,
@@ -71,7 +85,7 @@ The step from a personal tool to something anyone can self-host.
 - README rewritten for a general audience. The self-hosting section moved to `docs/SELF_HOSTING.md`.
 - `package.json` gained licence, repository, keywords, homepage and a `bin` entry.
 
-## [1.0.0] - 2026-11-15
+## 1.0.0 - 2026-11-15
 
 The first complete version: a private, self-hosted life tracker drawn as a 1936 grand-strategy map of
 Iran.
@@ -122,5 +136,5 @@ Iran.
 - `noindex` headers and a deny-all `robots.txt`.
 - Tests for the engine, the classifier and the server, and end-to-end browser tests at iPhone size.
 
-[Unreleased]: https://github.com/sam-siavoshian/hoi4-irl/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/sam-siavoshian/hoi4-irl/releases/tag/v1.0.0
+[Unreleased]: https://github.com/sam-siavoshian/hoi4-irl/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/sam-siavoshian/hoi4-irl/releases/tag/v1.1.0

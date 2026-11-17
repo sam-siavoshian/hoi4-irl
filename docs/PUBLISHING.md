@@ -63,7 +63,7 @@ people to it), Dependabot alerts and secret scanning.
 
 ## First release
 
-Tag `v1.0.0` on `main` and publish a release whose notes are the top section of `CHANGELOG.md`. A
+Tag a version (`v1.1.0`) on `main` and publish a release whose notes are the top section of `CHANGELOG.md`. A
 repository with a release, a description, topics and a social image ranks and reads far better than one
 without.
 
