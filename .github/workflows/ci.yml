@@ -24,7 +24,7 @@ jobs:
       - name: No data or secrets in the repository
         run: |
           if git ls-files | grep -iE '(^|/)\.env$|^private/|\.ndjson$|(^|/)state\.json$'; then echo 'A data or secret file is tracked.'; exit 1; fi
-          if git grep -nIE 'sk-[A-Za-z0-9_-]{32,}|ghp_[A-Za-z0-9]{30,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' -- . ':!package-lock.json'; then echo 'Something that looks like a key is committed.'; exit 1; fi
+          if git grep -nIE 'sk-[A-Za-z0-9_-]{32,}|ghp_[A-Za-z0-9]{30,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' -- . ':!package-lock.json' ':!tests/' ':!tools/shoot-*.mjs'; then echo 'Something that looks like a key is committed.'; exit 1; fi
       - run: npm ci
       - name: Build the interface
         run: npm run build

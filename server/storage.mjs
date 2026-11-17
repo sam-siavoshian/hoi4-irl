@@ -8,6 +8,8 @@ const pad = n => String(n).padStart(2, '0');
 export const localDay = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const BACKUP = /^state-\d{4}-\d{2}-\d{2}\.json$/;
+export const validState = s => !!s && Number.isInteger(s.rev) && s.rev >= 0 && (s.data === null || Array.isArray(s.data?.reports));
 
 // A saved state holds the campaign of the country being played at the top level (reports, labels, notes, off) and every
 // other country's campaign under campaigns[<id>]. A state from before there was a choice is Iran's.
@@ -51,8 +53,17 @@ export function createStore(dir) {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const at = f => path.join(dir, f);
   const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(at(f), 'utf8')); } catch { return d; } };
-  const writeJSON = (f, v) => { const p = at(f); fs.writeFileSync(p + '.tmp', JSON.stringify(v), { mode: 0o600 }); fs.chmodSync(p + '.tmp', 0o600); fs.renameSync(p + '.tmp', p); };
-  const read = () => { const s = readJSON('state.json', null); return s && typeof s.rev === 'number' ? s : { rev: 0, data: null }; };
+  // temp file, flushed to disk, then renamed: a crash or power cut leaves the old file or the new one, never half of one
+  const writeJSON = (f, v) => { const p = at(f), fd = fs.openSync(p + '.tmp', 'w', 0o600); try { fs.fchmodSync(fd, 0o600); fs.writeSync(fd, JSON.stringify(v)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } fs.renameSync(p + '.tmp', p); };
+  // A missing state.json is a new campaign. An unreadable one is never treated as empty: the next save (or a 409 handing
+  // that "empty" copy to a device) would wipe the campaign. It throws instead, which the server answers with a 500.
+  const read = () => {
+    let raw; try { raw = fs.readFileSync(at('state.json'), 'utf8'); } catch (e) { if (e.code === 'ENOENT') return { rev: 0, data: null }; throw e; }
+    let s; try { s = JSON.parse(raw); } catch { throw new Error('state.json is not valid JSON'); } // a server fault, not the client's "Bad JSON"
+    if (!validState(s)) throw new Error('state.json has the wrong shape');
+    return s;
+  };
+  const backups = () => { try { return fs.readdirSync(at('backups')).filter(f => BACKUP.test(f)).sort().reverse(); } catch { return []; } }; // newest first
 
   // every change to the state goes through this one queue, so two writers can never interleave
   let chain = Promise.resolve();
@@ -64,8 +75,7 @@ export function createStore(dir) {
     if (fs.existsSync(file)) return;
     fs.mkdirSync(bdir, { recursive: true, mode: 0o700 });
     fs.copyFileSync(at('state.json'), file); fs.chmodSync(file, 0o600);
-    const all = fs.readdirSync(bdir).filter(f => /^state-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
-    for (const f of all.slice(0, Math.max(0, all.length - KEEP_BACKUPS))) fs.rmSync(path.join(bdir, f), { force: true });
+    for (const f of backups().slice(KEEP_BACKUPS)) fs.rmSync(path.join(bdir, f), { force: true });
   }
   function journal(lines) {
     if (!lines.length) return;
@@ -82,8 +92,22 @@ export function createStore(dir) {
     return next;
   }
 
+  // At boot: a state.json that cannot be read is put aside and replaced by the newest backup that can. → null when nothing
+  // was wrong, { from, rev, aside, why } after a restore; throws when no backup is usable, so the server refuses to start
+  // rather than run on (and later overwrite) a broken campaign.
+  function recover() {
+    let why; try { read(); return null; } catch (e) { why = e.message; }
+    for (const f of backups()) {
+      let s; try { s = JSON.parse(fs.readFileSync(path.join(at('backups'), f), 'utf8')); } catch { continue; }
+      if (!validState(s)) continue;
+      const aside = `state.json.broken-${Date.now()}`; fs.renameSync(at('state.json'), at(aside)); writeJSON('state.json', s);
+      return { from: `backups/${f}`, rev: s.rev, aside, why };
+    }
+    throw new Error(`state.json is unreadable (${why}) and there is no usable backup in ${at('backups')}. Refusing to start so the campaign is not overwritten. Fix or move ${at('state.json')} by hand.`);
+  }
+
   return {
-    readJSON, writeJSON, read,
+    readJSON, writeJSON, read, recover,
     // the app's save: refused when someone else saved first
     put: (rev, data, src = 'app') => locked(() => { const cur = read(); return rev !== cur.rev ? { conflict: cur } : { next: commit(cur, data, src) }; }),
     // read-modify-write on the newest copy; fn returns the new data

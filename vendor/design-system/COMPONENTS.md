@@ -14,8 +14,13 @@ Added in ARTESH's vendored copy (not in Lanes; see `README.md` in this folder): 
 `ChoiceCards variant="thumbs"` with `flow` (`scroll`, `column`, and `strip`: one line on a page that scrolls, shared when it
 fits and sideways when it does not), `ChoiceCards variant="tiles"` with `columns={2}`, `SectionHeader level="hero"` and
 `level="display"` with `align` (a landing page's headline and its bands' headings), `ListRowDisclosure` (a row that opens
-in place: a question and its answer), `CodeBlock` (`lines`, `label`: commands to copy, with one Copy button),
-`FlagImage` (a flag as a picture, round or whole) and `LogoTile icon` (a lucide mark on the tile).
+in place: a question and its answer; `findable` keeps a closed answer in the HTML as `hidden="until-found"`),
+`CodeBlock` (`lines`, `label`: commands to copy, with one Copy button), `Prose` (`size` `md` or `sm`: a column of words
+to read at length, whose headings, paragraphs, lists, links, inline code and quotes the kit styles), `ProseTable`
+(`head`, `rows`, `label`: a table of facts in a Prose column that scrolls sideways inside its own frame),
+`Breadcrumbs` (`items`: where a page sits on a site, the last item the current page) `ListRowLink` (ListRowButton's
+row on a link, for a list of pages), `FlagImage` (a flag as a picture, round or whole) and `LogoTile icon` (a lucide mark
+on the tile). `SectionHeader`'s actions on `hero` and `display` follow its `align`.
 
 Three rules (also in `AGENTS.md`):
 

@@ -31,7 +31,11 @@ A look the kit lacked was added to the kit, not to a screen. Each file's header 
 | `src/components/ui/code-block.tsx` | new `CodeBlock` | Commands to copy and run (the landing page's install steps): a recessed plate of monospace lines, notes that are not copied, and one Copy button made as `CopyDetailsButton` is. The kit had no block of code. |
 | `src/components/ui/flag-image.tsx` | new `FlagImage` (`shape`: `circle`, `rect`; `size`: `xs` to `xl`; `src`, `srcSet`, `ratio`, `focus`, `label`, `fallback`) | A country's real flag is a picture, not a drawing: round where a face would stand (the Avatar's crop and sizes) or whole at its own proportions where there is room, with a faint rim so a white stripe keeps its edge. Unlike Avatar it does not fade in, so a page rendered on the server shows it at once. |
 | `src/components/ui/logo-tile.tsx` | `LogoTile icon` (a lucide element in place of `src`); other props reach the tile | The product's own plain mark (a map on the tile), in the page's ink, where a service's logo would be. |
-| `src/components/ui/index.ts` | exports `DayGrid`, `Slider`, `CodeBlock` and `FlagImage` | |
+| `src/components/ui/prose.tsx` | new `Prose`, `ProseTable` | The site's content pages (a country, self-hosting, the FAQ): a column of words to read at length, styled from the kit's tokens (the reading size, the headline size, the inks, Button `link`'s underline, `ProblemDetails`' plate for inline code), and a table of facts that scrolls sideways inside its own frame. The kit had type for a screen, not for a page of sentences. |
+| `src/components/ui/breadcrumbs.tsx` | new `Breadcrumbs` | Where a content page sits on the site, under its header: parents as links, the current page last with `aria-current`. |
+| `src/components/ui/list.tsx` | `ListRowLink`; `ListRowDisclosure findable` | A row that goes to another page (the site's "Read next"); a closed answer that stays in the HTML (`hidden="until-found"`), so a search engine reads it and find-in-page opens it. |
+| `src/components/ui/section-header.tsx` | `hero` and `display` actions follow `align` | A content page's heading starts at the left; its buttons were centred under it. |
+| `src/components/ui/index.ts` | exports `DayGrid`, `Slider`, `CodeBlock`, `Prose`, `ProseTable`, `Breadcrumbs` and `FlagImage` | |
 
 ## Updating
 

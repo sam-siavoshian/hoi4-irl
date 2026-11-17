@@ -97,6 +97,8 @@ export * from "./loading-state";
 export * from "./notice";
 export * from "./problem";
 export * from "./code-block";
+export * from "./prose";
+export * from "./breadcrumbs";
 
 // --- Guided flows (first run), and the sound they make
 export * from "./step-shell";

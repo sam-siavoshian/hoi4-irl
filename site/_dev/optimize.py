@@ -5,7 +5,7 @@ from PIL import Image
 root = pathlib.Path(__file__).resolve().parent.parent.parent
 # An octree palette, then error diffusion onto it. Median cut alone spends the palette on the map's greens and turns
 # the small accents (the flag, the capital's label, the red of a loss) grey; a palette without dithering bands.
-for f in sorted([*(root / "site" / "img").glob("*.png"), *(root / "docs" / "img").glob("*.png")]):
+for f in sorted([*(root / "site" / "img").glob("**/*.png"), *(root / "docs" / "img").glob("*.png")]):
     im = Image.open(f)
     if im.mode == "P":
         continue  # already done

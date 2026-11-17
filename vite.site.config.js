@@ -1,7 +1,7 @@
 // Builds the landing page (site/, on the vendored design system) for tools/build-site.mjs, which runs it twice:
 // once for the browser (into _site/) and once as a server bundle of site/prerender.jsx, whose HTML it writes into
 // _site/index.html. `base: './'` keeps every URL relative, so the page works under any sub-path (GitHub Pages).
-//   npm run dev:site    the page alone on :5174 (the hero map reads ./demo/data/maps/, served here from data/maps/)
+//   npm run dev:site    the landing page alone on :5174 (content pages need the build: node tools/build-site.mjs --serve) (the hero map reads ./demo/data/maps/, served here from data/maps/)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { siteData } from './tools/site-data.mjs';
+import { FAQ_LANDING } from './site/content/faq.mjs'; // the landing page's 5 questions, without the other 30 in its bundle
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const BOOT = path.join(root, 'vendor/design-system/boot/theme-boot.js');
@@ -22,7 +23,7 @@ function data() {
     async load(id) {
       if (id !== '\0' + ID) return null;
       const d = await siteData(root);
-      return `export const countries = ${JSON.stringify(d.countries)};\nexport const examples = ${JSON.stringify(d.examples)};\nexport const start = ${d.start};\nexport const example = ${JSON.stringify(d.example)};\n`;
+      return `export const countries = ${JSON.stringify(d.countries)};\nexport const examples = ${JSON.stringify(d.examples)};\nexport const start = ${d.start};\nexport const example = ${JSON.stringify(d.example)};\nexport const faq = ${JSON.stringify(FAQ_LANDING)};\n`;
     },
   };
 }
@@ -53,13 +54,19 @@ function shellFiles() {
   };
 }
 
-export default defineConfig({
+// Two pages are built for the browser: the landing page (index.html, main.jsx) and the shell every content page is
+// written from (doc.html, doc.jsx); they share one stylesheet and the kit's chunks. The server bundle
+// (prerender.jsx) is the one input when tools/build-site.mjs builds it.
+export default defineConfig(({ isSsrBuild }) => ({
   root: path.join(root, 'site'),
   base: './',
   publicDir: false,
   plugins: [react(), tailwindcss(), data(), shellFiles()],
   resolve: { dedupe: ['react', 'react-dom'] },
   ssr: { noExternal: ['@sam/design-system'] },
-  build: { outDir: path.join(root, '_site'), emptyOutDir: true, chunkSizeWarningLimit: 800 },
+  build: {
+    outDir: path.join(root, '_site'), emptyOutDir: true, chunkSizeWarningLimit: 800,
+    ...(isSsrBuild ? {} : { rollupOptions: { input: { index: path.join(root, 'site', 'index.html'), doc: path.join(root, 'site', 'doc.html') } } }),
+  },
   server: { port: 5174 },
-});
+}));

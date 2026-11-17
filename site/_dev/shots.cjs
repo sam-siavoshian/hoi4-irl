@@ -3,20 +3,22 @@
 //   node site/_dev/shots.cjs http://localhost:8153/  (in another; needs Playwright with Chromium)
 //   python3 site/_dev/optimize.py                    (palette-quantises the PNGs; needs Pillow)
 // then build again so _site/ picks the new images up.
-// A second argument picks groups: site,docs,hero,countries,cards,select (default: all of them).
+// A second argument picks groups: site,docs,hero,countries,cards,select,pages (default: all of them).
 //
 //   site/img/  hero.png (the still the landing page shows without scripts: its own hero map at the end of its story,
 //              for four countries in a 2×2 grid), og.png (1200×630, from og.html: four maps under the title)
 //   docs/img/  hero.png (desktop, 1440×900 @2x), map/report/front/division/history.png (phone, 390×844 @2x),
 //              countries.png, social-preview.png (1280×640, from social.html: four maps under the title),
 //              select.png (phone) and select-desktop.png (1440×900 @2x): the first run's country picker, France highlighted
+//   site/img/countries/<id>.png  each country's map during a demo campaign, 1200×630: the picture on its page and
+//              its social card (pages)
 // No one country is "the" example: each picture names its country in SHOW below, and no two phone shots share one.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const base = (process.argv[2] || 'http://localhost:8153/').replace(/\/*$/, '/');
-const only = (process.argv[3] || 'site,docs,hero,countries,cards,select').split(',');
+const only = (process.argv[3] || 'site,docs,hero,countries,cards,select,pages').split(',');
 const root = path.join(__dirname, '..', '..');
 const SITE = path.join(root, 'site', 'img'), DOCS = path.join(root, 'docs', 'img');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-shots-'));
@@ -176,6 +178,22 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await p.screenshot({ path: path.join(DOCS, 'countries.png'), fullPage: true });
     wrote(path.join(DOCS, 'countries.png'));
     await ctx.close();
+  }
+
+  if (only.includes('pages')) {
+    // each country's page: its map alone, a demo campaign under way, framed as the app frames the whole country
+    fs.mkdirSync(path.join(SITE, 'countries'), { recursive: true });
+    for (const s of scenarios) {
+      const { ctx, p } = await app({ width: 1200, height: 630, scale: 1, phone: false, scenario: s.id, css: QUIET + NO_ALERT + BARE });
+      const got = await p.evaluate(() => window.__homefront.map.id);
+      if (got !== s.id) throw new Error(`wanted ${s.id}, the app loaded ${got}`);
+      await p.evaluate(() => { const v = window.__homefront.view; v.frameWhole?.(true); v.home(false); });
+      await settle(p); await settle(p);
+      const file = path.join(SITE, 'countries', s.id + '.png');
+      await p.screenshot({ path: file });
+      wrote(file);
+      await ctx.close();
+    }
   }
 
   if (only.includes('select')) {

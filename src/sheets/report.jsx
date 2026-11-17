@@ -1,10 +1,10 @@
 // Report: say or type what happened, send it. If the staff can't place it, pick the front by hand.
 import { useRef } from 'react';
 import { Badge, Button, Field, IconButton, ListRow, ListSection, Spinner, StatusLabel, Textarea } from '@sam/design-system';
-import { CheckIcon, MicIcon, SquareIcon, TargetIcon } from 'lucide-react';
+import { CheckIcon, MicIcon, RotateCcwIcon, SquareIcon, TargetIcon } from 'lucide-react';
 import { orderText } from '../../js/engine.js';
 import { pickEngine } from '../../js/voice.js';
-import { app, activeFronts, labels, quick, send, setReportText, toggleMic } from '../core.js';
+import { app, activeFronts, labels, quick, retryMic, send, setReportText, toggleMic } from '../core.js';
 
 export function Orders() {
   const { live, map } = app;
@@ -19,6 +19,8 @@ export function Orders() {
   );
 }
 
+const clock = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+
 function Composer() {
   const { ui, cfg } = app; const r = ui.report; const field = useRef(null);
   const keyboard = pickEngine(cfg) === 'keyboard';
@@ -30,14 +32,15 @@ function Composer() {
         <Textarea id="report-text" ref={field} size="lg" rows={4} placeholder="Failed a quiz. Hit a PR at the gym. Great call with mom."
           value={r.text} onChange={e => setReportText(e.target.value)} />
       </Field>
-      {state === 'live' ? <StatusLabel tone="live" variant="caption">Listening. Press the square to stop.</StatusLabel> : null}
+      {state === 'live' ? <StatusLabel tone="live" variant="caption" data-testid="mic-clock">Listening {clock(ui.dict.seconds || 0)}. Press the square to stop.</StatusLabel> : null}
       {state === 'busy' ? <span className="flex items-center gap-2 text-xs text-muted-foreground"><Spinner size="xs" />Turning that into text…</span> : null}
       <div className="flex items-center gap-2">
         <IconButton label={state === 'live' ? 'Stop dictating' : 'Dictate'} data-testid="mic" data-state={state} size="lg" variant={state === 'live' ? 'destructive' : 'outline'}
           disabled={state === 'busy'} onClick={() => toggleMic(() => field.current?.focus())}>
           {state === 'live' ? <SquareIcon /> : <MicIcon />}
         </IconButton>
-        <Button size="lg" className="flex-1" loading={r.busy} data-testid="send" onClick={send}>Send</Button>
+        {r.audio && state === 'idle' ? <Button variant="outline" size="lg" data-testid="retry-mic" onClick={retryMic}><RotateCcwIcon />Retry</Button> : null}
+        <Button size="lg" className="flex-1" loading={r.busy || r.sendAfter} data-testid="send" onClick={send}>Send</Button>
       </div>
     </div>
   );

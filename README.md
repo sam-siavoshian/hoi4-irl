@@ -1,12 +1,13 @@
 <h1 align="center">Home Front</h1>
 
 <p align="center">
-  <b>A productivity app and daily journal that shows your whole life as a 1936 war map.</b><br>
+  <b>An open-source, self-hosted productivity app and daily journal that shows your whole life as a 1936 grand-strategy war map.</b><br>
   Say what happened today. It files the entry, the front lines move, and one look tells you what needs you.
 </p>
 
 <p align="center">
   <a href="https://sam-siavoshian.github.io/hoi4-irl/"><b>Try the demo</b></a> ·
+  <a href="https://sam-siavoshian.github.io/hoi4-irl/how-it-works/">How it works</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="docs/SELF_HOSTING.md">Self-hosting</a> ·
   <a href="docs/API.md">API</a> ·
@@ -25,9 +26,17 @@
   <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Turkey with front lines on every border, division counters, battle markers, and a side panel for the Work front listing its divisions and latest battles">
 </p>
 
+<p align="center">
+  <a href="docs/img/demo.mp4"><img src="docs/img/demo.gif" width="760" alt="A 10-second loop of the app: in a campaign as Mexico, an entry is typed and sent, and the Work front advances into Guatemala; then the country picker shows France, Siam and Mexico, each map loading behind it"></a>
+</p>
+
 ## What it is
 
-**Home Front is a productivity app that turns your life into a map you can read at a glance.**
+**Home Front is a productivity app that turns your life into a map you can read at a glance.** It is a
+self-hosted habit tracker, life tracker and daily journal in one: gamified like a grand-strategy game, but
+with nothing to play. It is open source (MIT), local-first (your record is a folder of plain files on your
+own machine), and works with OpenAI, Anthropic, Gemini and others on your own key, with a local model in
+Ollama or LM Studio, or with no model at all.
 
 You tell it what happened today, in a sentence or two, by voice or by typing. It files that for you:
 which part of your life it was about, whether it went well or badly, and how much it mattered. Then it
@@ -89,6 +98,9 @@ restored. Let everything slide and the capital falls. Most of life happens in be
 - **Works with any model, or none.** OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, or the built-in offline judge. Your own key, set in the app.
 - **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
+
+More countries are on the [roadmap](#roadmap). If you would like to see them, a star on the repository helps
+other people find the project.
 
 <p align="center">
   <img src="docs/img/map.png" width="19%" alt="The war map on a phone, here Greece: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">

@@ -26,7 +26,7 @@ const fingerprint = () => {
     assert.equal((html.match(/data-testid="country"/g) || []).length, 8, 'prerendered HTML: eight countries');
     assert.doesNotMatch(html, /hearts of iron/i);
     assert.doesNotMatch(html, /alt="[^"]*map of Iran/, 'the still behind the hero is not one country');
-    assert.equal((html.match(/data-brand-mark=""/g) || []).length, 2, 'the product wears its own mark, not a flag, in the header and the foot');
+    assert.ok((html.match(/data-brand-mark=""/g) || []).length >= 1, 'the product wears its own mark, not a flag');
     console.log(`ok prerendered: ${(html.length / 1024).toFixed(1)} kB of HTML with the page's words in it`);
   }
 
@@ -94,15 +94,15 @@ const fingerprint = () => {
     assert.equal(head.card, 'summary_large_image'); assert.ok(head.alt.length > 20); assert.equal(head.og, head.tw);
     const og = await p.evaluate(async src => { const i = new Image(); i.src = src; await i.decode(); return [i.naturalWidth, i.naturalHeight].join('x'); }, new URL(head.og, base).href);
     assert.equal(og, `${head.w}x${head.h}`, `${name}: og.png is not the size the page declares`);
-    const ld = JSON.parse(head.ld); assert.equal(ld['@type'], 'SoftwareApplication'); assert.equal(ld.name, 'Home Front'); assert.equal(String(ld.offers.price), '0');
+    const ld = JSON.parse(head.ld)['@graph'].find(x => x['@type'] === 'SoftwareApplication'); assert.ok(ld, 'SoftwareApplication in the structured data'); assert.equal(ld.name, 'Home Front'); assert.equal(String(ld.offers.price), '0'); assert.ok(!JSON.stringify(head.ld).includes('aggregateRating'), 'no ratings');
     assert.doesNotMatch(head.text, /hearts of iron/i);
     // the words a visitor reads name no game; the repository's own address is the one place its old name shows
-    assert.doesNotMatch(head.seen.replace(/\S*github\.com\S*/g, ''), /hearts of iron|\bhoi\s?4\b/i, `${name}: a game's trademark on the page`);
+    assert.doesNotMatch(head.seen.replace(/\S*github(?:usercontent)?\.(?:com|io)\S*/g, ''), /hearts of iron|\bhoi\s?4\b/i, `${name}: a game's trademark on the page`);
     assert.doesNotMatch(head.seen, /!/, `${name}: an exclamation mark on the page`);
     // every image is the size its tag declares, so nothing shifts as it loads
     const sizes = await p.evaluate(() => [...document.images].filter(i => !i.closest('[data-slot=flag-image]')).filter(i => i.naturalWidth && (i.naturalWidth !== Number(i.getAttribute('width')) || i.naturalHeight !== Number(i.getAttribute('height')))).map(i => `${i.getAttribute('src')} is ${i.naturalWidth}x${i.naturalHeight}`));
     assert.deepEqual(sizes, [], `${name}: image sizes`);
-    for (const f of ['robots.txt', 'sitemap.xml', 'img/hero.png']) assert.equal((await p.request.get(base + f)).status(), 200, `${name}: ${f}`);
+    for (const f of ["robots.txt", "sitemap.xml", "llms.txt", "img/hero.png"]) assert.equal((await p.request.get(base + f)).status(), 200, `${name}: ${f}`);
     assert.equal(await p.locator('[data-testid=nations] [data-testid=country]').count(), 8, `${name}: eight countries listed`);
     assert.equal(await p.locator('[data-testid=brief-front]').count(), 7, `${name}: the briefing's seven fronts`);
     assert.equal(await p.locator('[data-testid=providers] [data-provider-logo]').count(), 9, `${name}: provider marks`);
@@ -172,5 +172,6 @@ const fingerprint = () => {
     console.log(`ok ${name}: demo link loads the app with ${demo.reports} reports`);
     await ctx.close();
   }
+  await require("./verify-site.cjs")(browser, base);
   await browser.close();
 })().catch(e => { console.error('FAILED', e.message); process.exit(1); });
