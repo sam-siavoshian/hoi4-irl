@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--head-->
+<meta name="theme-color" content="#f1f1f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a1d" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<!-- The design system's boot script: light or dark and motion are set on <html> before the first paint. -->
+<script src="theme-boot.js" vite-ignore></script>
+</head>
+<body>
+<!-- A content page: tools/build-site.mjs writes one of these per page, with its HTML and the object it was drawn from. -->
+<div id="root"><!--prerender--></div>
+<!--page-data-->
+<script type="module" src="./doc.jsx"></script>
+</body>
+</html>

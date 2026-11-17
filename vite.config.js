@@ -26,7 +26,10 @@ function shellFiles() {
       const built = Object.keys(bundle).filter(f => /\.(js|css|woff2)$/.test(f)).sort();
       const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
       if (!sw.includes('/*BUILT*/')) this.error('sw.js has no /*BUILT*/ marker');
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw.replace('/*BUILT*/', built.map(f => `${JSON.stringify(f)}, `).join('')) });
+      if (!sw.includes('/*FLAGS*/')) this.error('sw.js has no /*FLAGS*/ marker');
+      const flagDir = path.join(root, 'icons', 'flags');
+      const flags = fs.existsSync(flagDir) ? fs.readdirSync(flagDir).filter(f => /^[\w-]+\.(png|webp)$/.test(f)).sort().map(f => `icons/flags/${f}`) : [];
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw.replace('/*BUILT*/', built.map(f => `${JSON.stringify(f)}, `).join('')).replace(', /*FLAGS*/', flags.map(f => `, ${JSON.stringify(f)}`).join('')) });
       this.emitFile({ type: 'asset', fileName: 'theme-boot.js', source: fs.readFileSync(BOOT) });
     },
   };

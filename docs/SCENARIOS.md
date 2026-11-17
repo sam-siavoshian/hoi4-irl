@@ -4,7 +4,9 @@ A scenario is one file, `tools/scenarios/<id>.mjs`. `npm run build:map` turns ev
 `data/maps/<id>.json` and lists them in `data/scenarios.json` (the country picker reads that list; building a single
 scenario updates just its entry). Borders come from Natural Earth (modern admin-0
 countries, via `world-atlas`); everything else is authored in the scenario file. `tools/scenarios/iran.mjs` together
-with `tools/seeds.mjs` is the reference implementation: read both before you start.
+with `tools/seeds.mjs` is the reference implementation: read both before you start. Iran is only the reference
+because it was the first; the examples below use its file, and the seven other countries in `tools/scenarios/` are
+built exactly the same way.
 
 ```bash
 node tools/build-map.mjs <id>        # build one scenario; prints per-front numbers and any PROBLEM lines
@@ -75,12 +77,22 @@ export const META = {
   year: 1936,
   blurb: 'Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.',   // one line for the country picker
   pitch: 'a 1936 grand-strategy war map of Iran',                                         // completes "a personal life tracker drawn as …"
-  flag: { type: 'h3', colors: ['#3f9467', '#efeadb', '#cf4a39'], disc: '#e3b85c' },   // the small round flag; the forms are listed below
-  // flag, three bands:   { type: 'h3' | 'v3', colors: [a, b, c], disc?: colour }   (h3 across, v3 upright; `disc` is a centre emblem)
-  // flag, any stripes:   { type: 'h' | 'v', stripes: [[colour, weight], …], disc?: colour, canton?: { color, w, h }, cross?: { color, width } }
-  //   stripes run top to bottom (h) or left to right (v), each as wide as its weight: Siam is [[red, 1], [white, 1], [blue, 2], [white, 1], [red, 1]];
-  //   one stripe is a plain field. Over them, in this order: `canton` (a corner block from the top left, w and h as parts of the flag, 0–1),
-  //   `cross` (a centred cross, its arms `width` of the flag wide: Greece in 1936 is a blue field with a white cross) and `disc`.
+  flag: { image: 'icons/flags/iran.png', sizes: { 64: 'icons/flags/iran-64.png', 128: 'icons/flags/iran-128.png', 320: 'icons/flags/iran.png' }, ratio: 3, colors: ['#239f40', '#ffffff', '#da0000'] },
+  // flag, the real one (preferred): the country's flag as it was in official use in the scenario's year, as a picture
+  //   { image, sizes?, ratio?, focus?, colors? }. `image` is a PNG or WebP under icons/flags/ (the 320 px wide one);
+  //   `sizes` maps widths in pixels to the same flag at other widths, so a small mark loads a small file and a 2x screen a
+  //   sharp one; `ratio` is width / height (read from the PNG when left out: Iran's 1936 flag is 3:1, Mexico's 4:7);
+  //   `focus` is where a round crop looks, [x, y] as parts of the flag (the middle by default); `colors` are 1–3 of its
+  //   main paints, for anything that needs a tint. Use real artwork (Wikimedia Commons has most historical flags), never a
+  //   drawing made for the scenario, and only a file whose licence lets it be redistributed: add its source, author,
+  //   licence and years of use to icons/flags/README.md and NOTICE.md. `node tools/build-flags.cjs <dir>` renders the
+  //   sizes from the downloaded file. tools/build-map.mjs checks that every file exists.
+  // flag, as stripes (when there is no artwork): the app draws a small flag from the scenario's own colours.
+  //   three bands:   { type: 'h3' | 'v3', colors: [a, b, c], disc?: colour }   (h3 across, v3 upright; `disc` is a centre emblem)
+  //   any stripes:   { type: 'h' | 'v', stripes: [[colour, weight], …], disc?: colour, canton?: { color, w, h }, cross?: { color, width } }
+  //   stripes run top to bottom (h) or left to right (v), each as wide as its weight: [[red, 1], [white, 1], [blue, 2], [white, 1], [red, 1]]
+  //   is a Trairanga; one stripe is a plain field. Over them, in this order: `canton` (a corner block from the top left, w and h as parts
+  //   of the flag, 0–1), `cross` (a centred cross, its arms `width` of the flag wide) and `disc`.
   //   Every colour is #rrggbb; tools/build-map.mjs reports a flag it cannot read.
   regionWord: 'Satrapy',                 // what a restored region is called: "Satrapy of Babirush restored"
   regions: { 'Mesopotamia': 'Babirush', … },   // FOREIGN region name → the name it had under the empire (optional per region; falls back to the region name)

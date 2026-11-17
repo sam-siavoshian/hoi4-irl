@@ -421,7 +421,8 @@ export const META = {
   year: 1936,
   blurb: 'Seven fronts from Alta California to Costa Rica. Restore the empire of the Three Guarantees.',
   pitch: 'a 1936 grand-strategy war map of Mexico',
-  flag: { type: 'v3', colors: ['#2f7d55', '#efeadb', '#c0392b'], disc: '#8a6a3a' },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/mexico.png', sizes: { 64: 'icons/flags/mexico-64.png', 128: 'icons/flags/mexico-128.png', 320: 'icons/flags/mexico.png' }, ratio: 1.75, colors: ['#076d4a', '#ffffff', '#d32927'] },
   regionWord: 'Provincia',
   // 1936 region → what it was called in 1821, under the Californias, the Provincias Internas and the Capitanía General de Guatemala
   regions: {

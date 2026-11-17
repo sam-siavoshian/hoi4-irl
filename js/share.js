@@ -186,12 +186,17 @@ function icon(ctx, path, cx, cy, size, fill) {
   if (!path) return false;
   try { const p = new Path2D(path); ctx.save(); ctx.translate(cx - size / 2, cy - size / 2); ctx.scale(size / 512, size / 512); ctx.fillStyle = fill; ctx.fill(p); ctx.restore(); return true; } catch { return false; }
 }
-// The wordmark: a small sun-star and HOME FRONT in wide tracking. Returns its width.
+// The product's mark: Lucide's "map" (ISC; the same glyph as BrandMark in src/marks.jsx), on its 24-unit grid.
+const MAP_MARK = 'M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0zm.894.211v15M9 3.236v15';
+function mapMark(ctx, cx, cy, size, color) {
+  try { const p = new Path2D(MAP_MARK); ctx.save(); ctx.translate(cx - size / 2, cy - size / 2); ctx.scale(size / 24, size / 24); ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.stroke(p); ctx.restore(); } catch { /* no Path2D: the words alone */ }
+}
+// The wordmark: the map mark and HOME FRONT in wide tracking. Returns its width.
 function wordmark(cv, x, y, size, color = C.accent, align = 'left', role = 'wordmark') {
   const ctx = cv.getContext('2d'), o = { size, weight: 800, tracking: size * 0.3, color, role };
-  setFont(ctx, o); const tw = mw(ctx, 'HOME FRONT', o), mark = size * 0.86, gap = size * 0.5, total = mark + gap + tw;
+  setFont(ctx, o); const tw = mw(ctx, 'HOME FRONT', o), mark = size * 0.96, gap = size * 0.5, total = mark + gap + tw;
   const left = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
-  starPath(ctx, left + mark / 2, y - size * 0.36, mark / 2, mark * 0.2, 8); ctx.fillStyle = color; ctx.fill();
+  mapMark(ctx, left + mark / 2, y - size * 0.36, mark, color);
   draw(cv, 'HOME FRONT', left + mark + gap, y, o); return total;
 }
 // The app's centre-zero front bar. pos > 0: enemy inside the country, red from centre toward the capital (left).
@@ -267,7 +272,7 @@ export function renderBulletin(d = {}) {
   ctx.fillStyle = tc; ctx.fillRect(0, 0, W, 8);
 
   // ── top line ──
-  const nation = caps(d.nation || 'Iran');
+  const nation = caps(d.nation || '');
   const dw = draw(cv, longDate(d.date), W - M, 76, { size: 26, weight: 500, color: 'rgba(236,234,229,.82)', align: 'right', role: 'meta' });
   const nw = draw(cv, nation, M, 76, { size: 26, weight: 800, tracking: 5.5, color: C.text, role: 'meta', maxWidth: W - M * 2 - dw - 40 });
   if (W - M * 2 - dw - nw - 60 > 250) draw(cv, 'WAR BULLETIN', M + nw + 20, 76, { size: 26, weight: 500, tracking: 5.5, color: 'rgba(236,234,229,.62)', role: 'meta' });
@@ -431,8 +436,8 @@ export function renderFrontPage(d = {}) {
   // dateline strip
   const dl = { size: 18.5, weight: 700, family: SERIF, tracking: 2.4, color: INK, role: 'dateline', box: [0.74, 0.06] };
   y += 37; const pd = d.persianDate === true ? persianDate(date) : str(d.persianDate);
-  const place = caps(d.city || 'Tehran'), lw_ = draw(cv, place, M, y, { ...dl, maxWidth: 220 });
-  const rw_ = pd ? draw(cv, caps(pd), W - M, y, { ...dl, align: 'right', maxWidth: 300 }) : draw(cv, caps(d.nation || 'Iran'), W - M, y, { ...dl, align: 'right', maxWidth: 220 });
+  const place = caps(d.city || ''), lw_ = draw(cv, place, M, y, { ...dl, maxWidth: 220 });
+  const rw_ = pd ? draw(cv, caps(pd), W - M, y, { ...dl, align: 'right', maxWidth: 300 }) : draw(cv, caps(d.nation || ''), W - M, y, { ...dl, align: 'right', maxWidth: 220 });
   draw(cv, caps(fullDate(date)), W / 2, y, { ...dl, align: 'center', maxWidth: CW - 2 * Math.max(lw_, rw_) - 50 });
   y += 15; hline(ctx, M, W - M, y, INK, 1.5); hline(ctx, M, W - M, y + 5, INK, 1.5);
   const stripBottom = y + 5;

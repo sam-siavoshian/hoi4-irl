@@ -119,7 +119,8 @@ A report:
 }
 ```
 
-Front ids: `afg`, `cau`, `tks`, `irq`, `raj`, `tur`, `glf`. `outcome` is `win`, `loss` or `neutral`;
+Front ids are the country's own, the `fronts` of its map in slot order (France: `rhi`, `low`, `alp`, `jur`, `pyr`,
+`man`, `med`; Iran: `afg`, `cau`, `tks`, `irq`, `raj`, `tur`, `glf`; the example above is Iran's). `outcome` is `win`, `loss` or `neutral`;
 `severity` is 1 to 5; `action` is a battle type key from `ACTIONS` in `js/engine.js`.
 
 ### `PUT /api/state`

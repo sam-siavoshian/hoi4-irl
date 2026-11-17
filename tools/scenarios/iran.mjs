@@ -19,7 +19,8 @@ export const META = {
   name: 'Iran', long: 'Imperial State of Iran', empire: 'Achaemenid Empire', year: 1936,
   blurb: 'Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.',
   pitch: 'a 1936 grand-strategy war map of Iran',
-  flag: { type: 'h3', colors: ['#3f9467', '#efeadb', '#cf4a39'], disc: '#e3b85c' },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/iran.png', sizes: { 64: 'icons/flags/iran-64.png', 128: 'icons/flags/iran-128.png', 320: 'icons/flags/iran.png' }, ratio: 3, colors: ['#239f40', '#ffffff', '#da0000'] },
   regionWord: 'Satrapy',
   // Old Persian names of the lands, shown when a region is fully retaken
   regions: {

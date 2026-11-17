@@ -1,5 +1,8 @@
-/* The landing page's one stylesheet: Tailwind, every token (light and dark), the theme mapping and the motion
+/* The site's one stylesheet: Tailwind, every token (light and dark), the theme mapping and the motion
    primitives all come from the design system, as in the app (src/index.css). Nothing is restyled here. */
 @import "@sam/design-system/styles.css";
 @source "./";
 @source "../src/marks.jsx";
+/* The kit's source files the site never loads, so Tailwind doesn't make classes for them. Written by
+   tools/build-site.mjs from what the build actually bundles, and checked on every build. */
+@import "./kit-unused.css";

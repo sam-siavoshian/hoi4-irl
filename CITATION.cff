@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you refer to Home Front in your work, please cite it as below."
+title: "Home Front"
+type: software
+abstract: >-
+  Home Front is an open-source, self-hosted productivity app and daily journal that shows
+  your life as a 1936 grand-strategy war map. You say what happened today in a sentence;
+  it files a dated entry, judges it with the AI provider you choose (or an offline judge),
+  and the front for that part of your life advances or gives ground.
+authors:
+  - name: "Home Front contributors"
+version: "1.1.0"
+license: MIT
+repository-code: "https://github.com/sam-siavoshian/hoi4-irl"
+url: "https://sam-siavoshian.github.io/hoi4-irl/"
+keywords:
+  - self-hosted
+  - productivity
+  - journal
+  - habit tracker
+  - life tracker
+  - quantified self
+  - local-first
+  - grand strategy

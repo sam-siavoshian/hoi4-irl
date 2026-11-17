@@ -58,7 +58,7 @@ state = simulate(map, reports, now)
 It starts from the initial 1936 situation, sorts the reports by time and applies them one after another,
 advancing the clock between them (units recover, damage is repaired, quiet fronts let the enemy mass).
 It returns the full state: each front's position, territory, divisions, the log with its effects,
-decorations, satrapies, totals.
+decorations, restored regions, totals.
 
 Consequences of doing it this way:
 
@@ -80,7 +80,7 @@ A report looks like this:
   items: [{ front, outcome, severity, action, reason, headline }] }
 ```
 
-- `front`: one of `afg`, `cau`, `tks`, `irq`, `raj`, `tur`, `glf`.
+- `front`: one of the country's seven front ids, in slot order (France: `rhi`, `low`, `alp`, `jur`, `pyr`, `man`, `med`).
 - `outcome`: `win`, `loss` or `neutral`. `severity`: 1 to 5.
 - `action`: a key of `ACTIONS`, the table of battle types. Each has a side, a movement factor (`adv`), a
   label, a map glyph and `means`, the real-life situation it stands for.
@@ -89,7 +89,7 @@ A front's position runs from −100 (every objective taken) through 0 (the borde
 falls). Severity sets the base movement, the action scales it, and the engine layers the rest on top:
 which division leads (by arm of service), experience and honours, named battles at the nearest city,
 operations after a run of wins, weather, strikes on buildings where the geography allows them,
-satrapies and decorations.
+restored regions and decorations.
 
 Helpers such as `sitrep`, `objective`, `frontNote`, `territory` and `frontlines` derive what the
 interface and the judge need from the state.

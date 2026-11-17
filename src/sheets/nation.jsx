@@ -137,8 +137,8 @@ function SettingsBody() {
       </ListSection>
       <ListSection title="Country">
         {many
-          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={openPicker} />
-          : <ListRow variant="item" media={<Flag flag={F().flag} />} title={F().name} description={F().long} />}
+          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} size="md" />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={openPicker} />
+          : <ListRow variant="item" media={<Flag flag={F().flag} size="md" />} title={F().name} description={F().long} />}
       </ListSection>
       <Staff />
       <ListSection title="Look and feel">

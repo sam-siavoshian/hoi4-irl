@@ -18,7 +18,7 @@
 //
 //   hero     the page's one headline at the hero size, the sentence under it and its actions; never inset
 //   display  a band's heading on such a page, at the headline size, and what the band is about; never inset
-//   align    `start` (the default) or `center`, for `hero` and `display`
+//   align    `start` (the default) or `center`, for `hero` and `display`; the actions follow it
 
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
@@ -103,7 +103,7 @@ export function SectionHeader({
       >
         <Heading className={TITLE[at]}>{title}</Heading>
         {description ? <p className={DESCRIPTION[at]}>{description}</p> : null}
-        {action ? <div className="flex flex-wrap items-center justify-center gap-3 pt-2">{action}</div> : null}
+        {action ? <div className={cn("flex flex-wrap items-center gap-3 pt-2", (align ?? "start") === "center" ? "justify-center" : "justify-start")}>{action}</div> : null}
       </header>
     );
   }

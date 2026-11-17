@@ -1,12 +1,13 @@
 <h1 align="center">Home Front</h1>
 
 <p align="center">
-  <b>A productivity app and daily journal that shows your whole life as a 1936 war map.</b><br>
+  <b>An open-source, self-hosted productivity app and daily journal that shows your whole life as a 1936 grand-strategy war map.</b><br>
   Say what happened today. It files the entry, the front lines move, and one look tells you what needs you.
 </p>
 
 <p align="center">
   <a href="https://sam-siavoshian.github.io/hoi4-irl/"><b>Try the demo</b></a> ·
+  <a href="https://sam-siavoshian.github.io/hoi4-irl/how-it-works/">How it works</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="docs/SELF_HOSTING.md">Self-hosting</a> ·
   <a href="docs/API.md">API</a> ·
@@ -22,12 +23,20 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
+  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Turkey with front lines on every border, division counters, battle markers, and a side panel for the Work front listing its divisions and latest battles">
+</p>
+
+<p align="center">
+  <a href="docs/img/demo.mp4"><img src="docs/img/demo.gif" width="760" alt="A 10-second loop of the app: in a campaign as Mexico, an entry is typed and sent, and the Work front advances into Guatemala; then the country picker shows France, Siam and Mexico, each map loading behind it"></a>
 </p>
 
 ## What it is
 
-**Home Front is a productivity app that turns your life into a map you can read at a glance.**
+**Home Front is a productivity app that turns your life into a map you can read at a glance.** It is a
+self-hosted habit tracker, life tracker and daily journal in one: gamified like a grand-strategy game, but
+with nothing to play. It is open source (MIT), local-first (your record is a folder of plain files on your
+own machine), and works with OpenAI, Anthropic, Gemini and others on your own key, with a local model in
+Ollama or LM Studio, or with no model at all.
 
 You tell it what happened today, in a sentence or two, by voice or by typing. It files that for you:
 which part of your life it was about, whether it went well or badly, and how much it mattered. Then it
@@ -90,32 +99,36 @@ restored. Let everything slide and the capital falls. Most of life happens in be
 - **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
 
+More countries are on the [roadmap](#roadmap). If you would like to see them, a star on the repository helps
+other people find the project.
+
 <p align="center">
-  <img src="docs/img/map.png" width="19%" alt="The war map on a phone: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">
-  <img src="docs/img/report.png" width="19%" alt="Reporting: one text box, a microphone and a Send button, with today's three small goals underneath">
-  <img src="docs/img/front.png" width="19%" alt="A front: its status, next objective, one-tap Win and Loss buttons and its divisions">
-  <img src="docs/img/history.png" width="19%" alt="History: a calendar of reported days and the list of entries, each editable">
-  <img src="docs/img/division.png" width="19%" alt="A division: its commander, experience, record and battle honours">
+  <img src="docs/img/map.png" width="19%" alt="The war map on a phone, here Greece: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">
+  <img src="docs/img/report.png" width="19%" alt="Reporting, here in Mexico: one text box, a microphone and a Send button, with today's three small goals underneath">
+  <img src="docs/img/front.png" width="19%" alt="A front, here Ethiopia's Work front: its status, next objective, one-tap Win and Loss buttons and its divisions">
+  <img src="docs/img/history.png" width="19%" alt="History, here in Siam: a calendar of reported days and the list of entries, each editable">
+  <img src="docs/img/division.png" width="19%" alt="A division, here in Peru: its commander, experience, record and battle honours">
 </p>
 
 ## Eight countries
 
-Each has its own map, army, navy, air force, commanders, ranks and decorations, and an empire to restore.
+Each has its own map, army, navy, air force, commanders, ranks and decorations, its real flag of the time, and an
+empire to restore.
 Change country at any time; each keeps its own campaign.
 
 | Country | Year | Borders to restore | Fronts |
 |---|---|---|---|
-| Iran | 1936 | Achaemenid Empire | 6 land, 1 naval |
-| Turkey | 1936 | Ottoman Empire | 5 land, 2 naval |
-| Greece | 1936 | Byzantine Empire of Basil II | 3 land, 4 naval |
-| France | 1936 | First French Empire (1812) | 5 land, 2 naval |
 | Ethiopia | 1935 | Aksumite Empire | 7 land |
-| Siam | 1936 | Greater Siam | 5 land, 2 naval |
-| Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
+| France | 1936 | First French Empire (1812) | 5 land, 2 naval |
+| Greece | 1936 | Byzantine Empire of Basil II | 3 land, 4 naval |
+| Iran | 1936 | Achaemenid Empire | 6 land, 1 naval |
 | Mexico | 1936 | Mexican Empire (1821) | 4 land, 3 naval |
+| Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
+| Siam | 1936 | Greater Siam | 5 land, 2 naval |
+| Turkey | 1936 | Ottoman Empire | 5 land, 2 naval |
 
 <p align="center">
-  <img src="docs/img/countries.png" alt="The eight countries side by side: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with its own 1936 map and front lines">
+  <img src="docs/img/countries.png" alt="The eight countries side by side: Ethiopia, France, Greece, Iran, Mexico, Peru, Siam and Turkey, each with its own 1936 map, flag and front lines">
 </p>
 
 You choose on a full-screen selection screen: the map changes behind as you browse the nations, with each
@@ -252,17 +265,18 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### The fronts
 
-For Iran, as an example:
+Every country has seven fronts, and the slots mean the same in all of them: the first is School, the fourth Work,
+the last Self, whichever border it is. Two of them side by side:
 
-| Front | Enemy | Example meaning |
-|---|---|---|
-| Afghan Front | Afghanistan | School |
-| Caucasus Front | Soviet Union | Family |
-| Turkestan Front | Soviet Union | Partner |
-| Mesopotamian Front | Iraq | Work |
-| Baluchistan Front | British Raj | Health |
-| Anatolian Front | Turkey | Friends |
-| Persian Gulf Theatre | Royal Navy | Self |
+| Slot | Example meaning | France | Peru |
+|---|---|---|---|
+| 1 | School | Rhine Front (Germany) | Zarumilla Front (Ecuador) |
+| 2 | Family | Flanders Front (Belgium) | Quito Front (Ecuador) |
+| 3 | Partner | Alpine Front (Italy) | Putumayo Front (Colombia) |
+| 4 | Work | Jura Front (Switzerland) | Amazon Front (Brazil) |
+| 5 | Health | Pyrenees Front (Spain) | Collao Front (Bolivia) |
+| 6 | Friends | Channel Theatre (Royal Navy) | Tarapacá Front (Chile) |
+| 7 | Self | Mediterranean Theatre (Regia Marina) | Pacific Theatre (Chilean Navy) |
 
 The persona you pick sets the meanings; rename or pause any of them in Settings.
 

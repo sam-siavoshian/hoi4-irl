@@ -13,9 +13,10 @@ function loadMap(id) {
 }
 const still = () => document.documentElement.dataset.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// `frame` holds the two canvases. `onCaption({ said, typing, verdict })` gets what the strip under the map shows.
+// `frame` holds the two canvases. `onCaption({ said, typing, verdict })` gets what the strip under the map shows;
+// `onLoop()` is told each time the story has played to its end (the page may then show() another country).
 // Returns { show(id), stop() }: show() resolves once that country's map is on screen.
-export function createStage({ frame, base, over, onCaption }) {
+export function createStage({ frame, base, over, onCaption, onLoop }) {
   let view = null, turn = 0, visible = true, stopped = false;
   const home = (animate = true) => { view.frameWhole(true); view.home(animate); };
   // Towards a front, but not as close as the app goes (view.flyToFront): the country stays in the picture, so a
@@ -66,6 +67,7 @@ export function createStage({ frame, base, over, onCaption }) {
       }
       await idle(mine); if (mine !== turn) return;
       home(); await sleep(1600); if (mine !== turn) return;
+      onLoop?.(); await sleep(0); if (mine !== turn) return; // the page moved on to another country
       view.setState(before, labels);
     }
   }

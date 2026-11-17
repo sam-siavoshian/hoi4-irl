@@ -4,12 +4,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Badge, Button, Card, ChoiceCards, Chip, CodeBlock, IconButton, ListGroup, ListRow, ListRowDisclosure, PersonRow, SectionHeader, Spinner, StatTile, StatusLabel,
-  toastManager,
 } from '@sam/design-system';
 import { cycleAppearance } from '@sam/design-system/theme';
 import { AnchorIcon, ArrowRightIcon, FolderIcon, GamepadIcon, KeyRoundIcon, LayersIcon, ListXIcon, MicIcon, NotebookPenIcon, ServerIcon, SunMoonIcon, SwordsIcon } from 'lucide-react';
-import { countries, example } from 'virtual:site-data';
-import { Flag, ProviderLogo } from '../src/marks.jsx';
+import { countries, examples, start, faq as FAQ_LANDING } from 'virtual:site-data';
+import { BrandMark, Flag, ProviderLogo } from '../src/marks.jsx';
+import { SiteFooter } from './Chrome.jsx';
 
 const REPO = 'https://github.com/sam-siavoshian/hoi4-irl';
 const DEMO = './demo/?demo=1';
@@ -23,8 +23,17 @@ function seedDemo(id) {
   try { if (!localStorage.getItem(SAVE)) localStorage.setItem(SAVE, JSON.stringify({ v: 3, scenario: id, reports: [], labels: {}, notes: {}, off: [], campaigns: {} })); } catch { /* private mode: the demo starts on its own picker */ }
 }
 
+// The hero is no one country's: the HTML is written with the build's country of the day (site-data's `start`), then
+// the browser picks one of the eight at random and loads only its map. Each time the story ends the hero moves on to
+// the next country, until the visitor picks one themselves.
+const FLAGS = 'demo/'; // the flags are the app's (icons/flags/), served beside it
 export function Landing() {
-  const [picked, setPicked] = useState(countries[0].id);
+  const [picked, setPicked] = useState(countries[start].id);
+  const [live, setLive] = useState(false); // false until the browser has picked the hero's country
+  const chosen = useRef(false);
+  useEffect(() => { setPicked(countries[Math.floor(Math.random() * countries.length)].id); setLive(true); }, []);
+  const pick = id => { chosen.current = true; setPicked(id); };
+  const next = () => { if (!chosen.current) setPicked(id => countries[(countries.findIndex(c => c.id === id) + 1) % countries.length].id); };
   const country = countries.find(c => c.id === picked) || countries[0];
   return (
     <div className="flex min-h-dvh flex-col gap-16 pb-12 sm:gap-24">
@@ -32,10 +41,10 @@ export function Landing() {
         <TopBar />
         <main className="flex flex-col gap-20 sm:gap-28">
           <div className={`${column} flex flex-col gap-10 sm:gap-14`}>
-            <Hero picked={picked} country={country} />
-            <Nations picked={picked} country={country} onPick={setPicked} />
+            <Hero picked={picked} country={country} live={live} onLoop={next} />
+            <Nations picked={picked} country={country} onPick={pick} />
           </div>
-          <HowItWorks />
+          <HowItWorks e={examples[country.id]} />
           <WhoItIsFor />
           <YourData />
           <GetIt />
@@ -51,12 +60,12 @@ function TopBar() {
   const appearance = () => {
     cycleAppearance();
     const now = document.documentElement.dataset.appearance;
-    toastManager.add({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 });
+    import('./toasts.jsx').then(t => t.say({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 })).catch(() => { /* the change itself has happened */ });
   };
   return (
     <header className={`${column} flex items-center justify-between gap-3 pt-4`}>
       <a href="./" className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Flag flag={countries[0].flag} className="size-6" />
+        <BrandMark />
         Home Front
       </a>
       <nav aria-label="Sections" className="flex items-center gap-1">
@@ -71,7 +80,7 @@ function TopBar() {
 }
 
 // 1. What it is, the two things to do, and the product itself: the live map.
-function Hero({ picked, country }) {
+function Hero({ picked, country, live, onLoop }) {
   return (
     <section className="flex flex-col gap-8 pt-4 sm:gap-12 sm:pt-8">
       <SectionHeader
@@ -84,31 +93,33 @@ function Hero({ picked, country }) {
           </>
         )}
       />
-      <Stage picked={picked} country={country} />
+      <Stage picked={picked} country={country} live={live} onLoop={onLoop} />
     </section>
   );
 }
 
 // The map and the strip under it: what was said, and what it became.
-function Stage({ picked, country }) {
+function Stage({ picked, country, live, onLoop }) {
   const frame = useRef(null), base = useRef(null), over = useRef(null), stage = useRef(null);
   const [shown, setShown] = useState(null); // the country on the canvas, once its map has loaded
   const [failed, setFailed] = useState(false);
-  const [caption, setCaption] = useState({ said: example.said, typing: false, verdict: example });
+  const [caption, setCaption] = useState(() => ({ said: examples[picked].said, typing: false, verdict: examples[picked] }));
+  const loop = useRef(onLoop); loop.current = onLoop;
   useEffect(() => {
-    let live = true;
+    if (!live) return undefined; // not before the browser has picked the hero's country: only that map loads
+    let on = true;
     (async () => {
       try {
         if (!stage.current) {
           const { createStage } = await import('./stage.js');
-          if (!live) return;
-          stage.current = createStage({ frame: frame.current, base: base.current, over: over.current, onCaption: setCaption });
+          if (!on) return;
+          stage.current = createStage({ frame: frame.current, base: base.current, over: over.current, onCaption: setCaption, onLoop: () => loop.current?.() });
         }
-        if (await stage.current.show(picked) && live) { setShown(picked); setFailed(false); }
-      } catch { if (live) setFailed(true); }
+        if (await stage.current.show(picked) && on) { setShown(picked); setFailed(false); }
+      } catch { if (on) setFailed(true); }
     })();
-    return () => { live = false; };
-  }, [picked]);
+    return () => { on = false; };
+  }, [picked, live]);
   useEffect(() => () => stage.current?.stop(), []);
   const loading = shown !== picked && !failed;
   const v = caption.verdict;
@@ -116,7 +127,7 @@ function Stage({ picked, country }) {
     <Card as="figure" padding="none" radius="panel" className="overflow-hidden">
       <div ref={frame} data-testid="hero-map" data-country={shown || undefined} data-loading={loading ? '' : undefined} className="relative aspect-4/5 w-full bg-fill sm:aspect-16/9">
         <noscript>
-          <img src="img/hero.png" width="1104" height="617" alt={`The Home Front map of ${countries[0].name} in ${countries[0].year}: division counters along every border and front lines drawn province by province.`} className="absolute inset-0 size-full object-cover" />
+          <img src="img/hero.png" width="1104" height="621" alt="The Home Front maps of four of the eight countries, each with division counters along every border and front lines drawn province by province." className="absolute inset-0 size-full object-cover" />
         </noscript>
         <canvas ref={base} aria-hidden="true" className="pointer-events-none absolute inset-0" />
         <canvas ref={over} aria-hidden="true" className="pointer-events-none absolute inset-0" />
@@ -154,11 +165,11 @@ function Nations({ picked, country, onPick }) {
       <SectionHeader level="display" align="center" title={<span id="nations-title">Choose your nation</span>}
         description="8 countries on their 1936 borders, each with an empire to restore. Pick one and the map changes to it." />
       <ChoiceCards variant="thumbs" flow="strip" label="Country" value={picked} onChange={onPick} data-testid="nations"
-        options={countries.map(c => ({ value: c.id, label: c.name, preview: <Flag flag={c.flag} className="size-10" />, data: { 'data-testid': 'country', 'data-id': c.id } }))} />
+        options={countries.map(c => ({ value: c.id, label: c.name, preview: <Flag flag={c.flag} shape="rect" size="lg" base={FLAGS} className="max-w-full" />, data: { 'data-testid': 'country', 'data-id': c.id } }))} />
       <Card as="article" padding="none" radius="panel" data-testid="briefing" data-id={country.id} className="flex flex-col gap-7 p-5 sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-12">
           <div className="flex max-w-xl flex-col gap-4">
-            <PersonRow size="lg" avatar={<Flag flag={country.flag} className="size-10" />} name={<span data-testid="brief-name">{country.name}</span>} detail={`${country.long} · ${country.year}`} />
+            <PersonRow size="lg" avatar={<Flag flag={country.flag} shape="rect" size="xl" base={FLAGS} />} name={<span data-testid="brief-name">{country.name}</span>} detail={`${country.long} · ${country.year}`} />
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Empire to restore</p>
               <p className="text-base font-semibold text-foreground" data-testid="brief-empire">{country.empire}</p>
@@ -199,8 +210,7 @@ function Nations({ picked, country, onPick }) {
 }
 
 // 3. One real entry, carried through the three steps. The words on the right of each step are the engine's own.
-function HowItWorks() {
-  const e = example;
+function HowItWorks({ e }) {
   return (
     <section id="how" aria-labelledby="how-title" className={`${column} flex flex-col gap-8`}>
       <SectionHeader level="display" title={<span id="how-title">How it works</span>} description="You say 1 sentence. It becomes 1 battle. Here is a real entry, start to finish." />
@@ -317,38 +327,22 @@ function GetIt() {
   );
 }
 
-// 7. Five questions.
-const FAQ = [
-  ['Is it a game?', 'No. It looks like one, but there is nothing to play. The map only moves when you report something real. It is a diary with consequences.'],
-  ['Does it need an API key?', 'No. With no key, the offline keyword judge files your entries on the device. Add your own key or a local model later, in Settings, without losing anything.'],
-  ['What does it cost to run?', '1 short model call for each entry, plus speech to text if you use voice. With a local model or the offline judge it costs nothing.'],
-  ['Does it work on a phone?', 'Yes. It installs to the iPhone or Android home screen and keeps working offline. Entries made offline are kept on the phone and sent when you are back online.'],
-  ['Can I change the map?', 'Yes. Pick any of the 8 countries, rename every front and pause the ones you don’t need. Each country keeps its own campaign.'],
-];
+// 7. Five questions, from the site's one list of questions (site/content/faq.mjs); the rest are on /faq/.
 function Faq() {
   return (
     <section id="faq" aria-labelledby="faq-title" className={`${column} grid gap-8 lg:grid-cols-2 lg:gap-12`}>
-      <SectionHeader level="display" title={<span id="faq-title">Questions</span>} description="The short answers. The repository has the long ones." />
+      <div className="flex flex-col gap-6">
+        <SectionHeader level="display" title={<span id="faq-title">Questions</span>} description="The short answers. There are more on the questions page." />
+        <div><Button variant="outline" render={<a href="./faq/" />}>Read all questions</Button></div>
+      </div>
       <ListGroup data-testid="faq">
-        {FAQ.map(([q, a], at) => <ListRowDisclosure key={q} title={q} defaultOpen={at === 0}>{a}</ListRowDisclosure>)}
+        {FAQ_LANDING.map(({ q, a }, at) => <ListRowDisclosure key={q} title={q} defaultOpen={at === 0} findable>{a}</ListRowDisclosure>)}
       </ListGroup>
     </section>
   );
 }
 
-// 8. The foot.
+// 8. The foot: the site's own (site/Chrome.jsx), with a link to every page.
 function Foot() {
-  return (
-    <footer className={`${column} flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-start sm:justify-between sm:gap-8`}>
-      <p className="flex items-center gap-2 font-medium text-foreground"><Flag flag={countries[0].flag} className="size-5" />Home Front</p>
-      <div className="max-w-2xl space-y-1.5 sm:text-end">
-        <p className="-mx-2 flex items-center gap-1 sm:justify-end">
-          <Button variant="link" size="xs" render={<a href={`${REPO}/blob/main/LICENSE`} />}>MIT licence</Button>
-          <Button variant="link" size="xs" render={<a href={REPO} />}>GitHub</Button>
-        </p>
-        <p>Home Front is not affiliated with Paradox Interactive.</p>
-        <p>Unit silhouettes from Game-icons.net, CC BY 3.0. Icons by Lucide. Borders from Natural Earth.</p>
-      </div>
-    </footer>
-  );
+  return <SiteFooter root="./" />;
 }

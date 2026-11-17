@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://sam-siavoshian.github.io/hoi4-irl/sitemap.xml

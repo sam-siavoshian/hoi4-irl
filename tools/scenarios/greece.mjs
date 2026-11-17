@@ -395,7 +395,8 @@ export const META = {
   year: 1936,
   blurb: 'Three mountain borders and four seas. Restore the empire of Basil II, from the Danube to Antioch.',
   pitch: 'a 1936 grand-strategy war map of Greece',
-  flag: { type: 'h', stripes: [['#0d5eaf', 1]], cross: { color: '#f4f1e6', width: 0.2 } },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/greece.png', sizes: { 64: 'icons/flags/greece-64.png', 128: 'icons/flags/greece-128.png', 320: 'icons/flags/greece.png' }, ratio: 1.5, colors: ['#0d5eaf', '#ffffff'] },
   regionWord: 'Theme',
   regions: {
     'Gegeria': 'Dyrrhachion', 'Myzeqe': 'Aulon', 'Northern Epirus': 'Dryinopolis',

@@ -350,7 +350,8 @@ export const META = {
   year: 1936,
   blurb: 'Seven frontiers from the Putumayo to Tacna. Restore the Inca realm of the four quarters.',
   pitch: 'a 1936 grand-strategy war map of Peru',
-  flag: { type: 'v3', colors: ['#c0392f', '#efeadb', '#c0392f'] },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/peru.png', sizes: { 64: 'icons/flags/peru-64.png', 128: 'icons/flags/peru-128.png', 320: 'icons/flags/peru.png' }, ratio: 1.5, colors: ['#d91023', '#ffffff'] },
   regionWord: 'Wamani', // an Inca province; the four suyus were the quarters that the wamanis made up
   regions: {
     'Pichincha & the Northern Sierra': 'Quitu', 'Azuay & Loja': 'Tumipampa', 'Guayas & El Oro': 'Huancavilca', 'Manabí & Esmeraldas': 'Manta', 'Oriente': 'Quijos',

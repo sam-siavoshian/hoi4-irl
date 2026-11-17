@@ -426,7 +426,8 @@ export const META = {
   year: 1936,
   blurb: 'Seven fronts from the Danube to the Tigris. Restore the empire of Süleyman.',
   pitch: 'a 1936 grand-strategy war map of Turkey',
-  flag: { type: 'h3', colors: ['#d7141a', '#d7141a', '#d7141a'], disc: '#f4f1e8' },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/turkey.png', sizes: { 64: 'icons/flags/turkey-64.png', 128: 'icons/flags/turkey-128.png', 320: 'icons/flags/turkey.png' }, ratio: 1.5, colors: ['#e30a17', '#ffffff'] },
   regionWord: 'Eyalet',
   // FOREIGN region → its Ottoman eyalet, sanjak or vassal principality
   regions: {

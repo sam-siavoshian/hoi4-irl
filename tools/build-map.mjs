@@ -355,12 +355,27 @@ const isolated = provinces.filter(p => !adj[p.id].size && p.tag === HOME).map(p 
 if (isolated.length) problems.push(`home provinces with no neighbours: ${isolated.join(', ')}`);
 if (iran.length < 40) problems.push(`only ${iran.length} home provinces — lower the home country's spacing`);
 if (fronts.length !== S.FRONTS.length) problems.push('some fronts could not be built');
-// the flag (META.flag, optional): h3 | v3 with three colours, or h | v with stripes; every paint a #rrggbb
+// the flag (META.flag, optional). The real flag is a picture: { image, sizes?, ratio?, focus?, colors? }, every path a
+// PNG or WebP under icons/flags/ that exists; its proportions are read from the PNG when `ratio` is not given. A
+// scenario without artwork can describe stripes instead: h3 | v3 with three colours, or h | v with stripes.
 { const fl = (S.META || {}).flag, paint = c => /^#[0-9a-f]{6}$/i.test(c);
-  if (fl) {
+  const picture = f => typeof f === 'string' && /^icons\/flags\/[\w-]+\.(png|webp)$/.test(f) && fs.existsSync(new URL(`../${f}`, import.meta.url));
+  if (fl && fl.image != null) {
+    if (!picture(fl.image)) problems.push(`flag: image must be a PNG or WebP file under icons/flags/ that exists (${fl.image})`);
+    else {
+      const head = fs.readFileSync(new URL(`../${fl.image}`, import.meta.url)).subarray(0, 32);
+      const png = head.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), webp = head.toString('latin1', 0, 4) === 'RIFF' && head.toString('latin1', 8, 12) === 'WEBP';
+      if (!png && !webp) problems.push(`flag: ${fl.image} is not a PNG or WebP file`);
+      else if (fl.ratio == null) { if (png) out.meta = { ...out.meta, flag: { ...fl, ratio: Math.round(head.readUInt32BE(16) / head.readUInt32BE(20) * 1000) / 1000 } }; else problems.push('flag: a WebP image needs ratio (width / height)'); }
+    }
+    if (fl.sizes != null && !(typeof fl.sizes === 'object' && Object.entries(fl.sizes).length && Object.entries(fl.sizes).every(([w, f]) => Number(w) > 0 && picture(f)))) problems.push('flag: sizes must map widths in pixels to files under icons/flags/ that exist');
+    if (fl.ratio != null && !(Number(fl.ratio) > 0)) problems.push('flag: ratio must be a number above 0');
+    if (fl.focus != null && !(Array.isArray(fl.focus) && fl.focus.length === 2 && fl.focus.every(n => n >= 0 && n <= 1))) problems.push('flag: focus must be [x, y], each 0–1');
+    if (fl.colors != null && !(Array.isArray(fl.colors) && fl.colors.length >= 1 && fl.colors.length <= 3 && fl.colors.every(paint))) problems.push('flag: colors must be 1 to 3 #rrggbb paints');
+  } else if (fl) {
     if (fl.type === 'h3' || fl.type === 'v3') { if (!Array.isArray(fl.colors) || fl.colors.length !== 3 || !fl.colors.every(paint)) problems.push(`flag: ${fl.type} needs colors: three #rrggbb paints`); }
     else if (fl.type === 'h' || fl.type === 'v') { if (!Array.isArray(fl.stripes) || !fl.stripes.length || !fl.stripes.every(s => Array.isArray(s) && paint(s[0]) && s[1] > 0)) problems.push('flag: stripes must be a list of [#rrggbb, weight]'); }
-    else problems.push(`flag: unknown type ${fl.type} (h3, v3, h or v)`);
+    else problems.push(`flag: unknown type ${fl.type} (an image, or h3, v3, h or v)`);
     for (const k of ['disc']) if (fl[k] != null && !paint(fl[k])) problems.push(`flag: ${k} must be a #rrggbb paint`);
     if (fl.canton && !(paint(fl.canton.color) && fl.canton.w > 0 && fl.canton.w <= 1 && fl.canton.h > 0 && fl.canton.h <= 1)) problems.push('flag: canton needs color, w and h (0–1)');
     if (fl.cross && !(paint(fl.cross.color) && fl.cross.width > 0 && fl.cross.width <= 1)) problems.push('flag: cross needs color and width (0–1)');
@@ -368,24 +383,25 @@ if (fronts.length !== S.FRONTS.length) problems.push('some fronts could not be b
 const json = JSON.stringify(out);
 say(`  ${S.ID}: ${provinces.length} provinces (${iran.length} home), ${(json.length / 1024).toFixed(0)} KB, ${W}x${H}`);
 for (const pr of problems) say('  PROBLEM:', pr);
-return { id: S.ID, problems, provinces: provinces.length, home: iran.length, meta: S.META || {}, map: out, json };
+return { id: S.ID, problems, provinces: provinces.length, home: iran.length, meta: out.meta, map: out, json };
 }
 
 // ---------- command line ----------
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 const dir = new URL('./scenarios/', import.meta.url);
 const only = process.argv.slice(2);
-const ids = fs.readdirSync(dir).filter(f => f.endsWith('.mjs')).map(f => f.replace(/\.mjs$/, '')).filter(id => !only.length || only.includes(id)).sort((a, b) => (a === 'iran' ? -1 : b === 'iran' ? 1 : a.localeCompare(b)));
+const ids = fs.readdirSync(dir).filter(f => f.endsWith('.mjs')).map(f => f.replace(/\.mjs$/, '')).filter(id => !only.length || only.includes(id)).sort();
 let bad = 0; const index = [];
 for (const id of ids) {
   console.log(id);
   try { const S = await import(new URL(`${id}.mjs`, dir)); if (S.ID !== id) throw new Error(`ID "${S.ID}" must match the file name`); const r = await build(S); bad += r.problems.length; fs.mkdirSync(new URL('../data/maps/', import.meta.url), { recursive: true }); fs.writeFileSync(new URL(`../data/maps/${id}.json`, import.meta.url), r.json); const m = r.meta; index.push({ id, name: m.name, long: m.long, empire: m.empire, year: m.year || 1936, blurb: m.blurb || '', flag: m.flag || null }); }
   catch (e) { console.log('  FAILED:', e.message); bad++; }
 }
-// the index the app's country picker reads; building one scenario replaces just its entry
+// the index the app's country picker reads, in alphabetical order of the countries' names (no country first by
+// default); building one scenario replaces just its entry
 const indexUrl = new URL('../data/scenarios.json', import.meta.url);
-let list = index;
-if (only.length) { let old = []; try { old = JSON.parse(fs.readFileSync(indexUrl, 'utf8')); } catch { /* none yet */ } list = [...old.filter(x => !index.some(y => y.id === x.id)), ...index].sort((a, b) => (a.id === 'iran' ? -1 : b.id === 'iran' ? 1 : a.id.localeCompare(b.id))); }
+let list = index.slice().sort((a, b) => a.name.localeCompare(b.name, 'en'));
+if (only.length) { let old = []; try { old = JSON.parse(fs.readFileSync(indexUrl, 'utf8')); } catch { /* none yet */ } list = [...old.filter(x => !index.some(y => y.id === x.id)), ...index].sort((a, b) => a.name.localeCompare(b.name, 'en')); }
 fs.writeFileSync(indexUrl, JSON.stringify(list, null, 1));
 if (bad) { console.log(`\n${bad} problem(s)`); process.exit(1); }
 }

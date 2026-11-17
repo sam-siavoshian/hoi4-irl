@@ -395,7 +395,8 @@ export const META = {
   year: 1936,
   blurb: 'Seven frontiers from the Rhine to the Pyrenees. Restore the empire of Napoleon.',
   pitch: 'a 1936 grand-strategy war map of France',
-  flag: { type: 'v3', colors: ['#2b4a8c', '#efeadb', '#c9423a'] },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/france.png', sizes: { 64: 'icons/flags/france-64.png', 128: 'icons/flags/france-128.png', 320: 'icons/flags/france.png' }, ratio: 1.5, colors: ['#002654', '#ffffff', '#ce1126'] },
   regionWord: 'Province',
   // FOREIGN region → the name it bore under the Empire: the French departments of 1812 where the land was annexed, the
   // client state where it was not

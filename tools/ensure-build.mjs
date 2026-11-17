@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'dist', 'index.html');
-const SOURCES = ['src', 'js', 'css', 'vendor/design-system/src', 'vendor/design-system/boot', 'index.html', 'sw.js', 'vite.config.js', 'package.json'];
+const SOURCES = ['src', 'js', 'css', 'vendor/design-system/src', 'vendor/design-system/boot', 'index.html', 'sw.js', 'vite.config.js', 'package.json', 'icons/flags'];
 
 function newest(p) {
   if (!fs.existsSync(p)) return 0;
