@@ -32,14 +32,19 @@ security policy, contributing guide, issue templates and Dependabot are in place
 
 **Website**: `https://sam-siavoshian.github.io/hoi4-irl/`
 
-**Topics** (GitHub allows 20; these are the ones people browse and search):
+**Topics** (GitHub allows 20; paste these into the About panel's "Topics" field, one per space):
 
 ```
-self-hosted  productivity  habit-tracker  life-tracker  journal  journaling
-gamification  quantified-self  personal-dashboard  pwa  local-first
-grand-strategy  hoi4  alternate-history  llm  openai  ollama  ai
-react  nodejs
+productivity habit-tracker life-tracker journal journaling self-hosted
+gamification quantified-self personal-dashboard local-first pwa ai llm
+ollama openai grand-strategy hoi4 alternate-history react nodejs
 ```
+
+Why these: the first ten put it in the productivity and self-hosted topic pages, which are where people
+browse for tools like this; `ai`, `llm`, `ollama` and `openai` reach people looking for AI journaling
+and local-model projects; `grand-strategy`, `hoi4` and `alternate-history` reach the strategy-game
+audience most likely to share it. Topics cannot be set from a commit: they live in the repository
+settings. `package.json` carries a longer keyword list for npm and code search.
 
 The first six put it in the self-hosted and productivity listings (and make it eligible for
 awesome-selfhosted, under "Personal Dashboards" or "Note-taking and Editors"). `grand-strategy`, `hoi4`
