@@ -3,6 +3,13 @@
 @import "@sam/design-system/styles.css";
 @source "./";
 @source "../src/marks.jsx";
+
+/* The one layout change. The design system's stylesheet is written for an app window: it pins body and #root to the
+   screen (overflow hidden) because the app scrolls inside its own panels. This page is a document, so the window
+   scrolls it. Sideways stays clipped, as in the app. */
+html, body { overscroll-behavior: auto; }
+body { height: auto; overflow: visible; }
+#root { height: auto; overflow-x: clip; overflow-y: visible; }
 /* The kit's source files the site never loads, so Tailwind doesn't make classes for them. Written by
    tools/build-site.mjs from what the build actually bundles, and checked on every build. */
 @import "./kit-unused.css";

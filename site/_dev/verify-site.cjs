@@ -3,7 +3,7 @@
 //   every page: a unique title (≤ 60) and description (50 to 160), its own absolute canonical address, lang, 1 h1,
 //     headings that never skip a level, header, main and footer, alt text on every image, an Open Graph and Twitter
 //     card, structured data that parses (a FAQPage that says exactly what the page shows), a Markdown copy,
-//     no sideways scroll at 390 wide, no console errors, no game trademark, no exclamation mark
+//     no sideways scroll at 390 wide, scrolls when scrolled (and to the end on a desktop), no console errors, no game trademark, no exclamation mark
 //   the site: the sitemap lists exactly the pages built, llms.txt and every internal link lead somewhere
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -85,6 +85,11 @@ module.exports = async function verifySite(browser, base) {
     for (const l of ['header', 'main', 'footer', 'nav']) assert.ok(info.landmarks.includes(l), `${where}: no <${l}>`);
     assert.deepEqual(info.noAlt, [], `${where}: images without alt text`);
     assert.equal(info.sideways, false, `${where}: scrolls sideways at 390 wide`);
+    // a page taller than the window scrolls when someone scrolls it (the app shell's stylesheet pins body and #root)
+    if (await p.evaluate(() => document.documentElement.scrollHeight > innerHeight + 50)) {
+      await p.mouse.move(195, 400); await p.mouse.wheel(0, 700); await p.waitForTimeout(300);
+      assert.ok(await p.evaluate(() => scrollY) > 0, `${where}: does not scroll`);
+    }
     assert.ok(info.og.title && info.og.image && info.og.alt && info.og.w && info.og.h, `${where}: Open Graph card`);
     assert.equal(info.twitter.card, 'summary_large_image', `${where}: Twitter card`);
     assert.equal(info.twitter.image, info.og.image, `${where}: the two cards' images`);
@@ -125,7 +130,16 @@ module.exports = async function verifySite(browser, base) {
     table.push(`${where} (${types.join(', ')})`);
     await p.close();
   }
-  console.log(`ok ${pages.length} pages: unique titles, descriptions and canonical addresses; 1 h1 each; headings in order; cards, structured data and Markdown copies; no sideways scroll at 390; no errors`);
+  { // and on a desktop window, to the very end of the page
+    const d = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const p = await d.newPage();
+    await p.goto(base, { waitUntil: 'load' }); await p.waitForTimeout(400);
+    await p.mouse.move(720, 450); for (let i = 0; i < 60; i++) await p.mouse.wheel(0, 1200);
+    await p.waitForTimeout(500);
+    const end = await p.evaluate(() => ({ y: scrollY, max: document.documentElement.scrollHeight - innerHeight }));
+    assert.ok(end.max > 0 && end.y >= end.max - 2, `/: a desktop window does not scroll to the end (${end.y} of ${end.max})`);
+    await d.close();
+  }
+  console.log(`ok ${pages.length} pages: unique titles, descriptions and canonical addresses; 1 h1 each; headings in order; cards, structured data and Markdown copies; no sideways scroll at 390; every page scrolls; no errors`);
   for (const t of table) console.log('   ' + t);
 
   // the appearance button says what it did, in a toast loaded on that first press, on the landing page and a content page
