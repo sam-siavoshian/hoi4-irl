@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs deploy/watchdog.sh every two minutes. Runs as your user. Template: deploy/install-macos.sh fills in __ROOT__, __DATA__, __USER__, __HOME__. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.homefront.watchdog</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/bash</string><string>__ROOT__/deploy/watchdog.sh</string></array>
+  <key>WorkingDirectory</key><string>__ROOT__</string>
+  <key>UserName</key><string>__USER__</string>
+  <key>GroupName</key><string>staff</string>
+  <key>Umask</key><integer>63</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>120</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>HOME</key><string>__HOME__</string></dict>
+  <key>StandardOutPath</key><string>__DATA__/watchdog.log</string>
+  <key>StandardErrorPath</key><string>__DATA__/watchdog.log</string>
+</dict>
+</plist>

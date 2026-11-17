@@ -37,12 +37,15 @@ const RATE = process.env.HOMEFRONT_RATE_LIMIT === undefined || process.env.HOMEF
 // has ./private keeps using it (that folder is git-ignored).
 const tilde = p => (p && /^~(?=$|\/)/.test(p) ? path.join(os.homedir(), p.slice(1)) : p);
 const PRIVATE = path.resolve(tilde(process.env.HOMEFRONT_DATA_DIR) || (fs.existsSync(path.join(ROOT, 'private')) ? path.join(ROOT, 'private') : path.join(os.homedir(), '.homefront')));
-const COOKIE = 'homefront_session';
+const COOKIE = 'homefront_session', OLD_COOKIE = 'artesh_session'; // the old name is still read, never set
 const die = msg => { console.error(msg); process.exit(1); };
 
 if (!PASSWORD && process.env.HOMEFRONT_OPEN !== '1') die('Refusing to start without HOMEFRONT_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set HOMEFRONT_OPEN=1.');
 if (TOKEN && TOKEN.length < 16) die('HOMEFRONT_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
 const store = createStore(PRIVATE);
+const stamp = () => new Date().toISOString();
+try { const r = store.recover(); if (r) console.error(`${stamp()} state.json was unreadable (${r.why}). Restored the campaign from ${r.from} (rev ${r.rev}); the broken file is kept as ${r.aside}.`); }
+catch (e) { die(`${stamp()} ${e.message}`); }
 const { readJSON, writeJSON } = store;
 // the provider in use: what was chosen in the app (ai.json in the data folder), or else what .env says
 let ai; try { ai = createAI({ env: process.env, store }); } catch (e) { die(e.message); }
@@ -54,7 +57,7 @@ const YEAR = 365 * 86400e3;
 const hash = t => crypto.createHash('sha256').update(t).digest('hex');
 function authed(req) {
   if (!PASSWORD) return true;
-  const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([a-f0-9]{64})`)); if (!m) return false;
+  const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)(?:${COOKIE}|${OLD_COOKIE})=([a-f0-9]{64})`)); if (!m) return false; // a device signed in before the rename stays signed in
   const exp = sessions.get(hash(m[1])); return !!exp && exp > Date.now();
 }
 const attempts = new Map(); // ip → [timestamps]
@@ -106,7 +109,8 @@ const server = http.createServer(async (req, res) => {
   const ip = req.socket.remoteAddress || '?';
   try {
     const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname); if (p === '/') p = '/index.html';
-    if (p === '/healthz') return send(res, 200, 'ok'); // liveness only: says nothing about the app or its data
+    // real health, for the watchdog: the campaign can be read and the data folder written. Says nothing else.
+    if (p === '/healthz') { try { store.read(); fs.accessSync(PRIVATE, fs.constants.W_OK); return send(res, 200, 'ok'); } catch (e) { console.error(`${stamp()} health check failed: ${e.message}`); return send(res, 503, 'unhealthy'); } }
     if (p === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /\n');
     if (PUBLIC_FILES.has(p) && req.method === 'GET') return fs.createReadStream(path.join(ROOT, p)).on('error', () => send(res, 404, 'Not found')).pipe(res.writeHead(200, { 'content-type': TYPES[path.extname(p)], ...SECURITY, 'cache-control': 'public, max-age=86400' }) && res);
 
@@ -126,7 +130,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 401, p === '/index.html' ? LOGIN : 'Not signed in', p === '/index.html' ? { 'content-type': TYPES['.html'] } : {});
     }
 
-    if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`${COOKIE}=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
+    if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`(?:${COOKIE}|${OLD_COOKIE})=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
     if (p === '/api/config') { const c = ai.config(); return send(res, 200, { server: true, judge: c.judge, transcribe: c.transcribe, login: !!PASSWORD, provider: c.provider, api: c.api }); }
     if (LIMITED.has(p) && req.method === 'POST') { const wait = limited(ip); if (wait) return send(res, 429, { error: 'Too many requests. Try again shortly.' }, { 'retry-after': String(wait) }); }
 
@@ -158,7 +162,10 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/transcribe' && req.method === 'POST') {
       const audio = await readBody(req, 25e6); if (audio.length < 500) return send(res, 400, { error: 'No audio' });
       const type = (req.headers['content-type'] || 'audio/webm').split(';')[0];
-      const model = ai.config().transcribe; return send(res, 200, { text: await ai.transcribe(audio, type), model });
+      const model = ai.config().transcribe; const t0 = Date.now();
+      const out = await ai.transcribe(audio, type, { prompt: url.searchParams.get('prompt'), keywords: url.searchParams.getAll('k') }); // hints: see providers.mjs SCRIBES
+      console.log(`${stamp()} transcribed ${(audio.length / 1024).toFixed(0)} KB ${type}, ${out.seconds ?? '?'} s of audio -> ${out.text.length} chars in ${Date.now() - t0} ms${out.plain ? ' (hints dropped)' : ''}`); // sizes only, never the words
+      return send(res, 200, { text: out.text, model });
     }
 
     // the general staff: which provider judges and transcribes, and its keys. A key goes in and never comes out:
@@ -212,4 +219,6 @@ const server = http.createServer(async (req, res) => {
     if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`Your data is kept in ${PRIVATE}`); console.log(`Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, ${ai.describe()}, automation token ${TOKEN ? 'on' : 'off'}`); });
+// launchd, Docker and Ctrl-C stop the server with a signal: finish open requests, then exit (at most 5 s later)
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log(`${stamp()} ${sig}: stopping`); server.close(() => process.exit(0)); server.closeIdleConnections(); setTimeout(() => process.exit(0), 5000).unref(); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`${stamp()} Your data is kept in ${PRIVATE}`); console.log(`${stamp()} Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, ${ai.describe()}, automation token ${TOKEN ? 'on' : 'off'}`); });

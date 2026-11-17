@@ -56,7 +56,7 @@ export const frontSheet = {
         </div>
         {divs.length ? <ListSection title="Divisions">{divs.map(d => <DivisionRow key={d.id} d={d} />)}</ListSection> : null}
         <ListSection title="Latest">
-          {latest.length ? latest.map(([i, ts], n) => <EventRow key={n} item={i} ts={ts} />) : <ListRow title="Nothing reported here yet" description="Report a win or a loss and it shows here." />}
+          {latest.length ? latest.map(([i, ts], n) => <EventRow key={n} item={i} ts={ts} clamp />) : <ListRow title="Nothing reported here yet" description="Report a win or a loss and it shows here." />}
         </ListSection>
       </>
     );

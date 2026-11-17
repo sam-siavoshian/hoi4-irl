@@ -1,6 +1,6 @@
 // History: ask the staff, the calendar, every entry with edit and delete; and the editor for one entry.
-import { Button, Card, ChoiceSelect, DayGrid, EmptyState, Field, IconButton, Input, ListSection, NumberStepper, Segmented } from '@sam/design-system';
-import { BookOpenIcon, PencilIcon, PlayIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { Button, Card, ChoiceSelect, Collapsible, CollapsiblePanel, CollapsibleTrigger, DayGrid, EmptyState, Field, IconButton, Input, ListSection, NumberStepper, Segmented, Textarea } from '@sam/design-system';
+import { BookOpenIcon, ChevronDownIcon, PencilIcon, PlayIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS } from '../../js/engine.js';
 import { app, back, clearAsk, dayKey, deleteReport, editItem, editReport, fmtDate, labels, openSheet, removeItem, runAsk, saveEdit, setAsk, startReplay } from '../core.js';
 import { EventRow } from '../parts.jsx';
@@ -27,6 +27,12 @@ function Entry({ l }) {
         <IconButton label="Delete" variant="ghost-destructive" onClick={() => deleteReport(l.id)}><Trash2Icon /></IconButton>
       </>}>
       {l.items.map((i, n) => <EventRow key={n} item={i} />)}
+      {l.text ? (
+        <Collapsible data-testid="said" className="px-4 py-3">
+          <CollapsibleTrigger render={<Button variant="ghost" size="sm" />}>What you said<ChevronDownIcon /></CollapsibleTrigger>
+          <CollapsiblePanel><p className="pt-2 text-sm whitespace-pre-line text-foreground">{l.text}</p></CollapsiblePanel>
+        </Collapsible>
+      ) : null}
     </ListSection>
   );
 }
@@ -102,6 +108,9 @@ export const edit = {
             </div>
             <Field label="What happened" htmlFor={`edit-${i}`}>
               <Input id={`edit-${i}`} value={it.headline} onChange={e => editItem(i, { headline: e.target.value })} />
+            </Field>
+            <Field label="Details" htmlFor={`edit-details-${i}`}>
+              <Textarea id={`edit-details-${i}`} data-testid="edit-details" rows={4} value={it.details || ''} onChange={e => editItem(i, { details: e.target.value })} />
             </Field>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Segmented label="Outcome" value={it.outcome} options={OUTCOMES} onChange={v => editItem(i, { outcome: v })} />

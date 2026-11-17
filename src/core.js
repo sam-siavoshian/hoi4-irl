@@ -6,12 +6,12 @@ import { toastManager } from '@sam/design-system';
 import { setMotionPreference } from '@sam/design-system/theme';
 import { simulate, sitrep, statusOf as statusFor, objective, flavor, capitalOf, momentOf, headlineOf, weeklyRecap, medalOf, ACTIONS, DAY } from '../js/engine.js';
 import { MapView, frontColor } from '../js/map.js';
-import { classify, assess } from '../js/classify.js';
+import { classify, assess, DETAILS_MAX } from '../js/classify.js';
 import { ask } from '../js/ask.js';
 import { fx } from '../js/fx.js';
 import { renderBulletin, renderFrontPage, renderRecap, renderRankUp, shareCanvas } from '../js/share.js';
 import { PRESETS, applyPreset } from '../js/presets.js';
-import { pickEngine, startDictation } from '../js/voice.js';
+import { pickEngine, startDictation, retryTranscription, namesFrom } from '../js/voice.js';
 import * as store from '../js/store.js';
 import { UNIT_PATHS } from '../js/icons.js';
 
@@ -238,7 +238,8 @@ export const replayAt = () => { const a = firstTs(), b = Date.now(); return Math
 // ---------- sheets ----------
 const ROOTS = ['fronts', 'history', 'report', 'welcome', 'province', 'overview'];
 const fromMap = new Set(['division']);
-const newReport = () => ({ text: '', busy: false, note: '', pick: false });
+// audio: a recording whose transcription failed, kept for Retry. sendAfter: Send was pressed while recording.
+const newReport = () => ({ text: '', busy: false, note: '', pick: false, audio: null, sendAfter: false });
 export function openSheet(name, arg = null, push = true) {
   if (ui.dict) stopDictation();
   if (name === 'report' && ui.asOf) exitReplay();
@@ -273,24 +274,49 @@ export function flyFront(id) { app.view.flyToFront(id); if (!isWide()) closeShee
 // ---------- report ----------
 function stopDictation() { ui.dict?.ctl.stop(); ui.dict = null; }
 export function setReportText(t) { ui.report.text = t; if (!ui.dict) ui.report.note = ''; change(); }
+// What the transcription model is told: the topics, and names the user has used before, so they are spelled the same way.
+function voiceHints() {
+  const L = labels(); const areas = activeFronts().map(f => L[f.id]);
+  const names = namesFrom(app.data.reports.slice(-200).flatMap(r => [r.text, ...(r.items || []).map(i => i.details)]));
+  return { prompt: `One person's spoken update about their day, for a personal life tracker. Topics: ${areas.join(', ')}.`, keywords: [...new Set([...names, ...areas])].slice(0, 50) };
+}
+function dictationHandlers(d, base, focusField) {
+  const r = ui.report;
+  return {
+    onText: t => { if (!t) return; r.text = (base + t).trimStart(); r.audio = null; change(); },
+    onState: (s, o = {}) => {
+      if (ui.dict !== d) return;
+      if (s === 'idle') ui.dict = null; else { d.state = s; d.seconds = o.seconds ?? d.seconds; }
+      change();
+      // Send was pressed while recording: send once the words are in, unless the transcription failed
+      if (s === 'idle' && r.sendAfter && ui.report === r) { r.sendAfter = false; if (r.audio) toast('Transcription failed.', 5000, null, 'Press Retry, then Send.'); else send(); }
+    },
+    onError: (msg, o = {}) => { r.note = msg; if (o.audio) r.audio = o.audio; if (o.fallback && ui.dict === d) ui.dict = null; change(); if (o.fallback) focusField?.(); },
+  };
+}
 export function toggleMic(focusField) {
   const r = ui.report;
-  if (ui.dict) { ui.dict.ctl.stop(); if (ui.dict?.state !== 'transcribing') { ui.dict = null; change(); } return; }
+  if (ui.dict) { if (ui.dict.state !== 'transcribing') ui.dict.ctl.stop(); return; } // the recorder reports 'transcribing', then 'idle'
   const engine = pickEngine(app.cfg);
   if (engine === 'keyboard') { r.note = 'Use the microphone key on your keyboard.'; change(); focusField?.(); return; }
-  const base = r.text ? r.text.replace(/\s+$/, '') + ' ' : ''; r.note = '';
-  const d = { state: 'starting', ctl: null }; ui.dict = d;
-  d.ctl = startDictation({
-    engine,
-    onText: t => { r.text = (base + t).trimStart(); change(); },
-    onState: s => { if (ui.dict !== d) return; if (s === 'idle') ui.dict = null; else d.state = s; change(); },
-    onError: (msg, o) => { r.note = msg; if (ui.dict === d) ui.dict = null; change(); if (o?.fallback) focusField?.(); },
-  });
+  const base = r.text ? r.text.replace(/\s+$/, '') + ' ' : ''; r.note = ''; r.audio = null;
+  const d = { state: 'starting', seconds: 0, ctl: null }; ui.dict = d;
+  d.ctl = startDictation({ engine, hints: voiceHints(), ...dictationHandlers(d, base, focusField) });
   change();
+}
+// send a kept recording again after a failed transcription
+export function retryMic() {
+  const r = ui.report; if (!r?.audio || ui.dict) return;
+  const base = r.text ? r.text.replace(/\s+$/, '') + ' ' : ''; r.note = '';
+  const blob = r.audio; const d = { state: 'transcribing', seconds: 0, ctl: { stop() {} } }; ui.dict = d; change();
+  retryTranscription(blob, voiceHints(), dictationHandlers(d, base));
 }
 // Send: judge the text and apply it straight away. Undo is one press; History lets you edit.
 export async function send() {
-  const r = ui.report; const { map, data } = app; stopDictation(); fx.sound('send');
+  const r = ui.report; const { map, data } = app;
+  if (ui.dict) { r.sendAfter = true; if (ui.dict.state !== 'transcribing') ui.dict.ctl.stop(); change(); return; } // finish the recording first, then send it all
+  if (r.audio) { toast('A recording has not been turned into text yet.', 5000, null, 'Press Retry first, or record again to replace it.'); return; }
+  fx.sound('send');
   r.text = r.text.trim();
   if (r.text.length < 3) { toast('Nothing to send yet.', 3200, null, 'Say or type what happened first.'); change(); return; }
   r.busy = true; r.pick = false; change();
@@ -308,7 +334,7 @@ export async function send() {
 export function quick(fid, outcome) {
   const text = (ui.sheet === 'report' ? ui.report.text : '').trim();
   ui.report = null; closeSheet();
-  commitReports([{ id: store.uid(), ts: Date.now(), text, summary: '', source: 'manual', items: [{ front: fid, outcome, severity: 2, action: outcome === 'win' ? 'offensive' : 'enemy_offensive', headline: text ? (text.length > 90 ? text.slice(0, 87) + '…' : text) : outcome === 'win' ? 'A good day' : 'A bad day' }] }]);
+  commitReports([{ id: store.uid(), ts: Date.now(), text, summary: '', source: 'manual', items: [{ front: fid, outcome, severity: 2, action: outcome === 'win' ? 'offensive' : 'enemy_offensive', headline: text ? (text.length > 90 ? text.slice(0, 87) + '…' : text) : outcome === 'win' ? 'A good day' : 'A bad day', ...(text.length > 90 ? { details: text.slice(0, DETAILS_MAX) } : {}) }] }]);
 }
 
 let lastCommit = [];
@@ -356,7 +382,7 @@ export function editItem(i, patch) {
 export function removeItem(i) { ui.edit.items.splice(i, 1); change(); }
 export function saveEdit() {
   const old = app.data.reports.find(x => x.id === ui.edit.id);
-  if (old) old.items = ui.edit.items.map(i => ({ front: i.front, outcome: i.outcome, severity: i.severity, action: i.action, headline: i.headline.trim() || ACTIONS[i.action].label, ...(i.reason && old.items.some(o => o.action === i.action && o.reason === i.reason) ? { reason: i.reason } : {}) }));
+  if (old) old.items = ui.edit.items.map(i => ({ front: i.front, outcome: i.outcome, severity: i.severity, action: i.action, headline: i.headline.trim() || ACTIONS[i.action].label, ...(i.reason && old.items.some(o => o.action === i.action && o.reason === i.reason) ? { reason: i.reason } : {}), ...((i.details || '').trim() ? { details: i.details.trim().slice(0, DETAILS_MAX) } : {}) }));
   persist(); refresh(); back(); toast('Saved.');
 }
 export async function deleteReport(id) {

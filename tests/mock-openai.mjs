@@ -8,13 +8,13 @@
 // A wrong key is answered 401 with the key quoted back, as real providers do: the server must not pass that on.
 import http from 'node:http';
 
-const it = (front, outcome, severity, action, headline, days_ago = 0) => ({ front, outcome, severity, reason: 'because of what was said', action, headline, days_ago });
+const it = (front, outcome, severity, action, headline, days_ago = 0, details = '') => ({ front, outcome, severity, reason: 'because of what was said', action, headline, details, days_ago });
 // what the stand-in model says: shared by every mock provider
 export const answer = (sys, user, fronts = []) => /connection test/.test(sys) ? { ok: true }
   : /chief of staff in/.test(sys) ? { assessment: 'School is bleeding; the startup carries the war.', orders: [{ front: 'afg', order: 'Two hours on the problem set tonight.' }] }
   : /REFUSE/.test(user) ? null
   : /BADSHAPE/.test(user) ? { nope: 1 }
-  : /failing this class/.test(user) ? { summary: 'A hard day in the east.', items: [it('afg', 'loss', 4, 'enemy_breakthrough', 'Failing the class', 1), it('cau', 'loss', 2, 'enemy_cas', 'Fight with mother'), it('tur', 'win', 2, 'offensive', 'Guitar practice went great')] }
+  : /failing this class/.test(user) ? { summary: 'A hard day in the east.', items: [it('afg', 'loss', 4, 'enemy_breakthrough', 'Failing the class', 1, 'I am failing chemistry. Got a 41 on the midterm on Monday; Mr. Patel says a retake is possible if I go to tutoring twice.'), it('cau', 'loss', 2, 'enemy_cas', 'Fight with mother'), it('tur', 'win', 2, 'offensive', 'Guitar practice went great')] }
   : /river patrol/.test(user) ? { summary: 'The river is ours; the squadron is not.', items: [it(fronts[0], 'win', 4, 'breakthrough', 'Thesis chapter finished'), it(fronts[5], 'loss', 3, 'naval_defeat', 'Friends cancelled again')] }
   : /dentist/.test(user) ? { summary: 'Nothing to report.', items: [] }
   : /failed my exam/.test(user) ? { summary: 'The line bends.', items: [it('afg', 'loss', 3, 'enemy_offensive', 'Exam failed')] }
@@ -28,7 +28,7 @@ export const written = out => JSON.stringify(out);
 export const MALFORMED = 'It went well, I think: {"summary": "The line';
 
 export function mockOpenAI(port, { key = 'sk-test-key', chat = 'schema' } = {}) {
-  const seen = []; const state = { seen, chat };
+  const seen = []; const ctl = { failTranscribe: 0 }; const state = { seen, chat, ctl }; // ctl.failTranscribe: answer the next n transcriptions with a 500
   const server = http.createServer((req, res) => {
     const chunks = []; req.on('data', c => chunks.push(c)); req.on('end', () => {
       const raw = Buffer.concat(chunks); const rec = { path: req.url, auth: req.headers.authorization, type: req.headers['content-type'], raw };
@@ -51,7 +51,12 @@ export function mockOpenAI(port, { key = 'sk-test-key', chat = 'schema' } = {}) 
         const content = rf?.type === 'json_object' && out && !/MALFORMED/.test(user) ? 'Here you go:\n```json\n' + JSON.stringify(out, null, 1) + '\n```' : text;
         return json(200, { choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content } }] });
       }
-      if (req.url === '/v1/audio/transcriptions') { seen.push(rec); return json(200, { text: ' I failed my exam. ', languages: [{ code: 'en' }] }); }
+      if (req.url === '/v1/audio/transcriptions') {
+        seen.push(rec);
+        if (ctl.failTranscribe > 0) { ctl.failTranscribe--; return json(500, { error: { message: 'upstream hiccup' } }); }
+        if (/REJECTME/.test(raw)) return json(400, { error: { message: 'Invalid keyword' } }); // a provider that refuses the hints
+        return json(200, { text: ' I failed my exam. ', languages: [{ code: 'en' }] });
+      }
       json(404, {});
     });
   });

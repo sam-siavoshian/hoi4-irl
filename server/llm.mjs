@@ -3,6 +3,8 @@
 
 const clean = u => String(u || '').trim().replace(/\/+$/, '');
 const hostOf = u => { try { return new URL(u).hostname; } catch { return null; } };
+// transcription hints from the app (life areas, names it has heard before), cleaned so a hint can never break the request
+export const cleanHint = (v, max) => String(v || '').replace(/[<>\r\n\t\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export function llmConfig(env) {
   const key = (env.OPENAI_API_KEY || '').trim();
@@ -23,7 +25,7 @@ export function llmConfig(env) {
   // on with a key; without one only when a transcription endpoint or model was named on purpose
   const transcribe = !sttOff && (!!sttKey || sttBaseSet || (baseSet && !!sttModelSet));
 
-  const timeout = Math.max(1, Number(env.LLM_TIMEOUT_MS) || 60000);
+  const timeout = Math.max(1, Number(env.LLM_TIMEOUT_MS) || 180000); // a few minutes of speech judged with per-event details can take over a minute
   return { key, base, api, model, judge, provider: judge ? hostOf(base) : null, sttBase, sttKey, sttModel, transcribe, timeout };
 }
 

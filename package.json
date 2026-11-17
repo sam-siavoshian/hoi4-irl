@@ -70,7 +70,7 @@
     "build:map": "node tools/build-map.mjs",
     "build:site": "node tools/build-site.mjs",
     "pretest": "node tools/ensure-build.mjs",
-    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/voice.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
     "docker": "docker build -t homefront .",
     "test:all": "npm test && sam-design-check src site && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
