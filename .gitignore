@@ -7,3 +7,4 @@ private/
 !.claude/skills/
 _site/
 dist/
+site/_dev/*.png
