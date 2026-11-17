@@ -31,38 +31,51 @@ security policy, contributing guide, issue templates, Dependabot and `CITATION.c
 
 **Description** (what search engines and GitHub search show; keep it under 350 characters):
 
-> Self-hosted productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today and the front for that part of your life moves. 8 countries. Works with OpenAI, Anthropic, Gemini, Ollama or no AI at all. MIT.
+> A productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.
 
 **Website**: tick "Use your GitHub Pages website", or paste `https://sam-siavoshian.github.io/hoi4-irl/`.
 
-**Topics** (20 at most). Each was checked on its GitHub topic page on 2026-11-17; the number is how many public
-repositories use it then. Big topics bring browsing traffic, small exact ones make the project easy to find
-among few:
+**Topics** (GitHub allows 20; paste these into the About panel's "Topics" field, one per space):
 
 ```
-self-hosted  productivity  habit-tracker  journal  journaling  diary  quantified-self
-gamification  life-tracker  local-first  personal-dashboard  pwa  ollama  llm  openai
-grand-strategy  hoi4  nodejs  react  alternate-history
+productivity habit-tracker life-tracker journal journaling self-hosted
+gamification quantified-self personal-dashboard local-first pwa ai llm
+ollama openai grand-strategy hoi4 alternate-history react nodejs
 ```
 
-| Topic | Repositories | Why |
-|---|---|---|
-| `self-hosted` | 58,512 | The self-hosting crowd browses it; the main audience. |
-| `productivity` | 47,696 | The broadest fitting category. |
-| `local-first` | 34,846 | True: the record is plain files on your machine. |
-| `ollama` | 34,047 | Local models are a first-class option. |
-| `pwa` | 33,222 | It installs to the home screen and works offline. |
-| `gamification` | 3,488 | Honest: it borrows a game's pull without being a game. |
-| `habit-tracker` | 2,299 | The tool people come from. |
-| `journal` / `journaling` / `diary` | 2,196 / 1,037 / 1,070 | Three names for the same search. |
-| `quantified-self` | 741 | The self-tracking audience. |
-| `hoi4` | 259 | The people most likely to share the map. It is a trademark; the repository name has it already. |
-| `personal-dashboard` | 252 | How some lists file this kind of tool. |
-| `grand-strategy` | 81 | Small and exact. |
-| `alternate-history` | 39 | Small and exact. |
-| `life-tracker` | 37 | Small and exact; `life-tracking` (30) is the other spelling. |
+Why these: the first ten put it in the productivity and self-hosted topic pages, which are where people
+browse for tools like this; `ai`, `llm`, `ollama` and `openai` reach people looking for AI journaling
+and local-model projects; `grand-strategy`, `hoi4` and `alternate-history` reach the strategy-game
+audience most likely to share it. Topics cannot be set from a commit: they live in the repository
+settings. `package.json` carries a longer keyword list for npm and code search.
 
-`llm`, `openai`, `nodejs` and `react` were not counted; they are large and describe the stack.
+The first six put it in the self-hosted and productivity listings (and make it eligible for
+awesome-selfhosted, under "Personal Dashboards" or "Note-taking and Editors"). `grand-strategy`, `hoi4`
+and `alternate-history` reach the people most likely to share it.
+
+How many public repositories used each topic on its GitHub topic page on 2026-11-17 (big topics bring browsing
+traffic; small exact ones make the project easy to find among few):
+
+| Topic | Repositories |
+|---|---|
+| `self-hosted` | 58,512 |
+| `productivity` | 47,696 |
+| `local-first` | 34,846 |
+| `ollama` | 34,047 |
+| `pwa` | 33,222 |
+| `gamification` | 3,488 |
+| `habit-tracker` | 2,299 |
+| `journal` / `journaling` | 2,196 / 1,037 |
+| `quantified-self` | 741 |
+| `hoi4` | 259 (a trademark; the repository name has it already) |
+| `personal-dashboard` | 252 |
+| `grand-strategy` | 81 |
+| `alternate-history` | 39 |
+| `life-tracker` | 37 (`life-tracking`, 30, is the other spelling) |
+
+`diary` (1,070) is the strongest topic left out, if one of the above is dropped.
+
+`ai`, `llm`, `openai`, `nodejs` and `react` were not counted; they are large and describe the stack.
 
 **Include in the home page**: untick Releases only if there are none yet; untick Packages and Deployments.
 
