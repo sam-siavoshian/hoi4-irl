@@ -61,14 +61,17 @@ function authed(req) {
   const exp = sessions.get(hash(m[1])); return !!exp && exp > Date.now();
 }
 const attempts = new Map(); // ip → [timestamps]
-// 8 wrong passwords in 10 minutes lock that device out. Every wrong password also counts against one shared total, and 30
-// in 10 minutes lock everyone out: a client that changes its address each time (a forged X-Forwarded-For from this
-// machine, a pool of addresses) still gets no more than 30 guesses per 10 minutes.
-const ALL = '*';
+// 8 wrong passwords in 10 minutes lock that device out. Every wrong password also counts against one shared total, and
+// past 30 in 10 minutes only devices that have signed in before may try: a client that changes its address each time (a
+// forged X-Forwarded-For from this machine, a pool of addresses) gets no more than 30 guesses per 10 minutes, and your
+// own devices are never locked out by it.
+const ALL = '*'; const known = new Map(); // address → last good sign-in (the newest 200)
 function throttled(ip) {
   const now = Date.now(), fresh = k => { const a = (attempts.get(k) || []).filter(t => now - t < 10 * 60e3); attempts.set(k, a); return a; };
-  return fresh(ip).length >= 8 || fresh(ALL).length >= 30;
+  return fresh(ip).length >= 8 || (!known.has(ip) && fresh(ALL).length >= 30);
 }
+function failed(ip) { const now = Date.now(); for (const k of [ip, ALL]) { const a = attempts.get(k) || []; a.push(now); attempts.set(k, a); } }
+function signedIn(ip) { known.delete(ip); known.set(ip, Date.now()); if (known.size > 200) known.delete(known.keys().next().value); }
 const safeEq = (a, b) => { const x = hash(a), y = hash(b); return crypto.timingSafeEqual(Buffer.from(x), Buffer.from(y)); };
 // the automation token opens these three endpoints and nothing else
 const TOKEN_PATHS = new Set(['/api/report', '/api/sitrep', '/api/journal']);
@@ -135,7 +138,8 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/login' && req.method === 'POST') {
       if (throttled(ip)) return send(res, 429, { error: 'Too many attempts' });
       const body = JSON.parse((await readBody(req, 4096)).toString() || '{}');
-      if (!PASSWORD || !safeEq(String(body.password || ''), PASSWORD)) { attempts.get(ip).push(Date.now()); attempts.get(ALL).push(Date.now()); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: 'Wrong password' }); }
+      if (!PASSWORD || !safeEq(String(body.password || ''), PASSWORD)) { failed(ip); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: 'Wrong password' }); }
+      signedIn(ip);
       const token = crypto.randomBytes(32).toString('hex'); sessions.set(hash(token), Date.now() + YEAR);
       for (const [k, exp] of sessions) if (exp < Date.now()) sessions.delete(k);
       writeJSON('sessions.json', Object.fromEntries(sessions));
