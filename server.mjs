@@ -48,7 +48,7 @@ try { const r = store.recover(); if (r) console.error(`${stamp()} state.json was
 catch (e) { die(`${stamp()} ${e.message}`); }
 const { readJSON, writeJSON } = store;
 // the provider in use: what was chosen in the app (ai.json in the data folder), or else what .env says
-let ai; try { ai = createAI({ env: process.env, store }); } catch (e) { die(e.message); }
+let ai; try { ai = createAI({ env: process.env, store, ownPort: PORT }); } catch (e) { die(e.message); }
 const auto = createAutomation({ root: ROOT, store, llm: ai, judgeOn: ai.judgeOn, extraScenarios: process.env.HOMEFRONT_EXTRA_SCENARIOS || null });
 
 // ---- sessions ----
@@ -67,7 +67,7 @@ const safeEq = (a, b) => { const x = hash(a), y = hash(b); return crypto.timingS
 const TOKEN_PATHS = new Set(['/api/report', '/api/sitrep', '/api/journal']);
 function bearer(req, p) { if (!TOKEN || !TOKEN_PATHS.has(p)) return false; const m = /^Bearer\s+(\S+)\s*$/i.exec(req.headers.authorization || ''); return !!m && safeEq(m[1], TOKEN); }
 // per-address limit on the endpoints that cost money or write on someone's behalf
-const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report', '/api/ai/test']); const hits = new Map(); // ip → [timestamps]
+const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report', '/api/ai/test', '/api/ai/discover']); const hits = new Map(); // ip → [timestamps]
 function limited(ip) { if (!RATE) return 0; const now = Date.now(); const a = (hits.get(ip) || []).filter(t => now - t < 60e3); hits.set(ip, a); if (a.length >= RATE) return Math.max(1, Math.ceil((a[0] + 60e3 - now) / 1000)); a.push(now); return 0; }
 setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.length || now - a.at(-1) > 60e3) hits.delete(k); for (const [k, a] of attempts) if (!a.length || now - a.at(-1) > 10 * 60e3) attempts.delete(k); }, 5 * 60e3).unref();
 
@@ -131,7 +131,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`(?:${COOKIE}|${OLD_COOKIE})=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
-    if (p === '/api/config') { const c = ai.config(); return send(res, 200, { server: true, judge: c.judge, transcribe: c.transcribe, login: !!PASSWORD, provider: c.provider, api: c.api }); }
+    if (p === '/api/config') { const c = ai.config(); return send(res, 200, { server: true, judge: c.judge, transcribe: c.transcribe, login: !!PASSWORD, provider: c.provider, api: c.api, ...(c.wav ? { wav: true } : {}) }); }
     if (LIMITED.has(p) && req.method === 'POST') { const wait = limited(ip); if (wait) return send(res, 429, { error: 'Too many requests. Try again shortly.' }, { 'retry-after': String(wait) }); }
 
     if (p === '/api/state') {
@@ -171,7 +171,8 @@ const server = http.createServer(async (req, res) => {
     // the general staff: which provider judges and transcribes, and its keys. A key goes in and never comes out:
     // every answer here is ai.view(), which carries hasKey and the last 4 characters only.
     if (p === '/api/ai' || p.startsWith('/api/ai/')) {
-      if (req.method !== 'GET' && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
+      // a write, or a read that makes the server call out (a model server's list), must come from the app's own pages
+      if ((req.method !== 'GET' || p === '/api/ai/models') && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
       if (p === '/api/ai') {
         if (req.method === 'GET') return send(res, 200, ai.view());
         if (req.method === 'PUT') return send(res, 200, ai.update(JSON.parse((await readBody(req, 16e3)).toString() || '{}')));
@@ -183,6 +184,16 @@ const server = http.createServer(async (req, res) => {
         if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { allow: 'POST' });
         const b = JSON.parse((await readBody(req, 4096)).toString() || '{}');
         return send(res, 200, await ai.test(b && b.what === 'transcribe' ? 'transcribe' : 'judge'));
+      }
+      // what is running on this machine: a fixed list of well-known local ports, on loopback and host.docker.internal only
+      if (p === '/api/ai/discover') {
+        if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { allow: 'POST' });
+        return send(res, 200, await ai.discover());
+      }
+      // the models a local server has (its /v1/models, or Ollama's /api/tags)
+      if (p === '/api/ai/models') {
+        if (req.method !== 'GET') return send(res, 405, { error: 'Use GET' }, { allow: 'GET' });
+        return send(res, 200, await ai.models(url.searchParams.get('provider') || 'local'));
       }
       return send(res, 404, { error: 'Not found' });
     }

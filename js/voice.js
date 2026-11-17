@@ -13,7 +13,23 @@ export function pickEngine(cfg) {
 const sentence = m => /[.!?]$/.test(m) ? m : `${m}.`;
 export const MAX_SECONDS = 600; // 10 minutes; ~5 MB at 64 kbps, well under the 25 MB upload limit
 // hints = { prompt, keywords[] }: context and names that help the model spell things right
+// A speech server that takes WAV only (whisper.cpp's, KoboldCpp's, Ollama's) gets the recording as 16 kHz mono WAV,
+// decoded and resampled here in the browser.
+export async function toWav(blob) {
+  const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!AC) return blob;
+  const decoded = await new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(await blob.arrayBuffer());
+  const rate = 16000, n = Math.max(1, Math.ceil(decoded.duration * rate)), ctx = new AC(1, n, rate);
+  const src = ctx.createBufferSource(); src.buffer = decoded; src.connect(ctx.destination); src.start();
+  const pcm = (await ctx.startRendering()).getChannelData(0), out = new DataView(new ArrayBuffer(44 + n * 2));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); out.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+  out.setUint32(24, rate, true); out.setUint32(28, rate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, 'data'); out.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+  return new Blob([out.buffer], { type: 'audio/wav' });
+}
+// hints.wav: the speech server takes WAV only (GET /api/config says so)
 export async function transcribe(blob, hints = {}, fetchImpl = fetch) {
+  if (hints.wav && blob.type !== 'audio/wav') { try { blob = await toWav(blob); } catch { /* send it as it is: the server says what it thinks */ } }
   const q = new URLSearchParams(); if (hints.prompt) q.set('prompt', hints.prompt); for (const k of hints.keywords || []) q.append('k', k);
   const res = await fetchImpl(`api/transcribe${q.size ? '?' + q : ''}`, { method: 'POST', headers: { 'content-type': blob.type || 'audio/webm' }, body: blob });
   let data = null; try { data = await res.json(); } catch { /* ignore */ }

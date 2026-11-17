@@ -147,10 +147,14 @@ model call fails.
 
 The model proxy is deliberately thin. `/api/llm` accepts `{system, user, schema}` and makes one
 structured-output call to the provider in force. `server/providers.mjs` holds the registry (OpenAI,
-Anthropic, Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, another server, offline), each with a
+Anthropic, Gemini, Groq, Mistral, OpenRouter, a local model, a local speech server, offline), each with a
 small default model and one of four ways to be called: OpenAI Responses, OpenAI-compatible Chat
 Completions, Anthropic Messages, Gemini Interactions. Every answer is parsed and checked against the
-schema on the server, whatever the provider enforced. `/api/transcribe` forwards raw audio to the speech
+schema on the server, whatever the provider enforced. A local model goes through `server/local.mjs`:
+the runtime presets, discovery on loopback only (`POST /api/ai/discover`), model lists
+(`GET /api/ai/models`), and structured output negotiated per address and model (strict schema, JSON mode,
+plain text), with the answer mended and asked for once more before the offline judge takes over
+(`docs/LOCAL_MODELS.md`). `/api/transcribe` forwards raw audio to the speech
 model chosen (`/audio/transcriptions`, or Gemini with the recording as input). The choice and the keys
 are set in the app through `/api/ai` and kept in `ai.json` in the data folder; `.env` is the fallback
 (`server/llm.mjs` reads it). The keys exist only on the server.

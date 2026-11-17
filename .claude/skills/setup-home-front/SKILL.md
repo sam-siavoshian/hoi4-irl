@@ -170,9 +170,8 @@ If that screen is not present in their version, the provider is set in `.env`
 (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `LLM_API`; see the comments in `.env.example`).
 Have the user put the key in the file themselves, then restart.
 
-A local model keeps every word on the machine (full guide: `docs/LOCAL_MODELS.md`, if present): with Ollama, `ollama pull` a small model, then
-`OPENAI_BASE_URL=http://localhost:11434/v1`, `LLM_API=chat`, `OPENAI_MODEL=<that model>` (from Docker use
-`http://host.docker.internal:11434/v1`).
+A local model keeps every word on the machine: start a model server (e.g. `ollama pull llama3.2`), then in the app
+**Local model → Find local models**, pick one, **Test**. Hardware, runtimes, Docker, `.env`: `docs/LOCAL_MODELS.md`.
 
 No provider at all is a supported setup: the offline keyword judge handles reports.
 
