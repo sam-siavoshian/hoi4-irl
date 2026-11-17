@@ -105,8 +105,19 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1
 <body><form id="f"><h1>Home Front</h1><label for="p">Password</label><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Sign in</button><p id="e" role="alert"></p></form>
 <script>f.onsubmit=async e=>{e.preventDefault();const r=await fetch('api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});if(r.ok)location.replace('./');else{document.getElementById('e').textContent=r.status===429?'Too many tries. Wait a few minutes, then try again.':'Wrong password. Try again.';p.value=''}}</script></body></html>`;
 
+// Who is asking, for the login lockout and the rate limit. Behind a reverse proxy on this machine (tailscale serve,
+// Caddy, nginx) every request arrives from loopback, so each device would share one lockout: the proxy names the real
+// client as the last X-Forwarded-For entry. That header is believed only from loopback, so nobody else can choose
+// their own address, and only its last entry, the one the proxy added, since anything before it came from the client.
+const LOOPBACK = /^(127\.|::1$|::ffff:127\.)/;
+function clientIp(req) {
+  const peer = req.socket.remoteAddress || '?'; if (!LOOPBACK.test(peer)) return peer;
+  const hop = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean).at(-1);
+  return hop && /^[0-9a-fA-F:.]{2,45}$/.test(hop) ? hop : peer;
+}
+
 const server = http.createServer(async (req, res) => {
-  const ip = req.socket.remoteAddress || '?';
+  const ip = clientIp(req);
   try {
     const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname); if (p === '/') p = '/index.html';
     // real health, for the watchdog: the campaign can be read and the data folder written. Says nothing else.

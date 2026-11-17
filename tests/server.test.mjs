@@ -367,6 +367,17 @@ test('the costly endpoints are rate limited per address', async () => {
   assert.equal(JSON.parse(fs.readFileSync(path.join(dirLocal, 'state.json'))).data.reports.length, 3);
 });
 
+test('behind a local proxy the login lockout is per device, and a client cannot pick its own address', async () => {
+  const login = (password, xff) => fetch(U + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': xff }, body: JSON.stringify({ password }) });
+  const codes = [];
+  for (let i = 0; i < 9; i++) codes.push((await login('wrong', '100.64.0.10')).status);
+  assert.deepEqual(codes, [401, 401, 401, 401, 401, 401, 401, 401, 429], 'eight tries, then locked');
+  assert.equal((await login('open sesame', '100.64.0.10')).status, 429, 'locked even with the right password');
+  assert.equal((await login('open sesame', '100.64.0.11')).status, 200, 'another device still signs in');
+  assert.equal((await login('open sesame', '100.64.0.99, 100.64.0.10')).status, 429, 'an address the client added in front is ignored');
+  assert.equal((await login('open sesame', 'not-an-address')).status, 200, 'a malformed header falls back to the socket address');
+});
+
 test('logging out ends the session; the server will not start without a password', async () => {
   assert.equal((await req('/api/logout', { method: 'POST' })).status, 200); assert.equal((await req('/api/state')).status, 401);
   assert.equal((await bearer('/api/sitrep')).status, 200, 'the automation token is separate from browser sessions');

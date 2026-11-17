@@ -283,7 +283,9 @@ try {
     assert.equal(anthropic.seen.length, n); assert.equal(mock.seen.length, m, 'nothing left the server');
     assert.deepEqual(await p.evaluate(() => { const r = window.__homefront.data.reports.at(-1); return [r.source, r.items[0].outcome]; }), ['local', 'win']); await undo();
     // back to the provider in .env, as the rest of this run expects
-    await toSettings(); await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`); await status('ready');
+    await toSettings(); await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`);
+    // the previous provider's status was already "ready": wait for the switch itself, then for its status
+    await p.waitForFunction(() => window.__homefront.cfg.judge === 'gpt-6-luna', null, { timeout: 15000 }); await status('ready');
     assert.deepEqual(await cfg().then(c => [c.judge, c.transcribe]), ['gpt-6-luna', 'gpt-transcribe']); assert.equal((await st(p)).log, before);
   });
 
@@ -320,7 +322,9 @@ try {
     // Settings says which model and where
     await toSettings(); await p.waitForSelector(`${T('open-staff')}[data-provider=local]`); assert.match(await p.textContent(T('open-staff')), /Local model.*gemma3:4b.*Ready/s);
     // back to the provider in .env, as the rest of this run expects
-    await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`); await status('ready');
+    await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`);
+    // the previous provider's status was already "ready": wait for the switch itself, then for its status
+    await p.waitForFunction(() => window.__homefront.cfg.judge === 'gpt-6-luna', null, { timeout: 15000 }); await status('ready');
     assert.deepEqual(await cfg().then(c => [c.judge, c.transcribe]), ['gpt-6-luna', 'gpt-transcribe']); assert.equal((await st(p)).log, before);
   });
 
