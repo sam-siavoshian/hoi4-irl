@@ -31,6 +31,8 @@ const code = (label, lines) => ({ t: 'code', label, lines });
 const esc = s => String(s).replace(/([[\]`*])/g, '\\$1'); // data that must not be read as an inline mark
 const list = words => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+// "the Achaemenid Empire", but "Tawantinsuyu" and "Greater Siam" stand without an article
+const theEmpire = c => (/Empire$/.test(c.empire) ? `the ${c.empire}` : c.empire);
 const API = { responses: 'OpenAI Responses API', chat: 'Chat Completions (OpenAI-compatible)', anthropic: 'Anthropic Messages API', gemini: 'Gemini Interactions API' };
 
 export function keyFacts(data) {
@@ -39,7 +41,7 @@ export function keyFacts(data) {
   return [
     `**What it is:** ${DEFINITION.replace(/^Home Front is /, '').replace(/\.$/, '')}.`,
     `**Input:** 1 sentence a day, spoken or typed. The entry is filed and dated for you, and the front for that part of your life moves.`,
-    `**Countries:** ${data.countries.length} (${list(data.countries.map(c => c.name))}), each on its ${data.countries[0].year} borders with 7 fronts and an empire to restore.`,
+    `**Countries:** ${data.countries.length} (${list(data.countries.map(c => c.name))}), each on its borders of 1936 (Ethiopia: 1935) with 7 fronts and an empire to restore.`,
     `**AI providers:** ${list(hosted)} with your own key, ${list(local)} on your own machine, any OpenAI-compatible server, or a built-in offline judge with no model at all.`,
     `**Runs on:** Node ${data.node} or newer, or Docker. A Mac, a Linux machine, a Raspberry Pi, Windows through WSL2, or a cloud host with a disk.`,
     `**Privacy:** 1 user, 1 password, your own machine. The key stays on the server, the record is a folder of plain files, and there is no telemetry.`,
@@ -158,7 +160,7 @@ export function buildPages(data, site) {
   pages.push({
     name: 'ai-providers', path: 'ai-providers/', kind: 'TechArticle',
     title: 'AI providers and models for Home Front',
-    description: `Which AI providers Home Front works with: ${list(hosted.map(x => x.name))}, local models in ${list(local.map(x => x.name))}, or an offline judge. Small default models.`.slice(0, 160),
+    description: `Home Front works with ${list(hosted.map(x => x.name))} on your own key, with Ollama or LM Studio, or with no AI at all.`,
     h1: 'AI providers',
     lead: `Home Front works with ${plural(hosted.length, 'hosted provider')} on your own key, ${plural(local.length, 'local server')} with no key, any OpenAI-compatible server, or no model at all.`,
     crumbs: [['AI providers']],
@@ -329,8 +331,8 @@ export function buildPages(data, site) {
   // ---------------- countries ----------------
   pages.push({
     name: 'countries', path: 'countries/', kind: 'CollectionPage',
-    title: 'The 8 countries of Home Front, on their 1936 borders',
-    description: `${list(countries.map(c => c.name))} on their 1936 borders. Each has 7 fronts, its own army, navy and air force, and an empire to restore.`.slice(0, 160),
+    title: 'The 8 countries of Home Front and their empires',
+    description: `${list(countries.map(c => c.name))} on their borders of 1936 (Ethiopia: 1935), each with 7 fronts and an empire to restore.`,
     h1: `${countries.length} countries`,
     lead: `Each country has its own 1936 map, 7 fronts, army, navy, air force, commanders and ranks, and a historical empire to restore. Change country at any time. Each keeps its own campaign.`,
     crumbs: [['Countries']],
@@ -354,20 +356,20 @@ export function buildPages(data, site) {
     pages.push({
       name: `country-${c.id}`, path: `countries/${c.id}/`, kind: 'WebPage', country: c.id,
       title: `Play as ${c.name} in ${c.year} · Home Front`,
-      description: `${c.long} in ${c.year}: ${c.land} land and ${c.naval} naval fronts, ${c.divisions} divisions, ${c.ships} ships. Restore the ${c.empire} in Home Front.`.slice(0, 160),
+      description: `${c.long} in ${c.year}: ${c.land} land and ${c.naval} naval fronts, ${c.divisions} divisions, ${c.ships} ships. Restore ${theEmpire(c)} in Home Front.`,
       h1: `${c.name} in ${c.year}`,
       lead: `${c.blurb} Each border stands for a part of your life.`,
       crumbs: [['Countries', 'countries/'], [c.name]],
       image: { src: `img/countries/${c.id}.png`, w: 1200, h: 630, alt: `The Home Front map of ${c.name} in ${c.year} during a campaign: the home country in the middle, front lines on its ${c.land} land borders${c.naval ? ` and ${c.naval} sea theatres` : ''}, and division counters along them.` },
       related: ['countries', ...others.slice(0, 3).map(x => `country-${x.id}`), 'how-it-works'],
       blocks: [
-        p(`${DEFINITION} This page describes its ${c.name} campaign: the ${c.long} in ${c.year}, with ${plural(c.land, 'land front')}${c.naval ? ` and ${plural(c.naval, 'naval theatre')}` : ''}, and the ${c.empire} as the far goal. Everything here is read from the scenario the app plays.`),
+        p(`${DEFINITION} This page describes its ${c.name} campaign: the ${c.long} in ${c.year}, with ${plural(c.land, 'land front')}${c.naval ? ` and ${plural(c.naval, 'naval theatre')}` : ''}, and ${theEmpire(c)} as the far goal. Everything here is read from the scenario the app plays.`),
         { t: 'image', ...{ src: `img/countries/${c.id}.png`, w: 1200, h: 630, alt: `The Home Front map of ${c.name} in ${c.year} during a campaign: the home country in the middle, front lines on its borders and division counters along them.` } },
         h2('The setting'),
         p(`You play the ${c.long} in ${c.year}, with its capital at ${c.capital}. The home country is ${plural(c.homeStates, 'region')} on a map of ${c.provinces} provinces. ${c.fightsOnFrom ? `If ${c.capital} falls, the government fights on from ${c.fightsOnFrom}.` : ''}`),
         ...(c.motto ? [{ t: 'quote', text: esc(c.motto) }] : []),
-        h2(`The empire to restore: the ${c.empire}`),
-        p(`Every front has objectives beyond the border. Take all of them, on all 7 fronts, and the ${c.empire} is restored. Conquered lands come back under their historical names: ${plural(c.regions, c.regionWord.toLowerCase())} in all, such as ${list(c.regionNames.slice(0, 4))}.`),
+        h2(`The empire to restore: ${theEmpire(c)}`),
+        p(`Every front has objectives beyond the border. Take all of them, on all 7 fronts, and ${theEmpire(c)} is restored. Conquered lands come back under their historical names: ${plural(c.regions, c.regionWord.toLowerCase())} in all, such as ${list(c.regionNames.slice(0, 4))}.`),
         ...(c.landmarks.length ? [p('Some places carry a decoration of their own:'), ul(c.landmarks.map(l => `**${esc(l.medal)}:** ${esc(l.desc)}.`))] : []),
         h2(`What are ${c.name}’s 7 fronts?`),
         p(`Each border is 1 part of your life. These are the default names, from the General persona. Pick another persona on first run, or rename and pause any front in Settings.`),

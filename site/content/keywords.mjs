@@ -18,10 +18,10 @@ export function keywordsFor(page, data) {
     'ai-providers': [T.ai, T.llm, ...data.providers.filter(p => p.needsKey || (p.local && p.base)).map(p => p.name), 'offline judge', 'your own API key', T.selfHosted].slice(0, 15),
     'self-hosting': [T.selfHosted, 'self-hosted habit tracker', T.local, 'Docker', 'Raspberry Pi', 'Mac mini', 'Node.js', 'home server', 'Tailscale', T.journal, 'privacy'],
     faq: ['Home Front FAQ', T.habit, T.journal, T.selfHosted, T.local, T.ai, T.ollama, T.voice, 'offline', 'privacy'],
-    compare: ['habit tracker alternative', 'journal app alternative', 'spreadsheet tracker', T.gamified, T.qs, T.life, T.dashboard, T.journal, 'who should not use it'],
+    compare: ['habit tracker alternative', 'journal app alternative', 'spreadsheet tracker', T.gamified, T.qs, T.life, T.dashboard, T.journal, 'productivity app comparison'],
     countries: ['1936 map', T.strategy, T.history, T.map, ...data.countries.map(x => x.name), 'empire to restore'].slice(0, 15),
   }[page.name];
   if (list) return list;
-  if (c) return [`${c.name} 1936 map`, `${c.name} in ${c.year}`, c.long, c.empire, `restore the ${c.empire}`, T.strategy, T.history, T.map, `${c.name} order of battle`, T.habit, T.life, T.journal];
+  if (c) return [`${c.name} ${c.year} map`, `${c.name} in ${c.year}`, c.long, c.empire, `${c.empire} restored`, T.strategy, T.history, T.map, `${c.name} order of battle`, T.habit, T.life, T.journal];
   return [T.productivity, T.journal];
 }
