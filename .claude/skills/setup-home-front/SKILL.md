@@ -9,7 +9,13 @@ Home Front is a single-user web app: one Node server (`server.mjs`) that serves 
 the user's journal in a data folder, and calls an AI provider on their behalf. Your job is to get it
 running on the user's machine, private and durable, and to prove each step worked before moving on.
 
-`docs/SELF_HOSTING.md` is the full reference. This file is the order to do things in and the rules to
+This file is self-contained: an agent that has only this file can do the whole job. Fetch it with
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sam-siavoshian/hoi4-irl/main/SKILL.md
+```
+
+Once the repository is cloned, `docs/SELF_HOSTING.md` is the full reference. This file is the order to do things in and the rules to
 keep. If the two disagree, read the code (`server.mjs`, `.env.example`) and trust that.
 
 ## Rules
@@ -40,6 +46,20 @@ docker --version 2>/dev/null     # optional path
 git -C . rev-parse --show-toplevel   # are we already inside the repository?
 ls ~/.homefront ./private 2>/dev/null   # an existing install's data
 ```
+
+### Where it can run
+
+| Target | Works | How |
+|---|---|---|
+| Mac (a Mac mini that stays on is ideal) | Yes | Node + launchd (stages 2–4) |
+| Linux PC, home server, NAS with Node or Docker | Yes | Node + systemd, or Docker |
+| Raspberry Pi (3, 4, 5, Zero 2; 64-bit OS) | Yes | Node + systemd. The server is light; `npm install` and the first build take a few minutes on a Pi. Use a cloud or networked model, not a model on the Pi itself |
+| Windows | Yes | Node in WSL2 (treat as Linux), or Docker Desktop |
+| A VPS or a container host with a persistent disk (Fly.io, Railway, Render, a plain droplet) | Yes | Docker image from the `Dockerfile`; mount a volume at the data folder; set `HOMEFRONT_PASSWORD` as a secret; keep the login on |
+| Vercel, Netlify, Cloudflare Pages, GitHub Pages | Demo only | These host static files and short-lived functions with no disk, so they cannot run the server, keep the journal or hold a key. `npm run build:site` produces `_site/` (the landing page plus the app as a browser-only demo: offline judge, data in that browser). `vercel.json` in the repository does this. Tell the user plainly that this is not the private, synced app |
+
+If the user names a host not listed, the test is: can it run a long-lived Node 20 process (or a
+container) with a folder that survives restarts? If yes, it works. If no, it is demo-only.
 
 Then settle three things with the user, in one message, with a recommendation for each:
 
@@ -113,6 +133,15 @@ Pick by platform, and get a yes first. Use absolute paths; services do not have 
 `ReadWritePaths`, make sure the data folder actually in use is writable by the service user, and set
 `HOMEFRONT_DATA_DIR` explicitly in `.env` so it does not depend on that user's home.
 
+**A cloud host with a disk** (Fly.io, Railway, Render, a VPS): build from the `Dockerfile`. The image
+listens on `0.0.0.0:8080` and keeps data in `/app/private`; attach a persistent volume there, set
+`HOMEFRONT_PASSWORD` through the host's secrets (never in the image or the repository), and let the
+host provide HTTPS. The login page is then on the public internet: the password must be long and random.
+Deploying creates resources on the user's account, so confirm the plan and the cost with them first.
+
+**Vercel or another static host** (demo only): `npx vercel deploy --prod` from the repository uses
+`vercel.json` (`npm run build:site`, output `_site`). No password, no server, no key; say so.
+
 **Docker**: `cp .env.example .env`, set the password as in stage 2, then `docker compose up -d`. Data
 lives in the `homefront-data` volume. Check with `docker compose ps` (healthy) and the two curl checks.
 
@@ -141,7 +170,7 @@ If that screen is not present in their version, the provider is set in `.env`
 (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `LLM_API`; see the comments in `.env.example`).
 Have the user put the key in the file themselves, then restart.
 
-A local model keeps every word on the machine: with Ollama, `ollama pull` a small model, then
+A local model keeps every word on the machine (full guide: `docs/LOCAL_MODELS.md`, if present): with Ollama, `ollama pull` a small model, then
 `OPENAI_BASE_URL=http://localhost:11434/v1`, `LLM_API=chat`, `OPENAI_MODEL=<that model>` (from Docker use
 `http://host.docker.internal:11434/v1`).
 

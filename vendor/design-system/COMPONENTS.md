@@ -11,7 +11,10 @@ import { Button, ListSection, ListRow, StatusLabel } from "~/components/ui";
 
 Added in ARTESH's vendored copy (not in Lanes; see `README.md` in this folder): `SheetPopup layer="panel"` and
 `SheetPanel`, `ListRowButton` and `ListRow inline`, `ProgressMeter origin="center"`, `DayGrid`, `Slider`,
-`ChoiceCards variant="thumbs"` with `flow`, `ChoiceCards variant="tiles"` with `columns={2}`.
+`ChoiceCards variant="thumbs"` with `flow` (`scroll`, `column`, and `strip`: one line on a page that scrolls, shared when it
+fits and sideways when it does not), `ChoiceCards variant="tiles"` with `columns={2}`, `SectionHeader level="hero"` and
+`level="display"` with `align` (a landing page's headline and its bands' headings), `ListRowDisclosure` (a row that opens
+in place: a question and its answer) and `CodeBlock` (`lines`, `label`: commands to copy, with one Copy button).
 
 Three rules (also in `AGENTS.md`):
 

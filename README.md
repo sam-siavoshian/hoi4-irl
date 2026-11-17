@@ -212,9 +212,15 @@ cp .env.example .env      # set HOMEFRONT_PASSWORD
 docker compose up -d      # http://localhost:8080, data in the homefront-data volume
 ```
 
-**Let your agent do it.** The repository ships a setup skill for coding agents
-(`.claude/skills/setup-home-front`). In Claude Code, open the cloned folder and say "set up Home Front";
-any other agent can be pointed at [AGENTS.md](AGENTS.md). It installs, generates a password without
+**Let your agent do it.** Give your coding agent (Claude Code, Codex, Cursor, any of them) this one line:
+
+```text
+Read https://raw.githubusercontent.com/sam-siavoshian/hoi4-irl/main/SKILL.md and set up Home Front for me.
+```
+
+[SKILL.md](SKILL.md) is a complete, self-contained setup guide written for agents. It covers a Mac mini,
+a Raspberry Pi, any Linux box, Windows through WSL, Docker, and cloud hosts with a disk, and says
+honestly what a static host such as Vercel can and cannot do. It installs, generates a password without
 showing it, starts the server, checks it, and can add a background service, HTTPS for your phone and
 backups, asking before each system change.
 

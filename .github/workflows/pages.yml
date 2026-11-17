@@ -1,6 +1,6 @@
 name: Pages
 
-# Publishes the landing page (site/) and a static copy of the app (/demo/) to GitHub Pages.
+# Publishes the landing page (site/, built and prerendered by tools/build-site.mjs) and a static copy of the app (/demo/) to GitHub Pages.
 # One-time setup: repository Settings → Pages → Source: "GitHub Actions".
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - id: pages
         uses: actions/configure-pages@v5
-      # builds the interface into dist/ first, then copies it to _site/demo/ beside the landing page
+      # builds the interface into dist/ and the landing page into _site/, then copies the interface to _site/demo/
       - name: Build _site
         run: npm run build:site
         env:
