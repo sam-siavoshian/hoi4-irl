@@ -189,7 +189,7 @@ function Advanced({ p }) {
         <LocalKey p={p} />
         {num('timeout', 'Wait for an answer, in seconds', 'A model loads into memory before its first answer, which can take a while on a small machine.', String(p.defaultTimeout))}
         <Field label="Ask for JSON" hint={`Automatic tries the strictest way first and remembers what works for this model.${p.learned ? ` ${LEARNED[p.learned]}` : ''}`}>
-          <ChoiceSelect label="Ask for JSON" value={o.mode || 'auto'} options={JSON_WAYS} onChange={m => set({ mode: m })} />
+          <div className="flex"><ChoiceSelect label="Ask for JSON" value={o.mode || 'auto'} options={JSON_WAYS} onChange={m => set({ mode: m })} /></div>
         </Field>
         {num('maxTokens', 'Most tokens to write', 'Leave it empty for the server’s own limit. A judgement needs a few hundred.', 'The server’s default')}
         {num('temperature', 'Temperature', 'At 0 the same report is judged the same way every time.', '0')}

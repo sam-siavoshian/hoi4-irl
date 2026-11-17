@@ -486,6 +486,7 @@ export async function loadModels(id = 'local') {
   const L = ui.local; L.loading = { ...L.loading, [id]: true }; change();
   try { L.models = { ...L.models, [id]: await staffSay(`api/ai/models?provider=${id}`) }; }
   catch (e) { L.models = { ...L.models, [id]: { ok: false, message: e.message } }; }
+  try { app.ai = await staffSay('api/ai'); } catch { /* keep the last answer */ } // "Model server not running" shows at once
   L.loading = { ...L.loading, [id]: false }; change();
 }
 // a server found, or a model picked: saved, then its list read again
