@@ -193,7 +193,9 @@ const TEST_WORDS = {
 export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes = null, ownPort = null }) {
   const legacy = llmConfig(env);
   // which provider .env describes: OpenAI, unless its address is another provider's or a Chat Completions server's
-  const legacyId = !legacy.judge ? null : (() => {
+  // LOCAL_BASE_URL and LOCAL_MODEL in .env: a local model with nothing chosen in the app, and no OpenAI-style settings
+  const envLocal = !legacy.judge && !!clean(env.LOCAL_BASE_URL) && !!(env.LOCAL_MODEL || '').trim();
+  const legacyId = envLocal ? 'local' : !legacy.judge ? null : (() => {
     if (!clean(env.OPENAI_BASE_URL)) return 'openai';
     const h = hostOf(legacy.base), known = PROVIDERS.find(p => p.base && !p.local && hostOf(p.base) === h); if (known) return known.id;
     return legacy.api === 'chat' ? 'local' : 'openai';
@@ -234,8 +236,8 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
   };
   const keyOf = id => saved.keys[id] || envKey(id) || '';
   const envBase = id => clean(id === 'openai' ? '' : id === 'speech' ? env.LOCAL_STT_BASE_URL : env[ENV_BASE(id)]); // LOCAL_BASE_URL for the local model
-  const baseOf = id => (DEF[id].baseEditable && saved.bases[id]) || envBase(id) || (legacyId === id ? legacy.base : '') || DEF[id].base;
-  const modelOf = id => saved.models[id] || (id === 'local' ? (env.LOCAL_MODEL || '').trim() : '') || (legacyId === id ? legacy.model : '') || DEF[id].model;
+  const baseOf = id => (DEF[id].baseEditable && saved.bases[id]) || envBase(id) || (legacy.judge && legacyId === id ? legacy.base : '') || DEF[id].base;
+  const modelOf = id => saved.models[id] || (id === 'local' ? (env.LOCAL_MODEL || '').trim() : '') || (legacy.judge && legacyId === id ? legacy.model : '') || DEF[id].model;
   const secrets = () => [...Object.values(saved.keys), ...PROVIDERS.map(p => envKey(p.id)), legacy.key, legacy.sttKey].filter(Boolean);
   // local servers: the runtime, the speech model, and how long to wait
   const runtimeNow = base => saved.local.runtime || runtimeOfAddress(base);
@@ -260,7 +262,8 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
   // the judge in force, or null (the app then uses its offline keyword judge)
   function judgeNow() {
     let j = null;
-    if (!saved.provider) j = legacy.judge ? { id: legacyId, def: DEF[legacyId], api: legacy.api, base: legacy.base, key: legacy.key, model: legacy.model } : null;
+    if (!saved.provider) j = legacy.judge ? { id: legacyId, def: DEF[legacyId], api: legacy.api, base: legacy.base, key: legacy.key, model: legacy.model }
+      : envLocal ? { id: 'local', def: DEF.local, api: 'chat', base: baseOf('local'), key: keyOf('local'), model: modelOf('local') } : null;
     else {
       const id = saved.provider, st = statusOf(id); if (st !== 'ready' && st !== 'rejected' && st !== 'server_down') return null;
       j = { id, def: DEF[id], api: legacyId === id ? legacy.api : DEF[id].api, base: baseOf(id), key: keyOf(id), model: modelOf(id) };
@@ -272,10 +275,11 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
   const sttMode = () => saved.transcribe.mode || (saved.provider ? 'same' : 'env');
   function sttNow() {
     const mode = sttMode();
-    if (mode === 'env' || (mode === 'same' && !saved.provider)) return legacy.transcribe ? { id: legacyId || 'openai', api: 'openai', base: legacy.sttBase, key: legacy.sttKey, model: legacy.sttModel } : null;
+    const speech = () => { const base = baseOf('speech'), model = speechModel(); return base && model ? { id: 'speech', def: DEF.speech, api: 'openai', base, key: keyOf('speech'), model, runtime: speechRuntime(), timeout: envTimeout(), wav: speechWav() } : null; };
+    if (mode === 'env' || (mode === 'same' && !saved.provider)) return legacy.transcribe ? { id: legacyId || 'openai', api: 'openai', base: legacy.sttBase, key: legacy.sttKey, model: legacy.sttModel } : clean(env.LOCAL_STT_BASE_URL) ? speech() : null;
     if (mode === 'device') return null;
     const id = mode === 'same' ? saved.provider : mode, d = DEF[id]; if (!d?.stt) return null;
-    if (id === 'speech') { const base = baseOf(id), model = speechModel(); return base && model ? { id, def: d, api: 'openai', base, key: keyOf(id), model, runtime: speechRuntime(), timeout: envTimeout(), wav: speechWav() } : null; }
+    if (id === 'speech') return speech();
     if (d.needsKey && !keyOf(id)) return null;
     return { id, def: d, api: d.sttApi, base: baseOf(id), key: keyOf(id), model: saved.transcribe.models[id] || d.stt };
   }
@@ -337,7 +341,7 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
   const last4 = k => (k.length >= 12 ? k.slice(-4) : '');
   function view() {
     const j = judgeNow(), s = sttNow(), id = chosen(), mode = sttMode();
-    const shown = mode === 'env' ? (s ? 'same' : 'device') : mode === 'same' && !s && !DEF[id].stt ? 'device' : mode;
+    const shown = mode === 'env' ? (s ? (s.id === 'speech' ? 'speech' : 'same') : 'device') : mode === 'same' && !s && !DEF[id].stt ? 'device' : mode;
     return {
       provider: id, source: saved.provider ? 'app' : legacyId ? 'env' : 'none', status: statusOf(id), model: j ? j.model : null,
       transcribe: { mode: shown, provider: s ? s.id : null, model: s ? s.model : null, status: s ? live(s.id) : shown === 'speech' ? speechStatus() : DEF[shown === 'same' ? id : shown]?.stt ? 'no_key' : 'device', ...(s?.wav ? { wav: true } : {}) },

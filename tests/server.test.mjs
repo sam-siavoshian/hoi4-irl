@@ -7,6 +7,7 @@ import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
 import { mockAnthropic, mockGemini } from './mock-providers.mjs';
 import { mockLocal } from './mock-local.mjs';
+import { createAI } from '../server/providers.mjs';
 import { parseLoose, repair, check } from '../server/llm.mjs';
 import { discover, discoveryTargets, probeAllowed, RUNTIMES } from '../server/local.mjs';
 
@@ -584,7 +585,7 @@ test('discovery only ever speaks to this machine: loopback and host.docker.inter
   for (const rt of RUNTIMES.filter(x => x.id !== 'other')) assert.match(rt.base, /^http:\/\/127\.0\.0\.1:\d+\/v1$/, rt.id);
 });
 
-const LP = 8150, UP = `http://127.0.0.1:${LP}`, dirLM = tmp();
+const LP = 8170, UP = `http://127.0.0.1:${LP}`, dirLM = tmp();
 const lm = {}; let lmCookie = '';
 const big = { type: 'object', properties: { summary: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { front: { type: 'string' }, outcome: { type: 'string', enum: ['win', 'loss', 'neutral'] }, severity: { type: 'integer', minimum: 1, maximum: 5 }, action: { type: 'string' }, headline: { type: 'string' } }, required: ['front', 'outcome', 'severity'], additionalProperties: false } } }, required: ['summary', 'items'], additionalProperties: false };
 const la = async (p, init = {}) => {
@@ -598,15 +599,15 @@ const point = (m, extra = {}) => lset({ provider: 'local', bases: { local: `http
 const chats = m => m.seen.filter(x => x.method === 'POST' && /chat/.test(x.path));
 
 test('local models: discover what is running, list its models, say when one is missing', async () => {
-  lm.schema = await mockLocal(8151, { kind: 'schema' }); lm.object = await mockLocal(8152, { kind: 'object' }); lm.prose = await mockLocal(8153, { kind: 'prose' });
-  lm.ollama = await mockLocal(8154, { kind: 'ollama' }); lm.speech = await mockLocal(8155, { kind: 'speech', models: ['Systran/faster-distil-whisper-small.en'] });
+  lm.schema = await mockLocal(8171, { kind: 'schema' }); lm.object = await mockLocal(8172, { kind: 'object' }); lm.prose = await mockLocal(8173, { kind: 'prose' });
+  lm.ollama = await mockLocal(8174, { kind: 'ollama' }); lm.speech = await mockLocal(8175, { kind: 'speech', models: ['Systran/faster-distil-whisper-small.en'] });
   // the probe list is injectable (HOMEFRONT_DISCOVER); what is not loopback is still never contacted
   await start({ ...base, PORT: LP, HOMEFRONT_PASSWORD: 'local pw', HOMEFRONT_DATA_DIR: dirLM, OPENAI_API_KEY: '', OPENAI_BASE_URL: '', HOMEFRONT_RATE_LIMIT: '0',
-    HOMEFRONT_DISCOVER: 'http://127.0.0.1:8154/v1,http://127.0.0.1:8151/v1,http://127.0.0.1:9/v1,http://192.168.1.77:11434/v1,http://example.com/v1' }, UP);
+    HOMEFRONT_DISCOVER: 'http://127.0.0.1:8174/v1,http://127.0.0.1:8171/v1,http://127.0.0.1:9/v1,http://192.168.1.77:11434/v1,http://example.com/v1' }, UP);
   const login = await fetch(UP + '/api/login', { method: 'POST', body: JSON.stringify({ password: 'local pw' }) }); lmCookie = login.headers.get('set-cookie').split(';')[0];
   assert.equal((await fetch(UP + '/api/ai/discover', { method: 'POST' })).status, 401, 'signed in only');
   const d = await la('/api/ai/discover', { method: 'POST', body: '{}' }); assert.equal(d.status, 200); assert.equal(d.json.tried, 3, 'the two addresses off this machine were dropped');
-  assert.deepEqual(d.json.found.map(f => [f.runtime, f.name, f.base, f.models.length]), [['ollama', 'Ollama', 'http://127.0.0.1:8154/v1', 2], ['llamacpp', 'llama.cpp', 'http://127.0.0.1:8151/v1', 2]]);
+  assert.deepEqual(d.json.found.map(f => [f.runtime, f.name, f.base, f.models.length]), [['ollama', 'Ollama', 'http://127.0.0.1:8174/v1', 2], ['llamacpp', 'llama.cpp', 'http://127.0.0.1:8171/v1', 2]]);
   assert.deepEqual(d.json.found[0].models[0], { id: 'qwen3:4b', size: 2019393189, params: '3.2B', quant: 'Q4_K_M' }, 'Ollama\'s /api/tags when /v1/models is absent');
   assert.deepEqual(d.json.found[1].models[0], { id: 'qwen3:4b', size: 2497280000, params: '4.0B', quant: null }, 'llama.cpp\'s meta');
   // pick the Ollama server and a model from its list
@@ -675,7 +676,7 @@ test('local models: the test says what works and what to do', async () => {
   try { t = (await ltest()).json; assert.equal(t.ok, false); assert.equal(t.reason, 'bad_answer'); assert.equal(t.message, 'qwen3:4b answered, but not with JSON that could be used. Try a larger model, or another mode under Advanced.'); }
   finally { lm.schema.garbage = false; }
   // a server with a key
-  const keyed = await mockLocal(8156, { kind: 'schema', key: 'local-server-key-1234' });
+  const keyed = await mockLocal(8176, { kind: 'schema', key: 'local-server-key-1234' });
   try {
     await point(keyed); t = (await ltest()).json; assert.equal(t.ok, false); assert.equal(t.reason, 'key_rejected'); assert.match(t.message, /Add its key under Advanced/);
     await lset({ keys: { local: 'local-server-key-1234' } }); t = (await ltest()).json; assert.equal(t.ok, true); assert.equal(keyed.seen.at(-1).auth, 'Bearer local-server-key-1234');
@@ -709,5 +710,15 @@ test('local speech-to-text: any /v1/audio/transcriptions server, its own address
   v = (await lset({ transcribe: { mode: 'groq', models: { groq: 'whisper-large-v3' } } })).json; assert.equal(v.providers.find(p => p.id === 'groq').sttModel, 'whisper-large-v3');
   v = (await lset({ transcribe: { models: { groq: null } } })).json; assert.equal(v.providers.find(p => p.id === 'groq').sttModel, 'whisper-large-v3-turbo');
   assert.equal((await lset({ provider: 'speech' })).status, 400, 'a speech server judges nothing');
+});
+test('.env alone can name a local model and a local speech server (LOCAL_BASE_URL, LOCAL_MODEL, LOCAL_STT_BASE_URL)', async () => {
+  const mem = {}; const store = { readJSON: (n, d) => mem[n] ?? d, writeJSON: (n, v) => { mem[n] = v; } };
+  const a = createAI({ env: { LOCAL_BASE_URL: `http://127.0.0.1:${lm.schema.port}/v1`, LOCAL_MODEL: 'qwen3:4b', LOCAL_STT_BASE_URL: `http://127.0.0.1:${lm.speech.port}/v1`, LOCAL_TIMEOUT_MS: '30000' }, store });
+  const v = a.view(); assert.equal(v.provider, 'local'); assert.equal(v.source, 'env'); assert.equal(v.status, 'ready'); assert.equal(v.model, 'qwen3:4b');
+  assert.deepEqual(v.transcribe, { mode: 'speech', provider: 'speech', model: 'Systran/faster-distil-whisper-small.en', status: 'ready' });
+  assert.equal((await a.judge({ name: 'x', system: 'sys', user: 'we closed the round', schema: big })).items[0].front, 'irq');
+  assert.equal(await a.transcribe(Buffer.alloc(4000, 7), 'audio/webm'), 'I failed my exam.');
+  assert.deepEqual(mem, {}, 'nothing is written while nothing is chosen in the app');
+  assert.equal(createAI({ env: { LOCAL_BASE_URL: 'http://127.0.0.1:1/v1' }, store }).view().provider, 'offline', 'an address with no model turns nothing on');
 });
 test.after(() => { for (const m of Object.values(lm)) m.close(); fs.rmSync(dirLM, { recursive: true, force: true }); });
