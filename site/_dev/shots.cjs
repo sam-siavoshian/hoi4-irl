@@ -5,8 +5,8 @@
 // then build again so _site/ picks the new images up.
 // A second argument picks groups: site,docs,hero,countries,cards,select (default: all of them).
 //
-//   site/img/  hero.png (the landing page's hero map), shot-*.png and step-map.png (phone, 390×664 @2x),
-//              og.png (1200×630, from og.html), countries.png
+//   site/img/  hero.png (the still the landing page shows without scripts: its own hero map, at the end of its story),
+//              og.png (1200×630, from og.html)
 //   docs/img/  hero.png (desktop, 1440×900 @2x), map/report/front/division/history.png (phone, 390×844 @2x),
 //              countries.png, social-preview.png (1280×640, from social.html),
 //              select.png (phone) and select-desktop.png (1440×900 @2x): the first run's country picker, France highlighted
@@ -86,23 +86,17 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
   }
 
   if (only.includes('site')) {
-    await phoneSet(664, SITE, n => 'shot-' + n, async (p, shot) => {
-      // step 3 illustration: the eastern front, cropped
-      await p.evaluate(() => window.__homefront.view.flyToFront('afg'));
-      await shot('step-map', { x: 35, y: 150, width: 320, height: 200 });
-      fs.renameSync(path.join(SITE, 'shot-step-map.png'), path.join(SITE, 'step-map.png'));
-      await p.evaluate(() => window.__homefront.view.home(false));
-    });
     // the still behind the live hero map: the landing page's own embed, at the end of its story
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const p = await ctx.newPage();
+    await p.addInitScript(([key, appearance]) => localStorage.setItem(key, appearance), [APPEARANCE_KEY, APPEARANCE]);
     await p.goto(base);
-    await p.waitForSelector('#hero-map.live');
+    await p.waitForSelector('[data-testid=hero-map][data-country]');
     await p.waitForTimeout(1500);
-    const box = await p.locator('#hero-map').boundingBox();
-    const clip = { x: Math.round(box.x), y: Math.round(box.y), width: Math.floor(box.width), height: Math.floor(box.height) }; // whole pixels: 1130×904 at 2x, as index.html declares
+    const box = await p.locator('[data-testid=hero-map]').boundingBox();
+    const clip = { x: Math.round(box.x), y: Math.round(box.y), width: Math.floor(box.width), height: Math.floor(box.height) }; // whole pixels; Landing.jsx declares the size on its <img>
     await p.screenshot({ path: path.join(SITE, 'hero.png'), clip });
-    wrote(path.join(SITE, 'hero.png'), clip.width * 2 + 'x' + clip.height * 2);
+    wrote(path.join(SITE, 'hero.png'), clip.width + 'x' + clip.height);
     await ctx.close();
   }
 
@@ -142,8 +136,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await p.goto('file://' + path.join(tmp, 'countries.html'));
     await p.waitForFunction(() => [...document.images].every(i => i.complete && i.naturalWidth));
     await p.screenshot({ path: path.join(DOCS, 'countries.png'), fullPage: true });
-    fs.copyFileSync(path.join(DOCS, 'countries.png'), path.join(SITE, 'countries.png'));
-    wrote(path.join(DOCS, 'countries.png')); wrote(path.join(SITE, 'countries.png'));
+    wrote(path.join(DOCS, 'countries.png'));
     await ctx.close();
   }
 
