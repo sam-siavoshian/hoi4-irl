@@ -127,7 +127,7 @@ function Stage({ picked, country, live, onLoop }) {
     <Card as="figure" padding="none" radius="panel" className="overflow-hidden">
       <div ref={frame} data-testid="hero-map" data-country={shown || undefined} data-loading={loading ? '' : undefined} className="relative aspect-4/5 w-full bg-fill sm:aspect-16/9">
         <noscript>
-          <img src="img/hero.png" width="1104" height="617" alt="The Home Front maps of four of the eight countries, each with division counters along every border and front lines drawn province by province." className="absolute inset-0 size-full object-cover" />
+          <img src="img/hero.png" width="1104" height="621" alt="The Home Front maps of four of the eight countries, each with division counters along every border and front lines drawn province by province." className="absolute inset-0 size-full object-cover" />
         </noscript>
         <canvas ref={base} aria-hidden="true" className="pointer-events-none absolute inset-0" />
         <canvas ref={over} aria-hidden="true" className="pointer-events-none absolute inset-0" />

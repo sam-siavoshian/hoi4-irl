@@ -38,7 +38,7 @@ src/                     The interface: React screens and sheets, built into dis
 vendor/design-system/    The component kit and tokens the interface is built from.
 
 js/engine.js             The war engine. Pure and deterministic: state = simulate(map, reports, now).
-                         Battle types (ACTIONS), unit types, decorations (MEDALS), satrapies,
+                         Battle types (ACTIONS), unit types, decorations (MEDALS), regions,
                          divisions, operations, weather, objectives, sitrep. No DOM.
 js/classify.js           The judge: system prompt, JSON schema, result sanitising, and the offline
                          keyword classifier. Also the staff assessment.
@@ -180,12 +180,12 @@ plays without a user gesture.
 
 ### Add a persona preset
 
-A persona is a named set of labels (and optional one-line descriptions) for the seven front ids:
-`afg`, `cau`, `tks`, `irq`, `raj`, `tur`, `glf`.
+A persona is a named set of labels (and optional one-line descriptions) for the seven front slots, in the order
+every country lists its fronts, so one preset fits all eight maps.
 
 1. Find the preset list used by the first-run screen (search the `js/` folder for `Student`).
 2. Add an entry that gives every front a label. Keep labels to one to three words: they are shown on
-   the map and sent to the judge. The Persian Gulf Theatre (`glf`) is the only front with a fleet, and
+   the map and sent to the judge. The last slot is usually a sea front, and
    the judge sends general mood, sleep, money and discipline to whichever front is labelled closest to
    "personal life", so keep one such front.
 3. If a label uses a word the offline judge does not know, extend `LABEL_AREA` / `AREA_WORDS` in

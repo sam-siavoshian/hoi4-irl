@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
+  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Turkey with front lines on every border, division counters, battle markers, and a side panel for the Work front listing its divisions and latest battles">
 </p>
 
 ## What it is
@@ -91,31 +91,32 @@ restored. Let everything slide and the capital falls. Most of life happens in be
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
 
 <p align="center">
-  <img src="docs/img/map.png" width="19%" alt="The war map on a phone: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">
-  <img src="docs/img/report.png" width="19%" alt="Reporting: one text box, a microphone and a Send button, with today's three small goals underneath">
-  <img src="docs/img/front.png" width="19%" alt="A front: its status, next objective, one-tap Win and Loss buttons and its divisions">
-  <img src="docs/img/history.png" width="19%" alt="History: a calendar of reported days and the list of entries, each editable">
-  <img src="docs/img/division.png" width="19%" alt="A division: its commander, experience, record and battle honours">
+  <img src="docs/img/map.png" width="19%" alt="The war map on a phone, here Greece: the home country and its seven fronts, with divisions on the border and front lines drawn province by province">
+  <img src="docs/img/report.png" width="19%" alt="Reporting, here in Mexico: one text box, a microphone and a Send button, with today's three small goals underneath">
+  <img src="docs/img/front.png" width="19%" alt="A front, here Ethiopia's Work front: its status, next objective, one-tap Win and Loss buttons and its divisions">
+  <img src="docs/img/history.png" width="19%" alt="History, here in Siam: a calendar of reported days and the list of entries, each editable">
+  <img src="docs/img/division.png" width="19%" alt="A division, here in Peru: its commander, experience, record and battle honours">
 </p>
 
 ## Eight countries
 
-Each has its own map, army, navy, air force, commanders, ranks and decorations, and an empire to restore.
+Each has its own map, army, navy, air force, commanders, ranks and decorations, its real flag of the time, and an
+empire to restore.
 Change country at any time; each keeps its own campaign.
 
 | Country | Year | Borders to restore | Fronts |
 |---|---|---|---|
-| Iran | 1936 | Achaemenid Empire | 6 land, 1 naval |
-| Turkey | 1936 | Ottoman Empire | 5 land, 2 naval |
-| Greece | 1936 | Byzantine Empire of Basil II | 3 land, 4 naval |
-| France | 1936 | First French Empire (1812) | 5 land, 2 naval |
 | Ethiopia | 1935 | Aksumite Empire | 7 land |
-| Siam | 1936 | Greater Siam | 5 land, 2 naval |
-| Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
+| France | 1936 | First French Empire (1812) | 5 land, 2 naval |
+| Greece | 1936 | Byzantine Empire of Basil II | 3 land, 4 naval |
+| Iran | 1936 | Achaemenid Empire | 6 land, 1 naval |
 | Mexico | 1936 | Mexican Empire (1821) | 4 land, 3 naval |
+| Peru | 1936 | Tawantinsuyu | 6 land, 1 naval |
+| Siam | 1936 | Greater Siam | 5 land, 2 naval |
+| Turkey | 1936 | Ottoman Empire | 5 land, 2 naval |
 
 <p align="center">
-  <img src="docs/img/countries.png" alt="The eight countries side by side: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with its own 1936 map and front lines">
+  <img src="docs/img/countries.png" alt="The eight countries side by side: Ethiopia, France, Greece, Iran, Mexico, Peru, Siam and Turkey, each with its own 1936 map, flag and front lines">
 </p>
 
 You choose on a full-screen selection screen: the map changes behind as you browse the nations, with each
@@ -252,17 +253,18 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### The fronts
 
-For Iran, as an example:
+Every country has seven fronts, and the slots mean the same in all of them: the first is School, the fourth Work,
+the last Self, whichever border it is. Two of them side by side:
 
-| Front | Enemy | Example meaning |
-|---|---|---|
-| Afghan Front | Afghanistan | School |
-| Caucasus Front | Soviet Union | Family |
-| Turkestan Front | Soviet Union | Partner |
-| Mesopotamian Front | Iraq | Work |
-| Baluchistan Front | British Raj | Health |
-| Anatolian Front | Turkey | Friends |
-| Persian Gulf Theatre | Royal Navy | Self |
+| Slot | Example meaning | France | Peru |
+|---|---|---|---|
+| 1 | School | Rhine Front (Germany) | Zarumilla Front (Ecuador) |
+| 2 | Family | Flanders Front (Belgium) | Quito Front (Ecuador) |
+| 3 | Partner | Alpine Front (Italy) | Putumayo Front (Colombia) |
+| 4 | Work | Jura Front (Switzerland) | Amazon Front (Brazil) |
+| 5 | Health | Pyrenees Front (Spain) | Collao Front (Bolivia) |
+| 6 | Friends | Channel Theatre (Royal Navy) | Tarapacá Front (Chile) |
+| 7 | Self | Mediterranean Theatre (Regia Marina) | Pacific Theatre (Chilean Navy) |
 
 The persona you pick sets the meanings; rename or pause any of them in Settings.
 

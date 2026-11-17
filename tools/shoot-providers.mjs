@@ -30,7 +30,10 @@ async function page(theme, size, scale = 2) {
 }
 const dark = async (p, theme) => { await p.click(`${T('sheet')} [role=radio]:has-text("${theme === 'dark' ? 'Dark' : 'Light'}")`); await p.waitForFunction(t => document.documentElement.dataset.theme === t, theme); };
 // a browser that has not played yet is walked past the country and the welcome
-const enter = async p => { if (await p.evaluate(() => !window.__homefront.data.onboarded)) { await p.click(T('play')); await p.click(T('begin')); await p.waitForSelector(T('sheet'), { state: 'detached' }); } };
+// the pictures show Peru: a new visitor starts on a country picked at random, so one is chosen here
+const COUNTRY = 'peru';
+const choose = async p => { await p.click(`${T('country')}[data-id=${COUNTRY}]`); await p.waitForFunction(id => window.__homefront.view.map.id === id && !window.__homefront.ui.picker.busy, COUNTRY); };
+const enter = async p => { if (await p.evaluate(() => !window.__homefront.data.onboarded)) { await choose(p); await p.click(T('play')); await p.click(T('begin')); await p.waitForSelector(T('sheet'), { state: 'detached' }); } };
 const settings = async p => { await enter(p); await p.click(T('identity')); await p.click(T('open-settings')); await p.waitForFunction(() => window.__homefront.ui.sheet === 'settings' && window.__homefront.ai); };
 const shot = async (p, name) => { await p.waitForTimeout(700); if (out) await p.screenshot({ path: path.join(out, `${name}.png`) }); };
 const PHONE = { width: 390, height: 844 }, DESK = { width: 1280, height: 800 };
@@ -38,7 +41,7 @@ const PHONE = { width: 390, height: 844 }, DESK = { width: 1280, height: 800 };
 try {
   // first run: the offer after choosing a country, before anything is set up
   { const { ctx, p } = await page('dark', PHONE);
-    await p.click(T('play')); await p.waitForSelector(T('welcome-staff')); await p.locator(T('welcome-staff')).scrollIntoViewIfNeeded(); await shot(p, 'welcome-offer-phone-dark');
+    await choose(p); await p.click(T('play')); await p.waitForSelector(T('welcome-staff')); await p.locator(T('welcome-staff')).scrollIntoViewIfNeeded(); await shot(p, 'welcome-offer-phone-dark');
     await p.click(T('welcome-staff')); await p.waitForSelector(T('provider')); await shot(p, 'welcome-staff-phone-dark');
     await p.click(T('sheet-back')); await p.click(T('begin')); await ctx.close(); }
   await api('api/ai', 'PUT', { provider: 'anthropic', keys: { anthropic: KEY } });
