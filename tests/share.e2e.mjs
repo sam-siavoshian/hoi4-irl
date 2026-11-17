@@ -72,8 +72,8 @@ try {
   });
   await step('the cards carry what they were given', async () => {
     const texts = id => cards.find(c => c.id === id).boxes.map(b => b.text).join(' | ');
-    assert.match(texts('bulletin-bad'), /Zabol has fallen/); assert.match(texts('bulletin-bad'), /53%/); assert.match(texts('bulletin-bad'), /Sarvan/); assert.match(texts('bulletin-bad'), /Personal Life/);
-    assert.match(texts('frontpage-bad'), /ZABOL HAS \| FALLEN|ZABOL HAS FALLEN/); assert.match(texts('frontpage-bad'), /ETTELA’AT-E ARTESH/); assert.match(texts('frontpage-bad'), /1405/); assert.match(texts('frontpage-bad'), /garrison/);
+    assert.match(texts('bulletin-bad'), /Zabol has fallen/); assert.match(texts('bulletin-bad'), /53%/); assert.match(texts('bulletin-bad'), /Sarvan/); assert.match(texts('bulletin-bad'), /Self/);
+    assert.match(texts('frontpage-bad'), /ZABOL HAS \| FALLEN|ZABOL HAS FALLEN/); assert.match(texts('frontpage-bad'), /THE ARMY GAZETTE/); assert.match(texts('frontpage-bad'), /1405/); assert.match(texts('frontpage-bad'), /garrison/);
     assert.match(texts('recap-typical'), /9–15 November/); assert.match(texts('recap-typical'), /\+420/); assert.match(texts('recap-typical'), /Khanaqin/); assert.match(texts('recap-typical'), /Rakhsh/);
     assert.match(texts('rankup-rank'), /Sarhang/); assert.match(texts('rankup-rank'), /Colonel/); assert.match(texts('rankup-rank'), /104-day streak/);
   });
@@ -105,14 +105,14 @@ try {
   });
   await step('shareCanvas falls back to a download and copies the text', async () => {
     await page.evaluate(() => { Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); });
-    const [download, result] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.evaluate(() => window.__share.api.shareCanvas(window.__share.cards['rankup-rank'].canvas, { filename: 'artesh-test.png', text: 'copied sitrep' }))]);
-    assert.equal(result, 'downloaded'); assert.equal(download.suggestedFilename(), 'artesh-test.png');
+    const [download, result] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.evaluate(() => window.__share.api.shareCanvas(window.__share.cards['rankup-rank'].canvas, { filename: 'homefront-test.png', text: 'copied sitrep' }))]);
+    assert.equal(result, 'downloaded'); assert.equal(download.suggestedFilename(), 'homefront-test.png');
     const file = await download.path(), buf = fs.readFileSync(file); assert.equal(buf.subarray(1, 4).toString(), 'PNG'); assert.equal(buf.readUInt32BE(16), 1080); assert.equal(buf.readUInt32BE(20), 1080);
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'copied sitrep');
   });
   await step('the Share button on the demo page works', async () => {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.click('button[data-share="bulletin-bad"]')]);
-    assert.equal(download.suggestedFilename(), 'artesh-bulletin-bad.png');
+    assert.equal(download.suggestedFilename(), 'homefront-bulletin-bad.png');
   });
   await step('shareCanvas uses the share sheet when it can, reports a cancel, and never throws', async () => {
     const r = await page.evaluate(async () => {

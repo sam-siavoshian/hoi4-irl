@@ -61,7 +61,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: ARTESH version or commit
+      label: Home Front version or commit
       placeholder: 1.0.0 / a1b2c3d
     validations:
       required: true

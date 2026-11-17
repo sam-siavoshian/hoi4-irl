@@ -1,6 +1,6 @@
 // Dictation.
-//  - 'server':  record with MediaRecorder, transcribe on the private server (OpenAI gpt-transcribe). Best accuracy.
-//  - 'browser': the browser's own speech recognition, used only when there is no server key.
+//  - 'server':  record with MediaRecorder, transcribe on the private server (the speech model chosen in Settings). Best accuracy.
+//  - 'browser': the browser's own speech recognition, used when the server has no speech model ("On this device").
 //  - 'keyboard': the keyboard's dictation key.
 const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 export const hasRecorder = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';

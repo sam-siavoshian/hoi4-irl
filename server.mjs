@@ -1,15 +1,17 @@
-// ARTESH private server. No dependencies; Node 20+.
-// - serves the built app (dist/, made by `npm run build`) only to someone who has logged in with ARTESH_PASSWORD
-// - keeps the LLM key on this machine and proxies judging and transcription (OpenAI or any OpenAI-compatible API)
+// Home Front private server. No dependencies; Node 20+.
+// - serves the built app (dist/, made by `npm run build`) only to someone who has logged in with HOMEFRONT_PASSWORD
+// - keeps the model keys on this machine (set in the app, or in .env) and proxies judging and transcription to the
+//   provider chosen in Settings: OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, a local server, or none
 // - stores the campaign in ./private/state.json so every device sees the same war, journals every change
 //   to ./private/journal.ndjson and keeps dated backups in ./private/backups/
 // - offers a small automation API (POST /api/report, GET /api/sitrep, GET /api/journal) for Shortcuts and scripts
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { llmConfig, createLLM } from './server/llm.mjs';
+import { createAI } from './server/providers.mjs';
 import { createStore } from './server/storage.mjs';
 import { createAutomation, scenarioDir } from './server/automation.mjs';
 
@@ -23,26 +25,31 @@ try {
     if (process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
   }
 } catch { /* no .env */ }
+// installs made under the project's earlier name keep working: ARTESH_X is read as HOMEFRONT_X
+for (const k of Object.keys(process.env)) if (k.startsWith('ARTESH_') && process.env['HOMEFRONT_' + k.slice(7)] === undefined) process.env['HOMEFRONT_' + k.slice(7)] = process.env[k];
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
-const PASSWORD = process.env.ARTESH_PASSWORD || '';
-const TOKEN = (process.env.ARTESH_TOKEN || '').trim(); // optional bearer token for the automation API
-const RATE = process.env.ARTESH_RATE_LIMIT === undefined || process.env.ARTESH_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.ARTESH_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
-const PRIVATE = path.resolve(process.env.ARTESH_DATA_DIR || path.join(ROOT, 'private'));
-const COOKIE = 'artesh_session';
+const PASSWORD = process.env.HOMEFRONT_PASSWORD || '';
+const TOKEN = (process.env.HOMEFRONT_TOKEN || '').trim(); // optional bearer token for the automation API
+const RATE = process.env.HOMEFRONT_RATE_LIMIT === undefined || process.env.HOMEFRONT_RATE_LIMIT === '' ? 60 : Math.max(0, Number(process.env.HOMEFRONT_RATE_LIMIT) || 0); // requests per minute per address; 0 = no limit
+// Your data is kept out of the source folder, so no git command run here can ever pick it up. An install that already
+// has ./private keeps using it (that folder is git-ignored).
+const tilde = p => (p && /^~(?=$|\/)/.test(p) ? path.join(os.homedir(), p.slice(1)) : p);
+const PRIVATE = path.resolve(tilde(process.env.HOMEFRONT_DATA_DIR) || (fs.existsSync(path.join(ROOT, 'private')) ? path.join(ROOT, 'private') : path.join(os.homedir(), '.homefront')));
+const COOKIE = 'homefront_session', OLD_COOKIE = 'artesh_session'; // the old name is still read, never set
 const die = msg => { console.error(msg); process.exit(1); };
 
-if (!PASSWORD && process.env.ARTESH_OPEN !== '1') die('Refusing to start without ARTESH_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set ARTESH_OPEN=1.');
-if (TOKEN && TOKEN.length < 16) die('ARTESH_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
-let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
+if (!PASSWORD && process.env.HOMEFRONT_OPEN !== '1') die('Refusing to start without HOMEFRONT_PASSWORD. Set it in .env (see .env.example).\nTo run with no login on a trusted machine only, set HOMEFRONT_OPEN=1.');
+if (TOKEN && TOKEN.length < 16) die('HOMEFRONT_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
 const store = createStore(PRIVATE);
 const stamp = () => new Date().toISOString();
 try { const r = store.recover(); if (r) console.error(`${stamp()} state.json was unreadable (${r.why}). Restored the campaign from ${r.from} (rev ${r.rev}); the broken file is kept as ${r.aside}.`); }
 catch (e) { die(`${stamp()} ${e.message}`); }
 const { readJSON, writeJSON } = store;
-const llm = createLLM(cfg);
-const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.ARTESH_EXTRA_SCENARIOS || null });
+// the provider in use: what was chosen in the app (ai.json in the data folder), or else what .env says
+let ai; try { ai = createAI({ env: process.env, store }); } catch (e) { die(e.message); }
+const auto = createAutomation({ root: ROOT, store, llm: ai, judgeOn: ai.judgeOn, extraScenarios: process.env.HOMEFRONT_EXTRA_SCENARIOS || null });
 
 // ---- sessions ----
 const sessions = new Map(Object.entries(readJSON('sessions.json', {})));
@@ -50,7 +57,7 @@ const YEAR = 365 * 86400e3;
 const hash = t => crypto.createHash('sha256').update(t).digest('hex');
 function authed(req) {
   if (!PASSWORD) return true;
-  const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=([a-f0-9]{64})`)); if (!m) return false;
+  const m = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)(?:${COOKIE}|${OLD_COOKIE})=([a-f0-9]{64})`)); if (!m) return false; // a device signed in before the rename stays signed in
   const exp = sessions.get(hash(m[1])); return !!exp && exp > Date.now();
 }
 const attempts = new Map(); // ip → [timestamps]
@@ -60,7 +67,7 @@ const safeEq = (a, b) => { const x = hash(a), y = hash(b); return crypto.timingS
 const TOKEN_PATHS = new Set(['/api/report', '/api/sitrep', '/api/journal']);
 function bearer(req, p) { if (!TOKEN || !TOKEN_PATHS.has(p)) return false; const m = /^Bearer\s+(\S+)\s*$/i.exec(req.headers.authorization || ''); return !!m && safeEq(m[1], TOKEN); }
 // per-address limit on the endpoints that cost money or write on someone's behalf
-const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report']); const hits = new Map(); // ip → [timestamps]
+const LIMITED = new Set(['/api/llm', '/api/transcribe', '/api/report', '/api/ai/test']); const hits = new Map(); // ip → [timestamps]
 function limited(ip) { if (!RATE) return 0; const now = Date.now(); const a = (hits.get(ip) || []).filter(t => now - t < 60e3); hits.set(ip, a); if (a.length >= RATE) return Math.max(1, Math.ceil((a[0] + 60e3 - now) / 1000)); a.push(now); return 0; }
 setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.length || now - a.at(-1) > 60e3) hits.delete(k); for (const [k, a] of attempts) if (!a.length || now - a.at(-1) > 10 * 60e3) attempts.delete(k); }, 5 * 60e3).unref();
 
@@ -71,22 +78,31 @@ const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/
 const BUILT_FILES = /^\/(index\.html|sw\.js|theme-boot\.js|assets\/[\w-]+(\.[\w-]+)*\.(js|css|woff2|png|svg))$/;
 const DATA_FILES = /^\/(data\/scenarios\.json|data\/maps\/[\w-]+\.json)$/;
 const built = () => fs.existsSync(path.join(DIST, 'index.html'));
-const NOT_BUILT = 'The interface has not been built yet. Run `npm run build` in the ARTESH folder (or start it with `npm start`, which builds first), then reload.';
+const NOT_BUILT = 'The interface has not been built yet. Run `npm run build` in the Home Front folder (or start it with `npm start`, which builds first), then reload.';
 // Test hook: a directory of extra built maps (<id>.json) offered next to the ones in data/maps/. Never set in normal use.
-const EXTRA = process.env.ARTESH_EXTRA_SCENARIOS ? path.resolve(process.env.ARTESH_EXTRA_SCENARIOS) : null;
+const EXTRA = process.env.HOMEFRONT_EXTRA_SCENARIOS ? path.resolve(process.env.HOMEFRONT_EXTRA_SCENARIOS) : null;
 const extras = scenarioDir(EXTRA);
 const SECURITY = { 'x-robots-tag': 'noindex, nofollow, noarchive', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'cache-control': 'no-store' };
 function send(res, status, body, headers = {}) { const b = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body); res.writeHead(status, { 'content-type': typeof body === 'object' && !Buffer.isBuffer(body) ? 'application/json' : 'text/plain; charset=utf-8', ...SECURITY, ...headers }); res.end(b); }
 // an oversized body is refused with 413 and the rest of it is thrown away as it arrives
 function readBody(req, limit) { return new Promise((resolve, reject) => { let chunks = [], n = 0; req.on('data', c => { n += c.length; if (n > limit) { if (chunks) reject(Object.assign(new Error('Too large'), { status: 413 })); chunks = null; } else chunks?.push(c); }); req.on('end', () => chunks && resolve(Buffer.concat(chunks))); req.on('error', reject); }); }
 const secure = req => req.headers['x-forwarded-proto'] === 'https' || !!req.socket.encrypted;
+// A write to the provider settings must come from this app's own pages. The session cookie is SameSite=Lax, which
+// already keeps it off cross-site POST, PUT and DELETE; this refuses them outright as well. A browser says where a
+// request comes from (Sec-Fetch-Site, or Origin on older ones); a script with the session cookie sends neither.
+function sameOrigin(req) {
+  const site = req.headers['sec-fetch-site']; if (site) return site === 'same-origin' || site === 'none';
+  const origin = req.headers.origin; if (!origin) return true;
+  let host = null; try { host = new URL(origin).host; } catch { return false; }
+  return host === req.headers.host || host === String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+}
 
 // The login page stands alone (nothing from the app is served before login), so it carries the design system's
 // neutral paints by hand: light or dark with the device, no accent colour.
-const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light dark"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><title>ARTESH</title>
+const LOGIN = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light dark"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><title>Home Front</title>
 <style>:root{--bg:#fbfbfb;--ink:#1b1b1f;--dim:#6b6b73;--field:#fff;--line:rgba(0,0,0,.14);--lit:#1b1b1f;--on:#fff;--bad:#b3261e}@media (prefers-color-scheme:dark){:root{--bg:#141416;--ink:#f1f1f3;--dim:#9a9aa2;--field:#1e1e21;--line:rgba(255,255,255,.14);--lit:#f1f1f3;--on:#141416;--bad:#f2a199}}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}form{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;box-sizing:border-box}h1{margin:0 0 6px;font-size:20px;font-weight:600;letter-spacing:-.01em}label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}input,button{width:min(100%,300px);height:44px;box-sizing:border-box;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--field);color:inherit;font:inherit}input:focus-visible,button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}button{background:var(--lit);color:var(--on);font-weight:500;border-color:transparent;cursor:pointer}p{margin:0;min-height:20px;color:var(--bad);font-size:14px}</style></head>
-<body><form id="f"><h1>ARTESH</h1><label for="p">Password</label><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Sign in</button><p id="e" role="alert"></p></form>
+<body><form id="f"><h1>Home Front</h1><label for="p">Password</label><input id="p" type="password" placeholder="Password" autocomplete="current-password" autofocus><button>Sign in</button><p id="e" role="alert"></p></form>
 <script>f.onsubmit=async e=>{e.preventDefault();const r=await fetch('api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});if(r.ok)location.replace('./');else{document.getElementById('e').textContent=r.status===429?'Too many tries. Wait a few minutes, then try again.':'Wrong password. Try again.';p.value=''}}</script></body></html>`;
 
 const server = http.createServer(async (req, res) => {
@@ -114,8 +130,8 @@ const server = http.createServer(async (req, res) => {
       return send(res, 401, p === '/index.html' ? LOGIN : 'Not signed in', p === '/index.html' ? { 'content-type': TYPES['.html'] } : {});
     }
 
-    if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`${COOKIE}=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
-    if (p === '/api/config') return send(res, 200, { server: true, judge: cfg.judge ? cfg.model : null, transcribe: cfg.transcribe ? cfg.sttModel : null, login: !!PASSWORD, provider: cfg.provider, api: cfg.api });
+    if (p === '/api/logout' && req.method === 'POST') { const m = (req.headers.cookie || '').match(new RegExp(`(?:${COOKIE}|${OLD_COOKIE})=([a-f0-9]{64})`)); if (m) { sessions.delete(hash(m[1])); writeJSON('sessions.json', Object.fromEntries(sessions)); } return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax` }); }
+    if (p === '/api/config') { const c = ai.config(); return send(res, 200, { server: true, judge: c.judge, transcribe: c.transcribe, login: !!PASSWORD, provider: c.provider, api: c.api }); }
     if (LIMITED.has(p) && req.method === 'POST') { const wait = limited(ip); if (wait) return send(res, 429, { error: 'Too many requests. Try again shortly.' }, { 'retry-after': String(wait) }); }
 
     if (p === '/api/state') {
@@ -140,15 +156,35 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/llm' && req.method === 'POST') {
       const b = JSON.parse((await readBody(req, 200e3)).toString());
       if (!b || typeof b.system !== 'string' || typeof b.user !== 'string' || !b.schema || typeof b.schema !== 'object') return send(res, 400, { error: 'Bad request' });
-      return send(res, 200, { result: await llm.judge(b), model: cfg.model });
+      const model = ai.config().judge; return send(res, 200, { result: await ai.judge(b), model });
     }
 
     if (p === '/api/transcribe' && req.method === 'POST') {
       const audio = await readBody(req, 25e6); if (audio.length < 500) return send(res, 400, { error: 'No audio' });
-      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0]; const t0 = Date.now();
-      const out = await llm.transcribe(audio, type, { prompt: url.searchParams.get('prompt'), keywords: url.searchParams.getAll('k') }); // hints: see llm.transcribe
+      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0];
+      const model = ai.config().transcribe; const t0 = Date.now();
+      const out = await ai.transcribe(audio, type, { prompt: url.searchParams.get('prompt'), keywords: url.searchParams.getAll('k') }); // hints: see providers.mjs SCRIBES
       console.log(`${stamp()} transcribed ${(audio.length / 1024).toFixed(0)} KB ${type}, ${out.seconds ?? '?'} s of audio -> ${out.text.length} chars in ${Date.now() - t0} ms${out.plain ? ' (hints dropped)' : ''}`); // sizes only, never the words
-      return send(res, 200, { text: out.text, model: cfg.sttModel });
+      return send(res, 200, { text: out.text, model });
+    }
+
+    // the general staff: which provider judges and transcribes, and its keys. A key goes in and never comes out:
+    // every answer here is ai.view(), which carries hasKey and the last 4 characters only.
+    if (p === '/api/ai' || p.startsWith('/api/ai/')) {
+      if (req.method !== 'GET' && !sameOrigin(req)) return send(res, 403, { error: 'This request did not come from the app.' });
+      if (p === '/api/ai') {
+        if (req.method === 'GET') return send(res, 200, ai.view());
+        if (req.method === 'PUT') return send(res, 200, ai.update(JSON.parse((await readBody(req, 16e3)).toString() || '{}')));
+        return send(res, 405, { error: 'Use GET or PUT' }, { allow: 'GET, PUT' });
+      }
+      const key = /^\/api\/ai\/key\/([a-z]+)$/.exec(p);
+      if (key) { if (req.method !== 'DELETE') return send(res, 405, { error: 'Use DELETE' }, { allow: 'DELETE' }); return send(res, 200, ai.removeKey(key[1])); }
+      if (p === '/api/ai/test') {
+        if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' }, { allow: 'POST' });
+        const b = JSON.parse((await readBody(req, 4096)).toString() || '{}');
+        return send(res, 200, await ai.test(b && b.what === 'transcribe' ? 'transcribe' : 'judge'));
+      }
+      return send(res, 404, { error: 'Not found' });
     }
 
     // automation: file a report in one request (iOS Shortcuts, Siri, scripts)
@@ -185,4 +221,4 @@ const server = http.createServer(async (req, res) => {
 });
 // launchd, Docker and Ctrl-C stop the server with a signal: finish open requests, then exit (at most 5 s later)
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log(`${stamp()} ${sig}: stopping`); server.close(() => process.exit(0)); server.closeIdleConnections(); setTimeout(() => process.exit(0), 5000).unref(); });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`${stamp()} ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`${stamp()} Your data is kept in ${PRIVATE}`); console.log(`${stamp()} Home Front on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, ${ai.describe()}, automation token ${TOKEN ? 'on' : 'off'}`); });

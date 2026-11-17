@@ -1,11 +1,11 @@
 # Self-hosting
 
-ARTESH runs as one small Node server (`server.mjs`, Node 20 or newer, nothing to install). It
+Home Front runs as one small Node server (`server.mjs`, Node 20 or newer, nothing to install). It
 
 - shows nothing but a password box until you log in (one password, remembered per device for a year),
 - keeps the model API key on the host, so the browser never receives it,
 - judges reports and transcribes voice through the provider you configure,
-- stores the campaign in `private/`, so the phone and the desktop show the same war,
+- stores the campaign in `~/.homefront/`, so the phone and the desktop show the same war,
 - tells search engines to stay away (`noindex`, `robots.txt`).
 
 Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-systemd) ·
@@ -15,51 +15,67 @@ Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-s
 ## Quick start
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
-cd artesh
+git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+cd homefront
 npm install               # the build tools for the interface
-cp .env.example .env      # then set ARTESH_PASSWORD (and OPENAI_API_KEY if you use a model)
+cp .env.example .env      # then set HOMEFRONT_PASSWORD
 npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
 `npm start` rebuilds `dist/` whenever the sources are newer. If you start the server another way
 (`node server.mjs`, launchd, systemd), run `npm run build` first and after every update.
 
-`.env` and `private/` are git-ignored. Keep them that way.
+`.env` and `~/.homefront/` are git-ignored. Keep them that way.
 
 All settings are listed in the [README](../README.md#configuration). The ones that matter for hosting:
 
 | Variable | Use |
 |---|---|
-| `ARTESH_PASSWORD` | Required. Choose a long one; you type it once per device. |
+| `HOMEFRONT_PASSWORD` | Required. Choose a long one; you type it once per device. |
 | `HOST` | `0.0.0.0` by default (all interfaces). Set `127.0.0.1` when a tunnel or reverse proxy sits in front. |
 | `PORT` | `8080` by default. |
-| `ARTESH_DATA_DIR` | Where data is stored. `./private` by default. |
-| `ARTESH_TOKEN` | Enables the automation API. Generate one with `openssl rand -hex 32`. |
+| `HOMEFRONT_DATA_DIR` | Where data is stored. `~/.homefront` by default, outside the source folder. (An older install that already has `./private` keeps using it.) |
+| `HOMEFRONT_TOKEN` | Enables the automation API. Generate one with `openssl rand -hex 32`. |
 
-Without `OPENAI_API_KEY` the app still works, with the offline keyword judge and the keyboard's
-dictation key.
+### The model: your own key, set in the app
+
+Open the app, go to **Settings → General staff**, choose a provider and paste your own key. Press **Test**
+to prove the key and the model work. The providers, their small default models and what was verified are
+listed in the [README](../README.md#configuration).
+
+- The key is stored in `ai.json` in the data folder (`~/.homefront/ai.json`, mode `0600`, written to a
+  temporary file and renamed into place). It is never sent back to the browser.
+- What is set in the app wins over `.env`. An existing install with `OPENAI_API_KEY` in `.env` keeps
+  working with no action; that key shows in the app as "set on the server" and can only be changed in
+  `.env`. Removing a key in the app puts the `.env` one, if any, back in force.
+- With no key anywhere the app still works, with the offline keyword judge and dictation on the device.
+- `ai.json` is part of your data folder, so a copy of the folder carries your keys with it. The dated
+  backups in `backups/` and the app's Export contain the campaign only, never a key.
+- Behind a reverse proxy, pass the browser's `Host` header through (Caddy does; in nginx add
+  `proxy_set_header Host $host;`). The provider settings refuse a write that does not come from the
+  app's own pages, and modern browsers say so themselves (`Sec-Fetch-Site`), so this matters only for
+  old ones.
 
 ## Mac (launchd)
 
-A Mac Mini or any Mac that stays on is a good host. One script installs ARTESH as two system LaunchDaemons that run
+A Mac Mini or any Mac that stays on is a good host. One script installs Home Front as two system LaunchDaemons that run
 as you (not root) and start at boot, with nobody logged in to the desktop:
 
-- `com.artesh.server` runs the server and restarts it within seconds if it stops.
-- `com.artesh.watchdog` checks `/healthz` every 2 minutes. After two failures in a row it restarts a server that is
+- `com.homefront.server` runs the server and restarts it within seconds if it stops.
+- `com.homefront.watchdog` checks `/healthz` every 2 minutes. After two failures in a row it restarts a server that is
   running but stuck, puts back a missing `tailscale serve` route, and trims any log over 10 MB.
 
 ```bash
-cp .env.example .env    # set ARTESH_PASSWORD and OPENAI_API_KEY; HOST=127.0.0.1 behind Tailscale
+cp .env.example .env    # set HOMEFRONT_PASSWORD and OPENAI_API_KEY; HOST=127.0.0.1 behind Tailscale
 bash deploy/install-macos.sh
 ```
 
 The script installs the build tools (Bun if present, else `npm ci`), builds `dist/`, installs and starts both
 daemons, waits for `/healthz` and, when Tailscale is installed, serves the app on your tailnet only
-(`ARTESH_HTTPS_PORT`, default 8443). Run it again after every update. It asks for your password once, for `sudo`.
+(`HOMEFRONT_HTTPS_PORT`, default 8443). Run it again after every update. It asks for your password once, for `sudo`.
 
 Check it: `curl -s http://127.0.0.1:8080/healthz` (says `ok` only when the saved campaign can be read) and
-`tail private/server.log`. Stop it: `sudo launchctl bootout system/com.artesh.server`.
+`tail` the `server.log` in your data folder. Stop it: `sudo launchctl bootout system/com.homefront.server`.
 
 On a Mac with FileVault, a power cut leaves it at the unlock screen until someone types the password; the daemons
 start after that. Set *Prevent automatic sleeping* in System Settings → Energy.
@@ -69,27 +85,27 @@ start after that. Set *Prevent automatic sleeping* in System Settings → Energy
 Create a user and put the code somewhere it can read:
 
 ```bash
-sudo useradd --system --home /opt/artesh --shell /usr/sbin/nologin artesh
-sudo git clone https://github.com/sam-siavoshian/hoi4-irl.git /opt/artesh
-sudo cp /opt/artesh/.env.example /opt/artesh/.env
-sudo nano /opt/artesh/.env                      # set ARTESH_PASSWORD, HOST=127.0.0.1, ...
-sudo chown -R artesh:artesh /opt/artesh
-sudo chmod 600 /opt/artesh/.env
+sudo useradd --system --home /opt/homefront --shell /usr/sbin/nologin homefront
+sudo git clone https://github.com/sam-siavoshian/hoi4-irl.git /opt/homefront
+sudo cp /opt/homefront/.env.example /opt/homefront/.env
+sudo nano /opt/homefront/.env                      # set HOMEFRONT_PASSWORD, HOST=127.0.0.1, ...
+sudo chown -R homefront:homefront /opt/homefront
+sudo chmod 600 /opt/homefront/.env
 ```
 
-`/etc/systemd/system/artesh.service`:
+`/etc/systemd/system/homefront.service`:
 
 ```ini
 [Unit]
-Description=ARTESH
+Description=Home Front
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=artesh
-Group=artesh
-WorkingDirectory=/opt/artesh
-ExecStart=/usr/bin/node /opt/artesh/server.mjs
+User=homefront
+Group=homefront
+WorkingDirectory=/opt/homefront
+ExecStart=/usr/bin/node /opt/homefront/server.mjs
 Restart=always
 RestartSec=3
 
@@ -98,7 +114,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/artesh/private
+ReadWritePaths=/opt/homefront/private
 UMask=0077
 
 [Install]
@@ -106,42 +122,42 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo -u artesh mkdir -p /opt/artesh/private
+sudo -u homefront mkdir -p /opt/homefront/private
 sudo systemctl daemon-reload
-sudo systemctl enable --now artesh
-systemctl status artesh
-journalctl -u artesh -f
+sudo systemctl enable --now homefront
+systemctl status homefront
+journalctl -u homefront -f
 ```
 
-The server reads `/opt/artesh/.env` by itself, so no `EnvironmentFile=` line is needed. Adjust
-`ExecStart` if `which node` gives a different path. If you move the data with `ARTESH_DATA_DIR`, change
+The server reads `/opt/homefront/.env` by itself, so no `EnvironmentFile=` line is needed. Adjust
+`ExecStart` if `which node` gives a different path. If you move the data with `HOMEFRONT_DATA_DIR`, change
 `ReadWritePaths` to match.
 
 ## Docker
 
 ```bash
-cp .env.example .env       # set ARTESH_PASSWORD
+cp .env.example .env       # set HOMEFRONT_PASSWORD
 docker compose up -d
 docker compose logs -f
 ```
 
 The compose file builds a small image (`node:22-alpine`, non-root), passes `.env` to the container,
-keeps the data in a named volume (`artesh-data`, mounted at `/app/private`) and publishes port 8080 on
+keeps the data in a named volume (`homefront-data`, mounted at `/app/private`) and publishes port 8080 on
 the host's loopback interface only. Put HTTPS in front of it as described below, or change the port
 mapping to `"8080:8080"` if you want it reachable on your network directly.
 
 Without compose:
 
 ```bash
-npm run docker             # docker build -t artesh .
-docker run -d --name artesh --restart unless-stopped \
+npm run docker             # docker build -t homefront .
+docker run -d --name homefront --restart unless-stopped \
   --env-file .env -p 127.0.0.1:8080:8080 \
-  -v artesh-data:/app/private artesh
+  -v homefront-data:/app/private homefront
 ```
 
 Notes:
 
-- In a container, leave `HOST` and `ARTESH_DATA_DIR` alone; the image sets them (`0.0.0.0`,
+- In a container, leave `HOST` and `HOMEFRONT_DATA_DIR` alone; the image sets them (`0.0.0.0`,
   `/app/private`).
 - `--env-file` passes values literally. Do not put quotes around them in `.env`.
 - To use a model running on the host (Ollama, LM Studio), point `OPENAI_BASE_URL` at
@@ -179,7 +195,7 @@ If you want a public address, [Caddy](https://caddyserver.com) obtains and renew
 itself. `Caddyfile`:
 
 ```
-artesh.example.com {
+homefront.example.com {
     reverse_proxy 127.0.0.1:8080
 }
 ```
@@ -207,12 +223,12 @@ Do not port-forward the plain HTTP port from your router.
 The app then opens full-screen and works offline. If you change the address later, add it again; the
 installed app is tied to the address it came from.
 
-To file reports from Shortcuts or Siri without opening the app, set `ARTESH_TOKEN` and follow
+To file reports from Shortcuts or Siri without opening the app, set `HOMEFRONT_TOKEN` and follow
 [API.md](API.md#ios-shortcuts-and-siri).
 
 ## Backups
 
-Everything worth keeping is in the data folder (`private/` by default, or `ARTESH_DATA_DIR`):
+Everything worth keeping is in the data folder (`~/.homefront` by default, or `HOMEFRONT_DATA_DIR`):
 
 | File | What it is |
 |---|---|
@@ -227,14 +243,14 @@ because they live in the same folder. Copy the folder somewhere else as well.
 A nightly copy with cron:
 
 ```cron
-15 3 * * *  tar -czf "$HOME/backups/artesh-$(date +\%F).tar.gz" -C /opt/artesh private
+15 3 * * *  tar -czf "$HOME/backups/homefront-$(date +\%F).tar.gz" -C /opt/homefront private
 ```
 
 From Docker:
 
 ```bash
-docker run --rm -v artesh-data:/data -v "$PWD":/out alpine \
-  tar -czf /out/artesh-$(date +%F).tar.gz -C /data .
+docker run --rm -v homefront-data:/data -v "$PWD":/out alpine \
+  tar -czf /out/homefront-$(date +%F).tar.gz -C /data .
 ```
 
 On a Mac, Time Machine covers the folder if the repository is inside a backed-up location.
@@ -253,7 +269,7 @@ log in again on each device only if you leave `sessions.json` behind.
 ```bash
 git pull
 npm install && npm run build   # not needed with Docker: the image builds the interface itself
-# then restart: launchctl unload/load, systemctl restart artesh, or docker compose up -d --build
+# then restart: launchctl unload/load, systemctl restart homefront, or docker compose up -d --build
 ```
 
 There is nothing to migrate and nothing to build. Because the state is replayed from your reports, a new
@@ -264,7 +280,7 @@ The installed app is network-first, so it picks up the new version the next time
 
 ## Troubleshooting
 
-**"Refusing to start without ARTESH_PASSWORD."**
+**"Refusing to start without HOMEFRONT_PASSWORD."**
 Set it in `.env`, or in the environment for Docker. The server will not run unlocked by accident.
 
 **The microphone does nothing on the phone.**

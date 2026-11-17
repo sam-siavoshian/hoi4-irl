@@ -53,7 +53,7 @@ Content-Type: application/json
 { "password": "..." }
 ```
 
-- `200 {"ok": true}` and a `Set-Cookie: artesh_session=...; HttpOnly; SameSite=Lax; Max-Age=31536000`
+- `200 {"ok": true}` and a `Set-Cookie: homefront_session=...; HttpOnly; SameSite=Lax; Max-Age=31536000`
   (plus `Secure` when the request arrived over HTTPS or with `X-Forwarded-Proto: https`).
 - `401 {"error": "Wrong password"}` after a short delay.
 - `429 {"error": "Too many attempts"}` after eight failures from one address within ten minutes.
@@ -77,10 +77,12 @@ What the server can do. The app uses it to decide between the model judge and th
 which dictation method to offer.
 
 ```json
-{ "server": true, "judge": "gpt-6-luna", "transcribe": "gpt-transcribe", "login": true }
+{ "server": true, "judge": "gpt-6-luna", "transcribe": "gpt-transcribe", "login": true, "provider": "api.openai.com", "api": "responses" }
 ```
 
-`judge` and `transcribe` are `null` when no API key is set.
+`judge` and `transcribe` are the model names in force, or `null` when there is none (no key, or the
+offline judge was chosen). `provider` is the host the judge is called at, and `api` how. No key is ever
+in this answer.
 
 ### `GET /api/state`
 
@@ -143,8 +145,8 @@ does the read-judge-append-save cycle for you.
 
 ### `POST /api/llm`
 
-One structured-output call to the configured model. The caller supplies the prompt and a JSON schema;
-the server adds the model and the key.
+One structured-output call to the provider chosen in Settings (or in `.env`). The caller supplies the
+prompt and a JSON schema; the server adds the model and the key, and speaks that provider's API.
 
 ```http
 POST /api/llm
@@ -161,10 +163,12 @@ Content-Type: application/json
 | `name` | string | Optional label for the schema |
 
 - `200 {"result": { ... }, "model": "gpt-6-luna"}`: `result` is the parsed JSON matching your schema.
-- `422` the model refused; `502` empty, truncated or failed; `503` no key; `429` provider rate limit.
+- `422` the model refused; `502` empty, truncated, of the wrong shape, or the provider failed (a
+  rejected key reads "The provider rejected the key."); `503` no model set up; `429` provider rate limit.
 
-Body limit: 200 KB. Output is capped at 2,000 tokens. Requests to the provider are sent with
-`store: false`.
+Body limit: 200 KB. Every answer is checked against the schema's types and required keys on the server,
+whether or not the provider enforced it. Requests to OpenAI and Gemini are sent with `store: false`.
+A provider's error text is summarised and anything key-shaped is cut out before it is passed on.
 
 ### `POST /api/transcribe`
 
@@ -181,6 +185,81 @@ curl -b jar.txt -H 'content-type: audio/mp4' --data-binary @note.m4a \
 Accepted types: `audio/mp4` (m4a, aac), `audio/webm`, `audio/ogg`, `audio/wav`, `audio/mpeg`.
 Body limit: 25 MB.
 
+### `GET /api/ai`
+
+The general staff: which provider judges and which turns speech into text. Session only; the automation
+token does not open it. **A key never appears in this answer**, only whether one exists.
+
+```json
+{
+  "provider": "anthropic", "source": "app", "status": "ready", "model": "claude-haiku-5-5",
+  "transcribe": { "mode": "device", "provider": null, "model": null, "status": "device" },
+  "providers": [
+    { "id": "anthropic", "name": "Anthropic", "keyUrl": "https://console.anthropic.com/settings/keys",
+      "needsKey": true, "judges": true, "baseEditable": false, "local": false,
+      "defaultModel": "claude-haiku-5-5", "defaultStt": null, "model": "claude-haiku-5-5", "base": "",
+      "hasKey": true, "keySource": "app", "last4": "9f8e", "status": "ready" }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `provider` | `openai`, `anthropic`, `gemini`, `groq`, `mistral`, `openrouter`, `ollama`, `lmstudio`, `custom` or `offline` |
+| `source` | `app` (chosen in Settings), `env` (nothing chosen: `.env` is in force) or `none` |
+| `status` | `ready`, `no_key`, `no_address`, `no_model`, `rejected` (the provider refused the key the last time it was tried) or `offline` |
+| `transcribe.mode` | `same` (the judge's provider), `device`, or a provider id |
+| `keySource` | `app` (saved here, `last4` shown), `server` (from `.env`: no `last4`, cannot be removed here) or `null` |
+
+### `PUT /api/ai`
+
+Change any of it. Send only what changes; the whole request is checked before any of it is saved.
+Answers with the same body as `GET /api/ai`.
+
+```http
+PUT /api/ai
+Content-Type: application/json
+
+{ "provider": "anthropic", "keys": { "anthropic": "sk-ant-..." }, "models": { "anthropic": null },
+  "bases": { "ollama": "http://localhost:11434/v1" }, "transcribe": { "mode": "groq" } }
+```
+
+| Field | Notes |
+|---|---|
+| `provider` | A provider id, or `null` to go back to what `.env` says |
+| `keys` | `{ "<provider>": "<key>" }`. 8 to 512 characters, no spaces. Stored in `ai.json` (mode `0600`) in the data folder |
+| `models` | `{ "<provider>": "<model>" }`; `null` for the provider's small default |
+| `bases` | `{ "<provider>": "<address>" }`, for `ollama`, `lmstudio` and `custom` only. Must be `http://` or `https://`, with no user name or password in it; `null` for the default |
+| `transcribe` | `{ "mode": "same" \| "device" \| "<provider>", "models": { "<provider>": "<model>" } }` |
+
+- `400 {"error": "..."}` says what was wrong, without repeating what was sent.
+- `403` the request did not come from the app's own pages (see below).
+
+### `DELETE /api/ai/key/<provider>`
+
+Removes the key saved in the app for that provider and answers with the `GET /api/ai` body. A key that
+comes from `.env` is not touched and stays in force. `404` for an unknown provider.
+
+### `POST /api/ai/test`
+
+One tiny call that proves the key and the model work. `{"what": "judge"}` (the default) asks the model for
+`{"ok": true}`; `{"what": "transcribe"}` sends half a second of silence to the speech model. Always `200`
+with a plain result. Counts against the rate limit.
+
+```json
+{ "ok": true, "model": "claude-haiku-5-5", "ms": 412 }
+{ "ok": false, "reason": "key_rejected", "message": "The provider rejected the key. Check it, or replace it." }
+```
+
+`reason` is one of `key_rejected`, `rate_limited`, `not_found` (the model or the address), `unreachable`,
+`timeout`, `bad_answer`, `provider_down`, `refused` or `off` (nothing is set up).
+
+**Writes must come from the app.** `PUT`, `DELETE` and `POST` under `/api/ai` are refused with `403` when
+the browser says the request came from another site (`Sec-Fetch-Site` other than `same-origin`, or an
+`Origin` that is not this server). The session cookie is `SameSite=Lax` as well, so another site's page
+cannot send it with a write in the first place. A script that holds the session cookie sends neither
+header and is let through.
+
 ### Static files (login required)
 
 `/`, `/index.html`, `/sw.js`, `/css/*.css`, `/js/*.js`, `/data/scenarios.json`, `/data/maps/<id>.json`. Nothing else on disk is
@@ -190,10 +269,10 @@ reachable.
 
 ## Automation API
 
-For iOS Shortcuts, Siri, scripts and cron. Set `ARTESH_TOKEN` (16+ characters) in `.env`, then send
-`Authorization: Bearer $ARTESH_TOKEN`. The token works for `/api/report`, `/api/sitrep` and `/api/journal` only;
+For iOS Shortcuts, Siri, scripts and cron. Set `HOMEFRONT_TOKEN` (16+ characters) in `.env`, then send
+`Authorization: Bearer $HOMEFRONT_TOKEN`. The token works for `/api/report`, `/api/sitrep` and `/api/journal` only;
 everything else needs a logged-in browser session. These endpoints share a per-address rate limit
-(`ARTESH_RATE_LIMIT`, default 60 per minute; `429` with `Retry-After` when exceeded).
+(`HOMEFRONT_RATE_LIMIT`, default 60 per minute; `429` with `Retry-After` when exceeded).
 
 ### `POST /api/report`
 
@@ -204,7 +283,7 @@ Body: `text/plain`, or JSON `{ "text": "...", "when"?: ISO time | ms | "YYYY-MM-
 
 ```bash
 curl -X POST http://localhost:8080/api/report \
-  -H "Authorization: Bearer $ARTESH_TOKEN" -H "Content-Type: text/plain" \
+  -H "Authorization: Bearer $HOMEFRONT_TOKEN" -H "Content-Type: text/plain" \
   --data "Failed the calculus midterm, but hit a PR at the gym."
 ```
 
@@ -233,7 +312,7 @@ Errors: `400` `{ok:false, reason:"empty"|"bad_request"|"bad_front"|"bad_outcome"
 The situation report as `text/plain`, using your front names.
 
 ```bash
-curl -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
+curl -H "Authorization: Bearer $HOMEFRONT_TOKEN" http://localhost:8080/api/sitrep
 ```
 
 ### `GET /api/journal?since=<ISO time>`
@@ -248,14 +327,14 @@ No authentication. Returns `200` with the plain text `ok`.
 
 ## Command line
 
-`bin/artesh.mjs` wraps the automation API. It reads `ARTESH_URL` and `ARTESH_TOKEN` from the environment or from
-`~/.config/artesh/config.json` (`{"url": "...", "token": "..."}`).
+`bin/homefront.mjs` wraps the automation API. It reads `HOMEFRONT_URL` and `HOMEFRONT_TOKEN` from the environment or from
+`~/.config/homefront/config.json` (`{"url": "...", "token": "..."}`).
 
 ```bash
-node bin/artesh.mjs report "Shipped the onboarding flow"
-node bin/artesh.mjs sitrep
-node bin/artesh.mjs journal --since 2026-11-01
-node bin/artesh.mjs --help
+node bin/homefront.mjs report "Shipped the onboarding flow"
+node bin/homefront.mjs sitrep
+node bin/homefront.mjs journal --since 2026-11-01
+node bin/homefront.mjs --help
 ```
 
 Exit codes: `0` done, `1` error, `2` the judge found the report unclear.
@@ -272,5 +351,5 @@ Say "Hey Siri, report to the staff" and it files the report and reads the result
 ## A nightly situation report by cron
 
 ```cron
-0 21 * * *  curl -s -H "Authorization: Bearer $ARTESH_TOKEN" http://localhost:8080/api/sitrep
+0 21 * * *  curl -s -H "Authorization: Bearer $HOMEFRONT_TOKEN" http://localhost:8080/api/sitrep
 ```

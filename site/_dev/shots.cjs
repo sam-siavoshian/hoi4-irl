@@ -3,21 +3,22 @@
 //   node site/_dev/shots.cjs http://localhost:8153/  (in another; needs Playwright with Chromium)
 //   python3 site/_dev/optimize.py                    (palette-quantises the PNGs; needs Pillow)
 // then build again so _site/ picks the new images up.
-// A second argument picks groups: site,docs,hero,countries,cards (default: all of them).
+// A second argument picks groups: site,docs,hero,countries,cards,select (default: all of them).
 //
-//   site/img/  hero.png (the landing page's hero map), shot-*.png and step-map.png (phone, 390×664 @2x),
-//              og.png (1200×630, from og.html), countries.png
+//   site/img/  hero.png (the still the landing page shows without scripts: its own hero map, at the end of its story),
+//              og.png (1200×630, from og.html)
 //   docs/img/  hero.png (desktop, 1440×900 @2x), map/report/front/division/history.png (phone, 390×844 @2x),
-//              countries.png, social-preview.png (1280×640, from social.html)
+//              countries.png, social-preview.png (1280×640, from social.html),
+//              select.png (phone) and select-desktop.png (1440×900 @2x): the first run's country picker, France highlighted
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const base = (process.argv[2] || 'http://localhost:8153/').replace(/\/*$/, '/');
-const only = (process.argv[3] || 'site,docs,hero,countries,cards').split(',');
+const only = (process.argv[3] || 'site,docs,hero,countries,cards,select').split(',');
 const root = path.join(__dirname, '..', '..');
 const SITE = path.join(root, 'site', 'img'), DOCS = path.join(root, 'docs', 'img');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-shots-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-shots-'));
 const scenarios = JSON.parse(fs.readFileSync(path.join(root, 'data', 'scenarios.json'), 'utf8'));
 
 const APPEARANCE = 'dark'; // one appearance for every image, so they sit together; Settings stores it under this key
@@ -44,11 +45,11 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await p.addInitScript(([key, appearance, scenario]) => {
       localStorage.setItem(key, appearance);
       // an empty campaign in this country; ?demo=1 fills it with the demo reports
-      if (!localStorage.getItem('artesh.v1')) localStorage.setItem('artesh.v1', JSON.stringify({ v: 3, scenario, reports: [], labels: {}, notes: {}, off: [], campaigns: {} }));
-      sessionStorage.setItem('artesh.demo-note', '1');
+      if (!localStorage.getItem('homefront.v1')) localStorage.setItem('homefront.v1', JSON.stringify({ v: 3, scenario, reports: [], labels: {}, notes: {}, off: [], campaigns: {} }));
+      sessionStorage.setItem('homefront.demo-note', '1');
     }, [APPEARANCE_KEY, APPEARANCE, scenario]);
     await p.goto(base + 'demo/?demo=1');
-    await p.waitForFunction(() => window.__artesh?.st && window.__artesh.data.reports.length);
+    await p.waitForFunction(() => window.__homefront?.st && window.__homefront.data.reports.length);
     await p.addStyleTag({ content: css });
     await p.evaluate(() => document.fonts.ready);
     await p.waitForTimeout(1200); // the first frame, the map's opening move
@@ -57,7 +58,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     return { ctx, p };
   }
   const settle = p => p.waitForTimeout(1100); // sheets slide and the map flies: wait them out
-  const sheetOpen = p => p.evaluate(() => window.__artesh.ui.sheet != null);
+  const sheetOpen = p => p.evaluate(() => window.__homefront.ui.sheet != null);
   const shut = async p => { for (let i = 0; i < 3 && await sheetOpen(p); i++) { await p.click(`${SHEET} [aria-label=Close]`); await p.waitForTimeout(150); } await p.waitForSelector(SHEET, { state: 'detached' }); };
   const nav = async (p, name) => { await shut(p); await p.click(T(`nav-${name}`)); await p.waitForSelector(SHEET); };
   const front = async (p, id) => { await nav(p, 'fronts'); await p.click(`${T('front')}[data-front=${id}]`); await p.waitForSelector(T('sheet-back')); };
@@ -74,10 +75,10 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await front(p, 'irq');
     await shot('front');
     // the division with the best record, reached the way a person would: its front, then its row
-    const best = await p.evaluate(() => { const d = window.__artesh.live.divisions.filter(d => d.front).sort((a, b) => b.honours.filter(h => h.win).length - a.honours.filter(h => h.win).length || b.honours.length - a.honours.length)[0]; return { front: d.front, name: d.name }; });
+    const best = await p.evaluate(() => { const d = window.__homefront.live.divisions.filter(d => d.front).sort((a, b) => b.honours.filter(h => h.win).length - a.honours.filter(h => h.win).length || b.honours.length - a.honours.length)[0]; return { front: d.front, name: d.name }; });
     await front(p, best.front);
     await p.click(`${T('division')}:has-text(${JSON.stringify(best.name)})`);
-    await p.waitForFunction(() => window.__artesh.ui.sheet === 'division');
+    await p.waitForFunction(() => window.__homefront.ui.sheet === 'division');
     await shot('division');
     await nav(p, 'history');
     await shot('history');
@@ -85,23 +86,17 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
   }
 
   if (only.includes('site')) {
-    await phoneSet(664, SITE, n => 'shot-' + n, async (p, shot) => {
-      // step 3 illustration: the eastern front, cropped
-      await p.evaluate(() => window.__artesh.view.flyToFront('afg'));
-      await shot('step-map', { x: 35, y: 150, width: 320, height: 200 });
-      fs.renameSync(path.join(SITE, 'shot-step-map.png'), path.join(SITE, 'step-map.png'));
-      await p.evaluate(() => window.__artesh.view.home(false));
-    });
     // the still behind the live hero map: the landing page's own embed, at the end of its story
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
     const p = await ctx.newPage();
+    await p.addInitScript(([key, appearance]) => localStorage.setItem(key, appearance), [APPEARANCE_KEY, APPEARANCE]);
     await p.goto(base);
-    await p.waitForSelector('#hero-map.live');
+    await p.waitForSelector('[data-testid=hero-map][data-country]');
     await p.waitForTimeout(1500);
-    const box = await p.locator('#hero-map').boundingBox();
-    const clip = { x: Math.round(box.x), y: Math.round(box.y), width: Math.floor(box.width), height: Math.floor(box.height) }; // whole pixels: 1130×904 at 2x, as index.html declares
+    const box = await p.locator('[data-testid=hero-map]').boundingBox();
+    const clip = { x: Math.round(box.x), y: Math.round(box.y), width: Math.floor(box.width), height: Math.floor(box.height) }; // whole pixels; Landing.jsx declares the size on its <img>
     await p.screenshot({ path: path.join(SITE, 'hero.png'), clip });
-    wrote(path.join(SITE, 'hero.png'), clip.width * 2 + 'x' + clip.height * 2);
+    wrote(path.join(SITE, 'hero.png'), clip.width + 'x' + clip.height);
     await ctx.close();
   }
 
@@ -121,7 +116,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     // one phone map per country, then a 4×2 sheet of them
     for (const s of scenarios) {
       const { ctx, p } = await app({ width: 390, height: 664, scenario: s.id, css: QUIET + NO_ALERT });
-      const got = await p.evaluate(() => window.__artesh.map.id);
+      const got = await p.evaluate(() => window.__homefront.map.id);
       if (got !== s.id) throw new Error(`wanted ${s.id}, the app loaded ${got}`);
       await settle(p);
       await p.screenshot({ path: path.join(tmp, s.id + '.png') });
@@ -141,9 +136,28 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await p.goto('file://' + path.join(tmp, 'countries.html'));
     await p.waitForFunction(() => [...document.images].every(i => i.complete && i.naturalWidth));
     await p.screenshot({ path: path.join(DOCS, 'countries.png'), fullPage: true });
-    fs.copyFileSync(path.join(DOCS, 'countries.png'), path.join(SITE, 'countries.png'));
-    wrote(path.join(DOCS, 'countries.png')); wrote(path.join(SITE, 'countries.png'));
+    wrote(path.join(DOCS, 'countries.png'));
     await ctx.close();
+  }
+
+  if (only.includes('select')) {
+    // the first thing a first run shows: the country picker, with France highlighted and its map behind
+    for (const [file, width, height, phone] of [['select.png', 390, 844, true], ['select-desktop.png', 1440, 900, false]]) {
+      const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, ...(phone ? { isMobile: true, hasTouch: true, userAgent: PHONE_UA } : {}) });
+      const p = await ctx.newPage();
+      p.on('pageerror', e => console.log('PAGE ERROR', e.message));
+      await p.addInitScript(([key, appearance]) => localStorage.setItem(key, appearance), [APPEARANCE_KEY, APPEARANCE]);
+      await p.goto(base + 'demo/'); // no ?demo=1: nothing has been chosen yet
+      await p.waitForSelector(T('picker'));
+      await p.addStyleTag({ content: QUIET });
+      await p.click(`${T('country')}[data-id=france]`);
+      await p.waitForFunction(() => window.__homefront.view.map.id === 'france' && !window.__homefront.ui.picker.busy);
+      await p.evaluate(() => document.fonts.ready);
+      await settle(p);
+      await p.screenshot({ path: path.join(DOCS, file) });
+      wrote(path.join(DOCS, file));
+      await ctx.close();
+    }
   }
 
   if (only.includes('cards')) {
@@ -157,7 +171,7 @@ const BARE = 'body :not(#mapwrap):not(#mapwrap *):not(:has(#mapwrap)) { visibili
     await ctx.close();
     // social-preview.png for the repository: the bare map at exactly the card's size, then social.html over it
     const bare = await app({ width: 1280, height: 640, scale: 1, phone: false, css: QUIET + BARE });
-    await bare.p.evaluate(() => { const v = window.__artesh.view; v.home(false); });
+    await bare.p.evaluate(() => { const v = window.__homefront.view; v.home(false); });
     await settle(bare.p);
     await bare.p.screenshot({ path: path.join(tmp, 'social-map.png') });
     await bare.ctx.close();

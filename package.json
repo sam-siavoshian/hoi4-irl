@@ -1,9 +1,9 @@
 {
-  "name": "artesh",
+  "name": "homefront",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ARTESH: a self-hosted life tracker and journal drawn as a 1936 grand-strategy war map. Say what happened today, an AI general staff judges it, and the front lines of your life move.",
+  "description": "Home Front: a productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.",
   "license": "MIT",
   "homepage": "https://sam-siavoshian.github.io/hoi4-irl/",
   "repository": {
@@ -14,29 +14,49 @@
     "url": "https://github.com/sam-siavoshian/hoi4-irl/issues"
   },
   "keywords": [
-    "life-tracker",
-    "habit-tracker",
-    "journal",
-    "diary",
     "productivity",
+    "productivity-app",
+    "habit-tracker",
+    "life-tracker",
+    "daily-journal",
+    "journal",
+    "journaling",
+    "diary",
+    "personal-tracker",
+    "goal-tracker",
     "gamification",
+    "gamified-productivity",
     "quantified-self",
+    "personal-dashboard",
     "self-hosted",
-    "pwa",
-    "grand-strategy",
-    "strategy-map",
-    "hoi4",
-    "llm",
-    "openai",
-    "ollama",
     "local-first",
+    "privacy",
+    "open-source",
+    "pwa",
+    "offline-first",
     "voice-journal",
+    "speech-to-text",
+    "ai",
+    "llm",
+    "ai-journal",
+    "openai",
+    "anthropic",
+    "gemini",
+    "ollama",
+    "local-llm",
+    "grand-strategy",
+    "strategy-game",
+    "war-map",
+    "alternate-history",
+    "1936",
+    "hoi4",
+    "map",
     "canvas",
     "react",
     "nodejs"
   ],
   "bin": {
-    "artesh": "bin/artesh.mjs"
+    "homefront": "bin/homefront.mjs"
   },
   "scripts": {
     "dev": "vite",
@@ -45,14 +65,15 @@
     "start": "node server.mjs",
     "preserve": "node tools/ensure-build.mjs",
     "serve": "node tools/serve.mjs",
-    "check:design": "sam-design-check src",
+    "check:design": "sam-design-check src site",
+    "dev:site": "vite --config vite.site.config.js",
     "build:map": "node tools/build-map.mjs",
     "build:site": "node tools/build-site.mjs",
     "pretest": "node tools/ensure-build.mjs",
     "test": "node --test tests/engine.test.mjs tests/classify.test.mjs tests/voice.test.mjs tests/server.test.mjs tests/ask.test.mjs tests/scenario.test.mjs tests/countries.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "docker": "docker build -t artesh .",
-    "test:all": "npm test && sam-design-check src && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
+    "docker": "docker build -t homefront .",
+    "test:all": "npm test && sam-design-check src site && node tests/e2e.mjs && node tests/fx.e2e.mjs && node tests/share.e2e.mjs"
   },
   "devDependencies": {
     "@iconify-json/game-icons": "^1.2.4",
@@ -65,6 +86,7 @@
     "polygon-clipping": "^0.15.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "simple-icons": "^16.38.0",
     "tailwindcss": "4.3.3",
     "topojson-client": "^3.1.0",
     "topojson-simplify": "^3.0.3",
@@ -74,5 +96,5 @@
   "engines": {
     "node": ">=20"
   },
-  "author": "ARTESH contributors"
+  "author": "Home Front contributors"
 }

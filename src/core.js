@@ -16,12 +16,13 @@ import * as store from '../js/store.js';
 import { UNIT_PATHS } from '../js/icons.js';
 
 // ---------- state ----------
-// `app` is one mutable object, as the old interface kept it; window.__artesh points into it for the tests.
+// `app` is one mutable object, as the old interface kept it; window.__homefront points into it for the tests.
 export const app = {
   ready: false, error: null, demo: false,
   map: null, view: null, data: null, st: null, live: null, scenarios: [],
   cfg: { server: false, judge: null, transcribe: null }, // what the private server offers
-  ui: { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false },
+  ai: null, // the general staff as the server describes it (GET /api/ai): the provider in use and each provider's state, never a key
+  ui: { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, picker: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false, staff: { busy: null, test: null, voiceTest: null, error: '' } },
 };
 const ui = app.ui;
 let version = 0; const listeners = new Set();
@@ -41,7 +42,7 @@ export const fmtDate = (ts, o = { weekday: 'short', day: 'numeric', month: 'shor
 export const altDate = (ts, o = { day: 'numeric', month: 'long', year: 'numeric' }) => { const cal = F().calendar; if (!cal) return ''; try { const f = new Intl.DateTimeFormat(`en-u-ca-${cal}`, o); return f.resolvedOptions().calendar === cal ? f.format(ts).replace(/\s*(AP|AH|AM|BE|ERA\d)$/, '') : ''; } catch { return ''; } };
 export const dayKey = ts => Math.floor((ts - new Date(ts).getTimezoneOffset() * 60000) / DAY);
 export const isWide = () => window.matchMedia('(min-width: 768px)').matches;
-export const firstRun = () => !app.data.onboarded; // the country picker opens the welcome; later it is a page of Settings
+export const firstRun = () => !app.data.onboarded; // the country picker opens the welcome; later it is reached from Settings
 export const MODES = [['political', 'Map'], ['life', 'Life areas'], ['infra', 'Infrastructure'], ['supply', 'Supply'], ['air', 'Air'], ['terrain', 'Terrain']];
 export const CARDS = [['bulletin', 'Today’s bulletin'], ['frontpage', 'Front page'], ['recap', 'Week in review'], ['rank', 'Your rank']];
 
@@ -88,13 +89,14 @@ export async function boot(base, over, wrap) {
   document.addEventListener('pointerdown', () => fx.unlock(), { passive: true });
   app.ready = true;
   refresh();
-  if (firstRun()) openSheet(app.scenarios.length > 1 ? 'country' : 'welcome'); else greet();
-  if (app.demo) { try { ui.demoNote = !sessionStorage.getItem('artesh.demo-note'); } catch { ui.demoNote = true; } change(); }
+  loadAI();
+  if (firstRun()) { if (app.scenarios.length > 1) openPicker(); else openSheet('welcome'); } else greet();
+  if (app.demo) { try { ui.demoNote = !sessionStorage.getItem('homefront.demo-note'); } catch { ui.demoNote = true; } change(); }
   if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.__artesh = { save: persist, get cfg() { return app.cfg; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry };
+  window.__homefront = { save: persist, get cfg() { return app.cfg; }, get ai() { return app.ai; }, get st() { return app.st; }, get live() { return app.live; }, get data() { return app.data; }, get map() { return app.map; }, get scenarios() { return app.scenarios; }, view, commitReports, refresh, ui, chooseCountry, browse };
 }
 let fxRoot = null;
-export function closeDemoNote() { ui.demoNote = false; try { sessionStorage.setItem('artesh.demo-note', '1'); } catch { /* fine */ } change(); }
+export function closeDemoNote() { ui.demoNote = false; try { sessionStorage.setItem('homefront.demo-note', '1'); } catch { /* fine */ } change(); }
 
 // ---------- the country ----------
 // the map on screen follows data.scenario: called after anything that may have changed it
@@ -102,10 +104,12 @@ async function followScenario() {
   const { data, view } = app;
   if (app.map.id === data.scenario) return;
   let next; try { next = await loadMap(data.scenario); } catch { store.switchScenario(data, app.map.id); return; }
-  app.map = next; view.setMap(next); for (const k in cardCache) delete cardCache[k];
+  app.map = next; for (const k in cardCache) delete cardCache[k];
   ui.assess = null; ui.asOf = null; clearInterval(ui.playing); ui.playing = null; ui.ask = { q: '', busy: false, res: null }; ui.preset = null; lastCommit = [];
-  view.setMode(view.mode);
+  if (!ui.picker) showMap(next); // while the picker is open the map is its stage: closePicker() puts the country back
 }
+// the view draws this map (a no-op when it already does); the caller follows with refresh()
+function showMap(map) { const { view } = app; if (view.map === map) return; view.setMap(map); view.setMode(view.mode); }
 // Play another country. The campaign of the one being left is kept and comes back when it is chosen again.
 export async function chooseCountry(id) {
   if (id !== app.data.scenario) {
@@ -115,8 +119,58 @@ export async function chooseCountry(id) {
   }
   return true;
 }
-export function pickCountry(id) {
-  chooseCountry(id).then(ok => { if (!ok) return; if (firstRun()) openSheet('welcome'); else { back(); app.view.home(false); toast(`Now playing ${F().name}.`); } });
+
+// ---------- the country picker ----------
+// A full screen over the map: the highlighted country is drawn behind it, and nothing is chosen until "Play as".
+// ui.picker = { id: the highlighted country, busy: its map is loading or the choice is being made }.
+const briefs = new Map();
+// A country's real numbers for the briefing: its scenario on its first day, before any report.
+function brief(map) {
+  if (!briefs.has(map.id)) {
+    const st = simulate(map, [], Date.now());
+    briefs.set(map.id, { divisions: st.divisions.length, ships: st.fleets.reduce((n, fl) => n + fl.ships.length, 0), wings: st.wings.length, fronts: map.fronts.map(f => ({ id: f.id, name: f.name, enemy: f.enemyName, naval: !!f.naval, label: f.defaultLabel })) });
+  }
+  return briefs.get(map.id);
+}
+export const briefOf = id => briefs.get(id) || null;
+const campaignOf = id => (id === app.data.scenario ? app.data : app.data.campaigns?.[id]) || null;
+export const hasCampaign = id => !!campaignOf(id)?.reports?.length;
+// Put a country on the map behind the picker: as its campaign left it, or on its first day with the fronts on the borders.
+function stage(map) {
+  const { view } = app; const c = campaignOf(map.id); const off = c?.off || [];
+  showMap(map);
+  view.off = off; view.pins = []; view.select(null);
+  view.setState(simulate(map, c?.reports || [], Date.now(), { off }), Object.fromEntries(map.fronts.map(f => [f.id, c?.labels?.[f.id] || f.defaultLabel])));
+}
+export function openPicker() {
+  if (ui.picker) return;
+  if (ui.dict) stopDictation();
+  if (ui.asOf) { clearInterval(ui.playing); ui.playing = null; ui.asOf = null; }
+  ui.picker = { id: app.map.id, busy: false }; brief(app.map); app.view.select(null);
+  refresh();
+}
+let browsing = 0;
+// Highlight another country: its map loads (once) and takes the stage. The campaign being played is not touched.
+export async function browse(id) {
+  const p = ui.picker; if (!p || id === p.id) return;
+  const shown = app.view.map.id; const turn = ++browsing;
+  p.id = id; p.busy = true; change();
+  let map; try { map = await loadMap(id); } catch (e) { if (ui.picker === p && turn === browsing) { p.id = shown; p.busy = false; toast(e.message); change(); } return; }
+  if (ui.picker !== p || turn !== browsing) return;
+  brief(map); stage(map); p.busy = false; change();
+}
+// Leave the picker with the country being played back on the map, exactly as it was.
+function closePicker() { ui.picker = null; browsing++; showMap(app.map); refresh(); }
+export function cancelPicker() { if (ui.picker && !firstRun()) closePicker(); }
+// "Play as": the one commitment. On a first run the welcome follows; from Settings the panel is still there underneath.
+export async function playPicked() {
+  const p = ui.picker; if (!p || p.busy) return;
+  const was = app.data.scenario; p.busy = true; change();
+  const ok = await chooseCountry(p.id);
+  if (ui.picker !== p) return;
+  if (!ok) { p.busy = false; change(); return; }
+  closePicker();
+  if (firstRun()) openSheet('welcome'); else if (p.id !== was) toast(`Now playing ${F().name}.`);
 }
 
 export function persist() {
@@ -133,6 +187,7 @@ export function refresh() {
   const { map, data, view } = app;
   app.live = simulate(map, data.reports, Date.now(), { off: data.off });
   app.st = ui.asOf ? simulate(map, data.reports.filter(r => r.ts <= ui.asOf), ui.asOf, { off: data.off }) : app.live;
+  if (ui.picker && view.map !== map) { change(); return; } // the picker is showing another country
   view.off = data.off;
   view.pins = activeFronts().map(f => objective(map, app.st, f.id)).filter(o => o.prov != null).map(o => ({ prov: o.prov }));
   view.setState(app.st, labels());
@@ -188,16 +243,16 @@ const newReport = () => ({ text: '', busy: false, note: '', pick: false, audio: 
 export function openSheet(name, arg = null, push = true) {
   if (ui.dict) stopDictation();
   if (name === 'report' && ui.asOf) exitReplay();
-  if (ROOTS.includes(name) || (fromMap.has(name) && !ui.sheet) || (name === 'country' && firstRun())) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
+  if (ROOTS.includes(name) || (fromMap.has(name) && !ui.sheet)) ui.stack = []; else if (push && ui.sheet && ui.sheet !== name) ui.stack.push([ui.sheet, ui.arg]);
   ui.sheet = name; ui.arg = arg;
   if (name === 'report' && !ui.report) ui.report = newReport();
   if (name === 'overview') autoAssess();
+  if (name === 'settings' || name === 'staff') { ui.staff = { busy: null, test: null, voiceTest: null, error: '' }; loadAI(); }
   change();
 }
 export function closeSheet() {
   if (ui.dict) stopDictation();
-  if (ui.sheet === 'country' && firstRun()) { openSheet('welcome'); return; } // the picker is only the first step
-  if (ui.sheet === 'welcome') { app.data.onboarded = true; persist(); }
+  if (ui.sheet === 'welcome' || ui.stack.some(s => s[0] === 'welcome')) { app.data.onboarded = true; persist(); } // the welcome, or a step opened from it
   ui.sheet = null; ui.stack = []; app.view.select(null);
   change();
 }
@@ -206,7 +261,7 @@ export function back() { const p = ui.stack.pop(); if (p) openSheet(p[0], p[1], 
 export function toggleSheet(name) { if (ui.sheet === name) closeSheet(); else openSheet(name); }
 
 function onMapTap(d) {
-  if (['report', 'welcome', 'country', 'settings', 'edit'].includes(ui.sheet)) return;
+  if (ui.picker || ['report', 'welcome', 'settings', 'staff', 'edit'].includes(ui.sheet)) return;
   if (d.kind === 'province') { app.view.select(d.id); openSheet('province', d.id); }
   else if (d.kind === 'front') openSheet('front', d.id);
   else if (d.kind === 'division') openSheet('division', d.id);
@@ -379,7 +434,50 @@ const cardCache = {};
 export function card(kind) { try { return (cardCache[kind] = cardData(kind)); } catch (err) { console.error(err); return null; } }
 export function shareCard(kind) {
   const c = cardCache[kind]; if (!c) return;
-  shareCanvas(c, { filename: `artesh-${kind}.png`, text: sitrep(app.map, app.live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved.', 3200, null, 'The report is copied too.'); });
+  shareCanvas(c, { filename: `homefront-${kind}.png`, text: sitrep(app.map, app.live, labels()) }).then(r => { if (r === 'downloaded') toast('Image saved.', 3200, null, 'The report is copied too.'); });
+}
+
+// ---------- the general staff: which provider judges, and which writes down speech ----------
+// The keys are the owner's own. They go to the private server and stay there: what comes back (app.ai) says only
+// whether a provider has one, and its last 4 characters. A static demo has no server, so there is nothing to set.
+const staffSay = async (path, init) => {
+  const r = await fetch(path, init); let j = null; try { j = await r.json(); } catch { /* not json */ }
+  if (!r.ok) throw new Error(r.status === 401 ? 'You’re signed out. Reload and sign in again.' : j?.error || 'The server couldn’t save that. Try again.');
+  return j;
+};
+const asJson = (method, body) => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const staffIdle = () => ({ busy: null, test: null, voiceTest: null, error: '' });
+// the judge and the voice engine follow what the server now offers
+async function followConfig() { try { const r = await fetch('api/config'); if (r.ok) app.cfg = await r.json(); } catch { /* offline: keep what was known */ } ui.assess = null; }
+export async function loadAI() {
+  if (!app.cfg.server) return;
+  try { app.ai = await staffSay('api/ai'); } catch { /* the screen keeps waiting, and asks again the next time it opens */ }
+  change();
+}
+export const staffOf = id => app.ai?.providers.find(p => p.id === id) || null;
+// One change: the provider, a model, an address or a key. → true when the server took it; what went wrong is in ui.staff.error.
+export async function saveStaff(patch, busy = 'save') {
+  const st = ui.staff = { ...staffIdle(), voiceTest: patch.transcribe || patch.keys || patch.provider ? null : ui.staff.voiceTest, busy }; change();
+  try { app.ai = await staffSay('api/ai', asJson('PUT', patch)); await followConfig(); return true; }
+  catch (e) { st.error = e.message; return false; }
+  finally { st.busy = null; change(); }
+}
+export const chooseProvider = id => saveStaff({ provider: id }, 'choose');
+export async function dropStaffKey(id) {
+  const p = staffOf(id); if (!p) return;
+  if (!(await confirm(`Remove the ${p.name} key?`, 'The key is deleted from your server. Until you add another, reports are judged offline.', 'Remove'))) return;
+  const st = ui.staff = { ...staffIdle(), busy: 'drop' }; change();
+  try { app.ai = await staffSay(`api/ai/key/${id}`, { method: 'DELETE' }); await followConfig(); toast('Key removed.'); }
+  catch (e) { st.error = e.message; }
+  finally { st.busy = null; change(); }
+}
+// One small call that proves the key and the model work. what: 'judge' or 'transcribe'.
+export async function testStaff(what = 'judge') {
+  const st = ui.staff, slot = what === 'transcribe' ? 'voiceTest' : 'test'; st.busy = slot; st[slot] = null; st.error = ''; change();
+  try { st[slot] = await staffSay('api/ai/test', asJson('POST', { what })); }
+  catch (e) { st[slot] = { ok: false, message: e.message }; }
+  try { app.ai = await staffSay('api/ai'); } catch { /* keep the last answer */ } // a rejected key shows in the status at once
+  st.busy = null; change();
 }
 
 // ---------- settings ----------
@@ -398,7 +496,7 @@ export function toggleFx(k) {
 }
 export function exportBackup() {
   const blob = new Blob([store.exportData(app.data)], { type: 'application/json' }); const url = URL.createObjectURL(blob);
-  const el = Object.assign(document.createElement('a'), { href: url, download: `artesh-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  const el = Object.assign(document.createElement('a'), { href: url, download: `homefront-${new Date().toISOString().slice(0, 10)}.json` }); document.body.append(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 export function importBackup(file) {
   if (!file) return;

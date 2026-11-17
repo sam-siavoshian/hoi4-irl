@@ -1,6 +1,6 @@
 # Code of conduct
 
-ARTESH is a small project. People show up here in their spare time, and some of them are showing a
+Home Front is a small project. People show up here in their spare time, and some of them are showing a
 stranger their code for the first time. These are the house rules.
 
 ## What we expect
@@ -24,7 +24,7 @@ stranger their code for the first time. These are the house rules.
 
 ## About the theme
 
-ARTESH uses a 1936 war map as a metaphor for one person's own life. It is not a place for real-world
+Home Front uses a 1936 war map as a metaphor for one person's own life. It is not a place for real-world
 political or nationalist arguments, for glorifying actual violence, or for hostility towards any
 country or people that happens to appear on the map. Keep discussion about the software.
 

@@ -54,7 +54,7 @@ export function createStore(dir) {
   const at = f => path.join(dir, f);
   const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(at(f), 'utf8')); } catch { return d; } };
   // temp file, flushed to disk, then renamed: a crash or power cut leaves the old file or the new one, never half of one
-  const writeJSON = (f, v) => { const p = at(f), fd = fs.openSync(p + '.tmp', 'w', 0o600); try { fs.writeSync(fd, JSON.stringify(v)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } fs.renameSync(p + '.tmp', p); };
+  const writeJSON = (f, v) => { const p = at(f), fd = fs.openSync(p + '.tmp', 'w', 0o600); try { fs.fchmodSync(fd, 0o600); fs.writeSync(fd, JSON.stringify(v)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } fs.renameSync(p + '.tmp', p); };
   // A missing state.json is a new campaign. An unreadable one is never treated as empty: the next save (or a 409 handing
   // that "empty" copy to a device) would wipe the campaign. It throws instead, which the server answers with a 500.
   const read = () => {

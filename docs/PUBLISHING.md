@@ -5,15 +5,22 @@ in the order that avoids a half-finished public page.
 
 ## Before making it public
 
+Already done in the repository: no data, keys or personal details in any file or commit; data is stored
+outside the source folder; CI fails if a data or key file is committed; licence, notices, code of conduct,
+security policy, contributing guide, issue templates and Dependabot are in place.
+
 1. **Decide the design system's licence.** `vendor/design-system/` is a copy of a private package
    (`"private": true`, no licence file of its own). Once this repository is public, so is that source.
    Either add a licence file to that folder (MIT, to match the rest), or say in its README that it is
-   included for building ARTESH only and is not licensed for reuse.
-2. **Merge the working branch into `main`.** GitHub shows the default branch's README, and the Pages
+   included for building Home Front only and is not licensed for reuse.
+2. **Merge the working branch into `main` as one squashed commit.** The branch's history carries links to
+   the private sessions it was built in (they need your login to open, but there is no reason to publish
+   them). A squash merge puts a single clean commit on `main`; delete the branch afterwards.
+   GitHub shows the default branch's README, and the Pages
    workflow deploys from `main`.
 3. **Check the first CI run is green** (Actions tab). The workflows have not run yet.
 4. **Consider the name.** The repository is called `hoi4-irl`, which contains another company's
-   trademark. `artesh` is safer and matches the product. GitHub redirects the old URL after a rename;
+   trademark. `homefront` is safer and matches the product. GitHub redirects the old URL after a rename;
    then replace `sam-siavoshian/hoi4-irl` across the repository (README, `package.json`, `site/`,
    issue-template links).
 
@@ -21,18 +28,23 @@ in the order that avoids a half-finished public page.
 
 **Description**
 
-> Your life as a 1936 grand-strategy war map. A self-hosted life tracker and journal: say what happened today, an AI general staff judges it, and the fronts move. Works with OpenAI, Ollama or fully offline.
+> A productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.
 
 **Website**: `https://sam-siavoshian.github.io/hoi4-irl/`
 
-**Topics** (GitHub allows 20; these are the ones people browse and search):
+**Topics** (GitHub allows 20; paste these into the About panel's "Topics" field, one per space):
 
 ```
-self-hosted  productivity  habit-tracker  life-tracker  journal  journaling
-gamification  quantified-self  personal-dashboard  pwa  local-first
-grand-strategy  hoi4  alternate-history  llm  openai  ollama  ai
-react  nodejs
+productivity habit-tracker life-tracker journal journaling self-hosted
+gamification quantified-self personal-dashboard local-first pwa ai llm
+ollama openai grand-strategy hoi4 alternate-history react nodejs
 ```
+
+Why these: the first ten put it in the productivity and self-hosted topic pages, which are where people
+browse for tools like this; `ai`, `llm`, `ollama` and `openai` reach people looking for AI journaling
+and local-model projects; `grand-strategy`, `hoi4` and `alternate-history` reach the strategy-game
+audience most likely to share it. Topics cannot be set from a commit: they live in the repository
+settings. `package.json` carries a longer keyword list for npm and code search.
 
 The first six put it in the self-hosted and productivity listings (and make it eligible for
 awesome-selfhosted, under "Personal Dashboards" or "Note-taking and Editors"). `grand-strategy`, `hoi4`
@@ -57,7 +69,7 @@ without.
 
 ## Where to post it
 
-- Hacker News, as "Show HN: ARTESH – my life as a 1936 war map (self-hosted)". Link the repository; put
+- Hacker News, as "Show HN: Home Front – my life as a 1936 war map (self-hosted)". Link the repository; put
   the demo link in the first comment.
 - r/selfhosted (flair: Release), r/hoi4 and r/paradoxplaza (lead with the map image; say plainly that it
   is a tracker and not a mod), r/productivity, r/QuantifiedSelf.

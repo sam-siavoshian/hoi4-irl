@@ -1,8 +1,6 @@
-// The LLM provider: one structured-output call (the judge) and one transcription call.
-// Speaks the OpenAI Responses API or any OpenAI-compatible Chat Completions API
-// (Ollama, LM Studio, OpenRouter, Groq, ...). Nothing here logs prompts, answers or keys.
+// What .env says about the model (the fallback when nothing is chosen in the app), and the two helpers every
+// provider's answer goes through. The providers themselves, and the calls, are in ./providers.mjs.
 
-const fail = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
 const clean = u => String(u || '').trim().replace(/\/+$/, '');
 const hostOf = u => { try { return new URL(u).hostname; } catch { return null; } };
 // transcription hints from the app (life areas, names it has heard before), cleaned so a hint can never break the request
@@ -54,93 +52,4 @@ export function matches(schema, v) {
     for (const [k, sub] of Object.entries(schema.properties || {})) if (k in v && !matches(sub, v[k])) return false;
   }
   return true;
-}
-
-export function createLLM(cfg, fetchImpl = (...a) => fetch(...a)) {
-  async function call(base, key, pathname, init) {
-    const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), cfg.timeout);
-    try {
-      let r, text;
-      try {
-        r = await fetchImpl(base + pathname, { ...init, signal: ac.signal, headers: { ...(key ? { authorization: `Bearer ${key}` } : {}), ...(init.headers || {}) } });
-        text = await r.text();
-      } catch {
-        if (ac.signal.aborted) throw fail(504, 'The model took too long to answer.');
-        throw fail(502, 'Could not reach the model provider.');
-      }
-      let json = null; try { json = JSON.parse(text); } catch { /* not json */ }
-      if (!r.ok) {
-        const msg = typeof json?.error === 'string' ? json.error : json?.error?.message;
-        throw fail(r.status === 429 ? 429 : 502, String(msg || `Provider error ${r.status}`).slice(0, 300), { upstream: r.status });
-      }
-      if (!json) throw fail(502, 'The provider did not answer with JSON.');
-      return json;
-    } finally { clearTimeout(timer); }
-  }
-  const post = (pathname, body) => call(cfg.base, cfg.key, pathname, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-
-  async function viaResponses({ name, system, user, schema }) {
-    const out = await post('/responses', {
-      model: cfg.model, max_output_tokens: 16000, store: false, // room for every event's details from a long report; 2000 cut them off
-      input: [{ role: 'system', content: system }, { role: 'user', content: user }],
-      text: { format: { type: 'json_schema', name, strict: true, schema } },
-    });
-    if (out.status === 'incomplete') throw fail(502, 'The report was too long to judge in one go.');
-    const parts = (out.output || []).filter(o => o.type === 'message').flatMap(o => o.content || []);
-    if (parts.find(c => c.type === 'refusal')) throw fail(422, 'The model declined this report.');
-    const text = parts.find(c => c.type === 'output_text')?.text; if (!text) throw fail(502, 'Empty response from the model.');
-    const result = parseLoose(text); if (result === undefined) throw fail(502, 'The model did not return valid JSON.');
-    return result;
-  }
-
-  async function viaChat({ name, system, user, schema }) {
-    const body = (sys, response_format) => ({ model: cfg.model, messages: [{ role: 'system', content: sys }, { role: 'user', content: user }], response_format });
-    let out;
-    try { out = await post('/chat/completions', body(system, { type: 'json_schema', json_schema: { name, strict: true, schema } })); }
-    catch (e) {
-      // servers without structured outputs reject the schema: ask for plain JSON once and check it here
-      if (e.upstream !== 400 && e.upstream !== 422) throw e;
-      out = await post('/chat/completions', body(`${system}\n\nAnswer with one JSON object only: no prose, no code fence. It must validate against this JSON Schema:\n${JSON.stringify(schema)}`, { type: 'json_object' }));
-    }
-    const choice = out.choices?.[0], msg = choice?.message;
-    if (msg?.refusal) throw fail(422, 'The model declined this report.');
-    if (choice?.finish_reason === 'length') throw fail(502, 'The report was too long to judge in one go.');
-    const text = Array.isArray(msg?.content) ? msg.content.map(c => c?.text || '').join('') : msg?.content;
-    if (!text || typeof text !== 'string') throw fail(502, 'Empty response from the model.');
-    const result = parseLoose(text);
-    if (result === undefined || !matches(schema, result)) throw fail(502, 'The model did not return JSON in the expected shape.');
-    return result;
-  }
-
-  return {
-    // → the parsed object the schema describes; throws an Error with .status (422 declined, 429, 502, 503, 504)
-    async judge({ name, system, user, schema }) {
-      if (!cfg.judge) throw fail(503, 'No LLM provider is configured on the server.');
-      if (typeof system !== 'string' || typeof user !== 'string' || !schema || typeof schema !== 'object') throw fail(400, 'Bad request');
-      const req = { name: String(name || 'result').replace(/\W/g, '_').slice(0, 40), system, user, schema };
-      return cfg.api === 'chat' ? viaChat(req) : viaResponses(req);
-    },
-    // → { text, seconds (of audio, when the provider says), plain (true when the hints had to be dropped) }
-    // hints: { prompt, keywords[] }. The first try adds chunking_strategy=auto (voice-activity chunks, so a long pause does not
-    // swallow what follows), the prompt and the keywords. A provider that rejects any of that with a 400 (a non-OpenAI server,
-    // a hint it dislikes) gets one plain retry, so hints can never cost a transcription.
-    async transcribe(audio, type, hints = {}) {
-      if (!cfg.transcribe) throw fail(503, 'Transcription is not configured on the server.');
-      const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
-      const form = rich => {
-        const fd = new FormData(); fd.append('model', cfg.sttModel);
-        if (rich) {
-          fd.append('chunking_strategy', 'auto');
-          const prompt = cleanHint(hints.prompt, 400); if (prompt) fd.append('prompt', prompt);
-          for (const k of [...new Set((Array.isArray(hints.keywords) ? hints.keywords : []).map(k => cleanHint(k, 40)).filter(Boolean))].slice(0, 50)) fd.append('keywords[]', k);
-        }
-        fd.append('file', new Blob([audio], { type }), `report.${ext}`); return fd;
-      };
-      const send = rich => call(cfg.sttBase, cfg.sttKey, '/audio/transcriptions', { method: 'POST', body: form(rich) });
-      let out, plain = false;
-      try { out = await send(true); } catch (e) { if (e.upstream !== 400) throw e; plain = true; out = await send(false); }
-      const seconds = Number(out.usage?.seconds ?? out.duration);
-      return { text: String(out.text || '').trim(), seconds: Number.isFinite(seconds) ? seconds : null, plain };
-    },
-  };
 }

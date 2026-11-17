@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Keeps the ARTESH server running: starts at boot (no desktop login needed), restarts it whenever it exits.
-     Runs as your user, not root. Template: deploy/install-macos.sh fills in __ROOT__, __NODE__, __USER__, __HOME__. -->
+<!-- Keeps the Home Front server running: starts at boot (no desktop login needed), restarts it whenever it exits.
+     Runs as your user, not root. Template: deploy/install-macos.sh fills in __ROOT__, __DATA__, __NODE__, __USER__, __HOME__. -->
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.artesh.server</string>
+  <key>Label</key><string>com.homefront.server</string>
   <key>ProgramArguments</key>
   <array><string>__NODE__</string><string>__ROOT__/server.mjs</string></array>
   <key>WorkingDirectory</key><string>__ROOT__</string>
@@ -18,7 +18,7 @@
   <key>ExitTimeOut</key><integer>10</integer>
   <key>ProcessType</key><string>Background</string>
   <key>SoftResourceLimits</key><dict><key>NumberOfFiles</key><integer>4096</integer></dict>
-  <key>StandardOutPath</key><string>__ROOT__/private/server.log</string>
-  <key>StandardErrorPath</key><string>__ROOT__/private/server.log</string>
+  <key>StandardOutPath</key><string>__DATA__/server.log</string>
+  <key>StandardErrorPath</key><string>__DATA__/server.log</string>
 </dict>
 </plist>

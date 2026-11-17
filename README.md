@@ -1,8 +1,8 @@
-<h1 align="center">ARTESH</h1>
+<h1 align="center">Home Front</h1>
 
 <p align="center">
-  <b>A self-hosted life tracker and journal, drawn as a 1936 grand-strategy war map.</b><br>
-  Say what happened today. An AI general staff judges it, and the front lines of your life move.
+  <b>A productivity app and daily journal that shows your whole life as a 1936 war map.</b><br>
+  Say what happened today. It files the entry, the front lines move, and one look tells you what needs you.
 </p>
 
 <p align="center">
@@ -22,24 +22,71 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/hero.png" alt="ARTESH on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
+  <img src="docs/img/hero.png" alt="Home Front on a desktop: a 1936 map of Iran with front lines on every border, division counters, battle markers, and a side panel for the School front listing its divisions and latest battles">
 </p>
 
 ## What it is
 
-ARTESH is a personal tracker for people who give up on habit trackers. You pick a country. It sits in
-the middle of a 1936 map, and each of its seven border fronts stands for one area of your life: school,
-family, work, health, friends. Once a day you say or type what happened, in your own words. A language
-model acting as your general staff decides which front each event belongs to, whether it was a win or a
-loss, and how big. Then the map reacts: fronts advance or collapse province by province, named divisions
-fight and earn honours, ports are bombed and rebuilt.
+**Home Front is a productivity app that turns your life into a map you can read at a glance.**
 
-Do well for long enough and the country's historical empire is restored. Let things slide and the enemy
-reaches the capital. It is a diary with consequences, not a game: nothing moves unless you report
-something real.
+You tell it what happened today, in a sentence or two, by voice or by typing. It files that for you:
+which part of your life it was about, whether it went well or badly, and how much it mattered. Then it
+shows you the result as a war map. Each border of your country is one area of your life. When that
+area goes well, the front line pushes outward. When you neglect it, the enemy pushes in.
+
+So instead of charts and streak counters, you get one picture:
+
+- School is deep in enemy territory. That is going well.
+- Health has the enemy 40 km from the capital. That needs you this week.
+- Friends has not moved in a month. You have not reported on it, which says something too.
+
+Underneath the map it is a plain record. Every entry is saved with its date, what you said, how it was
+judged and what it changed. You can search it, edit it, replay it from the first day, export it, and ask
+questions of it ("how has work gone since September?").
+
+It is not a game. Nothing moves unless you report something real, and there is nothing to play. The map
+is there because a front line is easier to care about than a spreadsheet.
+
+### Who it is for
+
+- **People who quit habit trackers.** There are no forms, tags or checkboxes. One sentence a day is the
+  whole input.
+- **People juggling several things at once**: students with a job, founders with a family, anyone
+  training for something while holding down the rest. The map shows which part is paying for the others.
+- **People who like strategy games** and would rather look at a front line than a dashboard.
+- **People who want their data.** It runs on your own machine, with your own key, and the record is a
+  folder of plain files.
+
+### What using it looks like
+
+1. **Set up once.** Pick a country. Name its seven borders after the parts of your life: School, Family,
+   Partner, Work, Health, Friends, Self, or whatever yours are. Pause the ones you do not need.
+2. **Report once a day.** Tap the microphone and talk: *"Aced the chemistry midterm. Skipped the gym
+   again. Had a fight with my brother."* That takes ten seconds.
+3. **It sorts it out.** Three events: a big win for School, a small loss for Health, a loss for Family.
+   Each gets a battle that fits the cause, and you can undo or correct any of them with one tap.
+4. **Look at the map.** The School front advances a province. The Health front gives ground. Divisions
+   gain experience or take losses. Over weeks, the shape of the front lines is the shape of your life.
+5. **Look back.** History has a calendar, a weekly recap, a replay of the whole campaign and an "ask the
+   staff" box that answers questions from your own entries.
+
+### What people use it for
+
+| You want to | How it shows up |
+|---|---|
+| Keep a daily journal without the blank page | One spoken sentence a day, filed and dated for you |
+| See which area of life is slipping | The front where the enemy is closest to the capital |
+| Stay consistent | A day streak, three small goals a day, and a front that decays if you stop reporting on it |
+| Track a goal over months | A front pushing toward a named objective, city by city |
+| Review your week | A weekly recap card: wins, losses, ground gained and lost per area |
+| Remember what actually happened | A searchable, editable log, and answers to questions about your own history |
+| Keep the data yours | Self-hosted, one password, plain files, export at any time |
+
+The far goal is the same in every country: take every objective and the country's historical empire is
+restored. Let everything slide and the capital falls. Most of life happens in between.
 
 - **Private by design.** One user, one password, your own machine. Your API key never reaches the browser.
-- **Works with any model, or none.** OpenAI, Ollama, LM Studio, OpenRouter, Groq, or the built-in offline judge.
+- **Works with any model, or none.** OpenAI, Anthropic, Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, or the built-in offline judge. Your own key, set in the app.
 - **Phone first.** Installs to the iPhone or Android home screen as a PWA and works offline.
 - **Open source.** MIT licensed. The engine and server have no runtime dependencies.
 
@@ -71,23 +118,27 @@ Change country at any time; each keeps its own campaign.
   <img src="docs/img/countries.png" alt="The eight countries side by side: Iran, Ethiopia, France, Greece, Mexico, Peru, Siam and Turkey, each with its own 1936 map and front lines">
 </p>
 
+You choose on a full-screen selection screen: the map changes behind as you browse the nations, with each
+one's army, navy, air force and seven fronts laid out before you commit.
+
+<p align="center">
+  <img src="docs/img/select-desktop.png" alt="The country selection screen on a desktop: a column of eight nations with their flags, the map of France in the centre, and a briefing with its divisions, ships, air wings and seven fronts above a Play as France button">
+</p>
+
 Want another one? A country is a single file: see [docs/SCENARIOS.md](docs/SCENARIOS.md).
 
-## Why
+## How events become battles
 
-Most trackers ask you to fill in forms: tick the habit, rate the day, pick a tag. That is work, so you
-stop doing it.
+You never choose a battle type. The staff reads the cause and picks one that fits, so the map tells you
+why something happened, not just that it did:
 
-ARTESH asks for one thing: tell it what happened, in your own words, once a day. "Aced the chemistry
-midterm, skipped the gym again, had a fight with my brother." Everything else is derived. The judge
-sorts each event to the right front, decides whether it was a win or a loss and how big, and picks a
-battle type that matches the cause. A week of flu is a blizzard that closes the passes. Sleeping
-through an exam after scrolling all night is sabotage. A friend's introduction to an investor is allied
-aid arriving.
-
-The result is a picture you can read in two seconds. One front deep in enemy territory, another with
-the enemy forty kilometres from the capital. You do not need a chart to know which part of your life
-needs you this week.
+| What you said | What the map shows |
+|---|---|
+| "Finished the whole problem set two days early" | An armoured breakthrough on the School front |
+| "A week of flu, got nothing done" | A blizzard that closes the passes |
+| "Slept through the exam after scrolling all night" | Sabotage behind your own lines |
+| "A friend introduced me to an investor" | Allied aid arriving |
+| "Haven't called home in three weeks" | The enemy massing on a quiet front |
 
 ## Features
 
@@ -127,8 +178,8 @@ needs you this week.
 
 - Persona presets on first run (Student, Founder, Athlete, Creator, Parent and more) name the fronts for
   you. Everything can be renamed, and any front can be paused.
-- OpenAI by default, or any OpenAI-compatible endpoint: Ollama, LM Studio, OpenRouter, Groq. With no key
-  at all, an offline keyword judge keeps the app working.
+- Your own key, set in the app: OpenAI, Anthropic, Google Gemini, Groq, Mistral, OpenRouter, or a local model in
+  Ollama or LM Studio, each on its small default model. With no key at all, an offline keyword judge keeps the app working.
 
 **Running it**
 
@@ -143,24 +194,38 @@ needs you this week.
 You need Node 20 or newer.
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git artesh
-cd artesh
+git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+cd homefront
 npm install               # the build tools for the interface
-cp .env.example .env      # set ARTESH_PASSWORD; add OPENAI_API_KEY if you have one
+cp .env.example .env      # set HOMEFRONT_PASSWORD
 npm start                 # builds the interface into dist/ if needed, then http://localhost:8080
 ```
 
-Open the address, type the password, pick a country and a persona, and file your first report.
+Open the address, type the password, pick a country and a persona, and file your first report. To have a
+model judge your reports, add your own key in **Settings → General staff** (or skip it: the offline judge
+works with no key).
 
 With Docker:
 
 ```bash
-cp .env.example .env      # set ARTESH_PASSWORD
-docker compose up -d      # http://localhost:8080, data in the artesh-data volume
+cp .env.example .env      # set HOMEFRONT_PASSWORD
+docker compose up -d      # http://localhost:8080, data in the homefront-data volume
 ```
 
-No API key? Leave `OPENAI_API_KEY` empty. The offline keyword judge takes over, and you can add a key
-or a local model later without losing anything.
+**Let your agent do it.** Give your coding agent (Claude Code, Codex, Cursor, any of them) this one line:
+
+```text
+Read https://raw.githubusercontent.com/sam-siavoshian/hoi4-irl/main/SKILL.md and set up Home Front for me.
+```
+
+[SKILL.md](SKILL.md) is a complete, self-contained setup guide written for agents. It covers a Mac mini,
+a Raspberry Pi, any Linux box, Windows through WSL, Docker, and cloud hosts with a disk, and says
+honestly what a static host such as Vercel can and cannot do. It installs, generates a password without
+showing it, starts the server, checks it, and can add a background service, HTTPS for your phone and
+backups, asking before each system change.
+
+No API key? Add none. The offline keyword judge takes over, and you can add a key or a local model
+later, in Settings, without losing anything.
 
 Just want to look? Try the [offline demo](https://sam-siavoshian.github.io/hoi4-irl/).
 
@@ -194,65 +259,121 @@ For Iran, as an example:
 | Afghan Front | Afghanistan | School |
 | Caucasus Front | Soviet Union | Family |
 | Turkestan Front | Soviet Union | Partner |
-| Mesopotamian Front | Iraq | Startup or work |
-| Baluchistan Front | British Raj | Gym and health |
-| Anatolian Front | Turkey | Friends and social life |
-| Persian Gulf Theatre | Royal Navy | Personal life |
+| Mesopotamian Front | Iraq | Work |
+| Baluchistan Front | British Raj | Health |
+| Anatolian Front | Turkey | Friends |
+| Persian Gulf Theatre | Royal Navy | Self |
 
 The persona you pick sets the meanings; rename or pause any of them in Settings.
 
 ## Configuration
 
-Settings live in `.env` next to `server.mjs` (one `KEY=value` per line). Real environment variables take
-precedence over the file.
+### The general staff: your own key, set in the app
+
+The model that judges your reports is chosen in the app: **Settings → General staff**. Pick a provider,
+paste your own key, and press **Test**. A first run offers the same screen as an optional step after you
+choose a country. Nothing about it needs a restart.
+
+![The provider screen: provider tiles, a saved key, the small default model, a test](docs/img/providers.png)
+
+- **The key is yours and stays on your server.** It is written to `ai.json` in the data folder
+  (`~/.homefront/ai.json`, owner-only, mode `0600`) and is never sent back: the app is told only that a
+  key exists, and its last 4 characters. It is not in the campaign, the journal, a backup or an export.
+- **A small model is the default.** Judging a day needs no frontier model, so each provider starts on its
+  small, cheap one. You can type another model name, and **Use default** puts the small one back.
+- **Voice is chosen apart from the judge.** "Same as the staff" when that provider can turn speech into
+  text; otherwise another provider with its own key, or "On this device" (the browser's dictation or the
+  keyboard's microphone key).
+- **What is set in the app wins.** `.env` remains the fallback, so an install that already has
+  `OPENAI_API_KEY` in `.env` keeps working with no action. A key from `.env` shows as "set on the server":
+  the app can use it, and cannot show or remove it.
+
+| Provider | Judge (default) | Speech to text (default) | How the answer is kept to the schema | Checked against |
+|---|---|---|---|---|
+| OpenAI | `gpt-6-luna` | `gpt-transcribe` | Responses API, `text.format` JSON schema, strict | `gpt-6-luna` seen in [OpenRouter's live model index](https://openrouter.ai/api/v1/models) on 2026-11-16. `gpt-transcribe` **not re-checked**: OpenAI's documentation refused the fetch. Both are what the project already used. |
+| Anthropic | `claude-haiku-5-5` | none | Messages API, structured outputs (`output_config.format`), low effort | Anthropic's API reference (model table dated 2026-11-03), read 2026-11-16 |
+| Google Gemini | `gemini-3.5-flash-lite` | `gemini-3.5-flash-lite` (the recording goes to the model) | Interactions API, `response_format` with the JSON schema | [models](https://aistudio.google.com/docs/models), [structured output](https://aistudio.google.com/docs/structured-output), [audio](https://aistudio.google.com/docs/audio), 2026-11-16 |
+| Groq | `openai/gpt-oss-20b` | `whisper-large-v3-turbo` | Chat Completions, `json_schema`, strict | [models](https://console.groq.com/docs/models), [structured outputs](https://console.groq.com/docs/structured-outputs), [speech to text](https://console.groq.com/docs/speech-to-text), 2026-11-16 |
+| Mistral | `mistral-small-latest` | `voxtral-mini-latest` | Chat Completions, `json_schema`; JSON mode if refused | Ids from the examples in [Mistral's API reference](https://docs.mistral.ai/api/), 2026-11-16. **Not confirmed**: which snapshot each alias points to, and the exact `json_schema` body. |
+| OpenRouter | `openai/gpt-6-luna` | none | Chat Completions, `json_schema`, strict, `provider.require_parameters` | [model index](https://openrouter.ai/api/v1/models), [structured outputs](https://openrouter.ai/docs/features/structured-outputs), 2026-11-16 |
+| Ollama | `llama3.2` | none | Chat Completions, `json_schema`; JSON mode if refused | [OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility), 2026-11-16 |
+| LM Studio | `openai/gpt-oss-20b` | none | Chat Completions, `json_schema`; JSON mode if refused | [structured output](https://lmstudio.ai/docs/developer/openai-compat/structured-output), 2026-11-16. The default model name is a guess, **unverified**: LM Studio names a model after whatever you loaded. |
+| Other server | none | none | Chat Completions, `json_schema`; JSON mode if refused | any OpenAI-compatible server |
+| Offline judge | keywords, no model | this device | not a model | built in |
+
+What "checked" means: on the date shown, the default model id, the request shape and the address were read
+from the provider's own current documentation (or its live model index). **No call was made with a real key
+while building this**: the test suite exercises every provider's request against local stand-ins. So a
+provider can still surprise you; the Test button is the proof for your key and model. Where a provider
+refuses the schema, the server asks for plain JSON instead and checks the answer itself; a bad answer falls
+back to the offline judge, as any failure does.
+
+The marks on the provider tiles are the real ones where the project may ship them (Anthropic, Google
+Gemini, Mistral, OpenRouter, Ollama, LM Studio: Simple Icons, CC0). OpenAI and Groq wear a plain icon:
+neither is in that set, and Groq's trademark policy does not allow its logo in an interface without a
+licence. Names and logos belong to their owners.
+
+### `.env`
+
+The rest of the settings live in `.env` next to `server.mjs` (one `KEY=value` per line). Real environment
+variables take precedence over the file.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `ARTESH_PASSWORD` | none, required | The password you type once per device. The server refuses to start without it. |
-| `OPENAI_API_KEY` | empty | Key for the judge and transcription. Stays on the host. Empty means the offline keyword judge. |
-| `OPENAI_MODEL` | `gpt-6-luna` | Model that judges reports. |
-| `OPENAI_TRANSCRIBE_MODEL` | `gpt-transcribe` | Model that transcribes voice. |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Point this at any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, Groq). |
-| `LLM_API` | `responses` | Set to `chat` to use chat completions on servers that do not offer the Responses API. |
-| `ARTESH_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
+| `HOMEFRONT_PASSWORD` | none, required | The password you type once per device. The server refuses to start without it. |
+| `HOMEFRONT_TOKEN` | empty | Bearer token for the automation API (`/api/report`, `/api/sitrep`). The API is off while this is empty. |
 | `PORT` | `8080` | Port to listen on. |
 | `HOST` | `0.0.0.0` | Interface to bind. Use `127.0.0.1` when a tunnel or reverse proxy sits in front. |
-| `ARTESH_DATA_DIR` | `./private` | Where the campaign, sessions, journal and backups are stored. |
-| `ARTESH_OPEN` | unset | `1` starts the server with no login at all. Only for a machine nobody else can reach. |
+| `HOMEFRONT_DATA_DIR` | `~/.homefront` | Where the campaign, the provider settings and keys, sessions, journal and backups are stored. |
+| `HOMEFRONT_OPEN` | unset | `1` starts the server with no login at all. Only for a machine nobody else can reach. |
+
+The model can also be set here, as it always could. These are used while nothing is chosen in the app:
+
+| Variable | Default | What it does |
+|---|---|---|
+| `OPENAI_API_KEY` | empty | Key for the judge and transcription. Empty means the offline keyword judge. |
+| `OPENAI_MODEL` | `gpt-6-luna` | Model that judges reports. |
+| `OPENAI_TRANSCRIBE_MODEL` | `gpt-transcribe` | Model that transcribes voice. |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Any OpenAI-compatible endpoint. |
+| `LLM_API` | `responses` | Set to `chat` to use chat completions on servers that do not offer the Responses API. |
+| `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` | empty | A key for that provider kept in `.env` instead of the app. Choose the provider in Settings; the key shows as "set on the server". |
+| `ANTHROPIC_BASE_URL`, `GEMINI_BASE_URL`, `GROQ_BASE_URL`, `MISTRAL_BASE_URL`, `OPENROUTER_BASE_URL` | each provider's own | Another address for that provider: a gateway or a proxy. |
 
 ## Local models
 
-Any server that speaks the OpenAI API works. With [Ollama](https://ollama.com):
+Nothing leaves your machine with a local model. In **Settings → General staff** choose **Ollama** or
+**LM Studio** (or **Other server** for anything else that speaks OpenAI's Chat Completions). There is no
+key. Check the address, type the name of a model you have, and press **Test**.
+
+With [Ollama](https://ollama.com):
 
 ```bash
-ollama pull llama3.1
+ollama pull llama3.2      # the small default; any model you have works
 ```
 
-```ini
-# .env
-ARTESH_PASSWORD=choose-something-long
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_API_KEY=ollama            # any non-empty value; Ollama ignores it
-OPENAI_MODEL=llama3.1
-LLM_API=chat
-```
-
-Nothing leaves your machine. The same pattern works for the others:
-
-| Provider | `OPENAI_BASE_URL` |
+| Server | Address (the default in the app) |
 |---|---|
 | Ollama | `http://localhost:11434/v1` |
 | LM Studio | `http://localhost:1234/v1` |
-| OpenRouter | `https://openrouter.ai/api/v1` |
-| Groq | `https://api.groq.com/openai/v1` |
+
+The same can be done in `.env`, as before the app had this screen:
+
+```ini
+# .env
+HOMEFRONT_PASSWORD=choose-something-long
+OPENAI_BASE_URL=http://localhost:11434/v1
+OPENAI_MODEL=llama3.2
+LLM_API=chat
+```
 
 Notes:
 
 - The judge asks for JSON that matches a schema. Pick a model that handles structured output well;
-  small models sometimes choose odd battle types.
-- Voice transcription needs an endpoint with `/audio/transcriptions`. If yours has none, use the
-  keyboard's dictation key instead.
-- Running ARTESH in Docker and Ollama on the host? Use `http://host.docker.internal:11434/v1`.
+  small models sometimes choose odd battle types. A server without schema support is asked for plain
+  JSON, and the answer is checked on your server.
+- Local servers are not used for voice: choose "On this device", or another provider, under Voice.
+- Running Home Front in Docker and Ollama on the host? Use `http://host.docker.internal:11434/v1`.
+- The address must start with `http://` or `https://`.
 
 ## On your iPhone
 
@@ -269,19 +390,20 @@ To file a report without opening the app, see the Shortcuts and Siri recipe in [
 
 ## Privacy
 
-ARTESH is built for one person on a machine they control.
+Home Front is built for one person on a machine they control.
 
-- **Your key stays on the host.** The browser talks to your server; your server talks to the model. The
-  key is never sent to the browser.
+- **Your key stays on the host.** You paste it once in Settings; it is stored in your data folder and
+  never sent back. The browser talks to your server; your server talks to the model.
 - **One password, one user.** Nothing but a password box is served until you log in. The session is
   remembered per device for a year. Failed attempts are rate-limited.
-- **Your data is a folder.** The campaign, sessions, journal and backups live in `private/`, written with
-  owner-only permissions. Back it up by copying it. Delete it and everything is gone.
+- **Your data is a folder, and it is not in the repository.** The campaign, sessions, journal and backups
+  live in `~/.homefront`, outside the source folder, written with owner-only permissions. `.env` is
+  git-ignored, and CI fails if a data or secret file is ever committed. Back it up by copying it. Delete it and everything is gone.
 - **Hidden from search engines.** Every response carries `noindex`, and `robots.txt` disallows everything.
 - **No telemetry.** The server makes no network calls other than to the model endpoint you configured.
 
 What does leave the machine: the text of your reports (and audio, if you use voice) goes to the model
-provider you chose. Use a local model if that matters to you. The full threat model is in
+provider you chose, with your own key. Use a local model or the offline judge if that matters to you. The full threat model is in
 [SECURITY.md](SECURITY.md).
 
 ## FAQ
@@ -311,11 +433,10 @@ More in [docs/FAQ.md](docs/FAQ.md).
 
 ## Roadmap
 
-- More countries, and proper flags for the ones whose flag is not three stripes.
+- More countries.
 - Translations of the interface and the staff's voice.
-- Native Anthropic and Gemini providers, alongside the OpenAI-compatible route.
 - Import from other trackers and from plain-text journals.
-- Optional encryption at rest for `private/`.
+- Optional encryption at rest for `~/.homefront/`.
 - Reminders and notifications.
 - Multiple campaigns on one server.
 
@@ -355,14 +476,15 @@ problems go through [private advisories](SECURITY.md), not public issues.
 - Unit and building silhouettes: [Game-icons.net](https://game-icons.net) by Lorc, Delapouite and
   contributors, CC BY 3.0.
 - Interface icons: [Lucide](https://lucide.dev), ISC licence.
+- Provider marks: [Simple Icons](https://simpleicons.org), CC0. Names and logos belong to their owners and are shown to identify the service.
 - Borders: [Natural Earth](https://www.naturalearthdata.com), public domain.
 - Interface: React, Vite, Tailwind CSS and Base UI, through the design system in `vendor/design-system`.
 
 Full attributions are in [NOTICE.md](NOTICE.md).
 
-ARTESH is an original project inspired by grand-strategy games such as Hearts of Iron IV. It is not
+Home Front is an original project inspired by grand-strategy games such as Hearts of Iron IV. It is not
 affiliated with or endorsed by Paradox Interactive, and it uses none of their code, art or data.
 
 ## Licence
 
-[MIT](LICENSE) © 2026 ARTESH contributors.
+[MIT](LICENSE) © 2026 Home Front contributors.

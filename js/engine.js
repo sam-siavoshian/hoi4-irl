@@ -1,4 +1,4 @@
-// ARTESH war engine — pure, deterministic. state = simulate(map, reports, now).
+// Home Front war engine — pure, deterministic. state = simulate(map, reports, now).
 // The map is a scenario built by tools/build-map.mjs: any country, any seven fronts. Nothing below knows which one.
 // Nothing here touches the DOM, so it runs under node for tests.
 

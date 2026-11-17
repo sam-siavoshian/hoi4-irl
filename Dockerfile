@@ -1,4 +1,4 @@
-# ARTESH: one dependency-free Node server plus the built interface.
+# Home Front: one dependency-free Node server plus the built interface.
 # Stage 1 builds the interface (React + the vendored design system) into dist/. Stage 2 is the server and what it serves;
 # it has no node_modules.
 FROM node:22-alpine AS build
@@ -17,7 +17,7 @@ FROM node:22-alpine
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \
-    ARTESH_DATA_DIR=/app/private
+    HOMEFRONT_DATA_DIR=/app/private
 
 WORKDIR /app
 

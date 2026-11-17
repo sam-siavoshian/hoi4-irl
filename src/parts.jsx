@@ -12,19 +12,8 @@ import { app, fmtDate, labels, openSheet, statusOf } from './core.js';
 // engine tones → the kit's status tones
 export const TONE = { gold: 'success', good: 'success', neutral: 'idle', warn: 'attention', bad: 'danger', crit: 'danger', dim: 'idle' };
 
-// A small round flag from the scenario's own colours: 3 bands (h3 across, v3 upright) and an optional disc.
-// The paints are the country's, so they come from the data; a scenario without a flag gets a plain roundel.
-export function Flag({ flag, className = 'size-8' }) {
-  const c = flag && Array.isArray(flag.colors) && flag.colors.length >= 3 ? flag.colors : null;
-  const upright = flag?.type === 'v3';
-  const band = i => (upright ? { x: [0, 14, 26][i], width: [14, 12, 14][i], height: 40 } : { y: [0, 14, 26][i], width: 40, height: [14, 12, 14][i] });
-  return (
-    <svg data-flag="" viewBox="0 0 40 40" aria-hidden="true" className={`${className} shrink-0 rounded-full`}>
-      {[0, 1, 2].map(i => (c ? <rect key={i} {...band(i)} fill={c[i]} /> : <rect key={i} {...band(i)} className={i === 1 ? 'fill-muted-foreground/50' : 'fill-muted-foreground'} />))}
-      {flag?.disc ? <circle cx="20" cy="20" r="4.6" fill={flag.disc} /> : null}
-    </svg>
-  );
-}
+// A country's flag and a provider's mark are in marks.jsx (the landing page draws the same ones).
+export { Flag, ProviderLogo } from './marks.jsx';
 
 // A unit's silhouette (Game-icons.net, CC BY 3.0; the paths are in js/icons.js) in the ink of whatever holds it.
 // Every division, wing and ship in a list wears one.

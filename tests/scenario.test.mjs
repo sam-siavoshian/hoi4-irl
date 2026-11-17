@@ -261,12 +261,12 @@ test('storage: switching country and back keeps both campaigns', () => {
 
 // ---- the server: maps and the automation API follow the stored scenario ----
 const PORT = 8147, U = `http://127.0.0.1:${PORT}`;
-const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(OPENAI_|ARTESH_|LLM_)/.test(k)));
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-scn-')); let proc;
+const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(OPENAI_|HOMEFRONT_|LLM_)/.test(k)));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-scn-')); let proc;
 const json = (p, init) => fetch(U + p, init).then(async r => ({ status: r.status, body: await r.json().catch(() => null) }));
 const put = (rev, data) => json('/api/state', { method: 'PUT', body: JSON.stringify({ rev, data }) });
 test.before(async () => {
-  proc = spawn('node', ['server.mjs'], { cwd: new URL('.', root), env: { ...clean, PORT, HOST: '127.0.0.1', ARTESH_OPEN: '1', ARTESH_PASSWORD: '', ARTESH_DATA_DIR: dir, ARTESH_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
+  proc = spawn('node', ['server.mjs'], { cwd: new URL('.', root), env: { ...clean, PORT, HOST: '127.0.0.1', HOMEFRONT_OPEN: '1', HOMEFRONT_PASSWORD: '', HOMEFRONT_DATA_DIR: dir, HOMEFRONT_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
   for (let i = 0; i < 60; i++) { try { await fetch(U + '/healthz'); return; } catch { await new Promise(r => setTimeout(r, 100)); } } throw new Error('server did not start');
 });
 test.after(() => { proc?.kill(); fs.rmSync(dir, { recursive: true, force: true }); });

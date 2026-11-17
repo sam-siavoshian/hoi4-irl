@@ -1,13 +1,15 @@
-// The nation: overview (rank, orders, decorations), share cards, settings, the country picker and the first run.
+// The nation: overview (rank, orders, decorations), share cards, settings and the first run's welcome.
+// (Choosing a country is its own screen: ../picker.jsx.)
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, CardButton, ChoiceCards, FileInput, Input, ListGroup, ListRow, ListRowButton, ListSection, ProgressMeter, Segmented, StatTile, Switch } from '@sam/design-system';
+import { Button, CardButton, ChoiceCards, FileInput, InlineButton, Input, ListGroup, ListRow, ListRowButton, ListSection, ProgressMeter, Segmented, StatTile, Switch } from '@sam/design-system';
 import { setAppearance, useTheme } from '@sam/design-system/theme';
 import { DownloadIcon, LogOutIcon, MedalIcon, PlayIcon, SettingsIcon, ShareIcon, TargetIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { medalOf, medalProgress } from '../../js/engine.js';
 import { PRESETS } from '../../js/presets.js';
-import { app, F, CARDS, altDate, card, choosePreset, closeSheet, exportBackup, firstRun, fmtDate, importBackup, labels, loadDemo, logOut, openSheet, pickCountry, reset, setLabel, shareCard, toggleFront, toggleFx } from '../core.js';
-import { Flag } from '../parts.jsx';
+import { app, F, CARDS, altDate, card, choosePreset, closeSheet, exportBackup, fmtDate, importBackup, labels, loadDemo, logOut, openPicker, openSheet, reset, setLabel, shareCard, toggleFront, toggleFx } from '../core.js';
+import { Flag, ProviderLogo } from '../parts.jsx';
 import { Orders } from './report.jsx';
+import { StaffStatus } from './staff.jsx';
 
 const quiet = 'text-sm text-muted-foreground';
 
@@ -97,6 +99,29 @@ function LabelInput({ f }) {
       onChange={e => { setText(e.target.value); setLabel(f.id, e.target.value); }} />
   );
 }
+// Who judges your reports. With the private server this opens the provider screen; the static demo has no server
+// to keep a key on, so it says so and shows nothing to fill in.
+function Staff() {
+  const { cfg, ai } = app;
+  if (!cfg.server) {
+    return (
+      <ListSection title="General staff" data-testid="staff-section">
+        <ListRow media={<ProviderLogo id="offline" className="size-4 text-muted-foreground" />} title="Offline judge"
+          description={<>Keys need the self-hosted server, so there’s nothing to set here. <InlineButton render={<a href="https://github.com/sam-siavoshian/hoi4-irl#readme" target="_blank" rel="noopener noreferrer" />}>Host your own</InlineButton> to add a model.</>} />
+      </ListSection>
+    );
+  }
+  const p = ai?.providers.find(x => x.id === ai.provider);
+  const voice = cfg.transcribe ? `Voice by ${cfg.transcribe}.` : 'Voice on this device.';
+  return (
+    <ListSection title="General staff" data-testid="staff-section">
+      <ListRowButton data-testid="open-staff" data-provider={p?.id} media={<ProviderLogo id={p?.id || 'offline'} className="size-4 text-foreground" />}
+        title={p ? p.name : cfg.judge ? 'A model judges your reports' : 'Offline judge'}
+        description={cfg.judge ? `${cfg.judge}. ${voice}` : p && p.judges ? `Judged offline until it’s ready. ${voice}` : `Reports are judged by keywords. ${voice}`}
+        status={p ? <StaffStatus status={p.status} /> : null} onClick={() => openSheet('staff')} />
+    </ListSection>
+  );
+}
 const APPEARANCE = [{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }];
 
 function SettingsBody() {
@@ -112,13 +137,10 @@ function SettingsBody() {
       </ListSection>
       <ListSection title="Country">
         {many
-          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={() => openSheet('country')} />
+          ? <ListRowButton data-testid="change-country" media={<Flag flag={F().flag} />} title={F().name} description="Change country. Each one keeps its own campaign." onClick={openPicker} />
           : <ListRow variant="item" media={<Flag flag={F().flag} />} title={F().name} description={F().long} />}
       </ListSection>
-      <ListSection title="Staff">
-        <ListRow title={cfg.judge ? `Judged by ${cfg.judge}` : 'Offline keyword judge'}
-          description={cfg.judge ? (cfg.transcribe ? `Voice turned into text by ${cfg.transcribe}.` : 'Voice: keyboard dictation.') : cfg.server ? 'Set OPENAI_API_KEY or OPENAI_BASE_URL in .env on the server for a model to judge.' : 'Run the server for a model to judge.'} />
-      </ListSection>
+      <Staff />
       <ListSection title="Look and feel">
         <ListRow inline title="Appearance" description="Auto is dark at night."
           control={<Segmented label="Appearance" value={theme.appearance} options={APPEARANCE} onChange={setAppearance} />} />
@@ -139,33 +161,13 @@ function SettingsBody() {
 }
 export const settings = { title: () => 'Settings', Body: SettingsBody };
 
-// The country picker: the first step of a first run, and "Change country" in Settings.
-export const country = {
-  title: () => (firstRun() ? 'Choose your country' : 'Country'),
-  Body() {
-    const { scenarios, data } = app; const first = firstRun();
-    return (
-      <>
-        <p className={quiet}>{first ? '7 borders, 7 parts of your life. Pick the country whose map you want to fight on. You can change it later.' : 'Each country keeps its own campaign. Nothing is lost by switching.'}</p>
-        <ListGroup>
-          {scenarios.map(c => (
-            <ListRowButton key={c.id} data-testid="country" data-id={c.id} media={<Flag flag={c.flag} />} title={c.name}
-              description={<>{c.empire ? <span className="block font-medium text-foreground">{c.empire}</span> : null}{c.blurb ? <span className="block">{c.blurb}</span> : null}</>}
-              status={c.id === data.scenario && !first ? <Badge variant="secondary">Playing</Badge> : null} onClick={() => pickCountry(c.id)} />
-          ))}
-        </ListGroup>
-      </>
-    );
-  },
-};
-
 export const welcome = {
   title: () => 'Your fronts',
   Body() {
-    const { map, ui } = app; const cur = PRESETS.find(p => p.id === ui.preset);
+    const { map, ui, cfg } = app; const cur = PRESETS.find(p => p.id === ui.preset);
     return (
       <>
-        <p className={quiet}>Each border of {F().name} is one part of your life. Pick a starting point, rename anything, then tell the staff what happened each day.</p>
+        <p className={quiet}>Each border of {F().name} is one part of your life. Once a day, say what happened in a sentence. A good day pushes that front out, a neglected one lets the enemy in, and the map shows you what needs attention. Name the borders below; you can rename them later.</p>
         <div className="space-y-2">
           <ChoiceCards variant="chips" label="Starting point" value={ui.preset} options={PRESETS.map(p => ({ value: p.id, label: p.name }))} onChange={choosePreset} />
           {cur ? <p className="text-xs text-muted-foreground">{cur.blurb}</p> : null}
@@ -174,6 +176,12 @@ export const welcome = {
           {map.fronts.map(f => <ListRow key={`${map.id}-${f.id}`} inline data-testid="front-setting" title={f.name} control={<LabelInput f={f} />} />)}
         </ListGroup>
         {cur ? <p className="text-xs text-muted-foreground">Try saying: “{cur.examples[0]}”</p> : null}
+        {cfg.server && !cfg.judge ? (
+          <ListGroup>
+            <ListRowButton data-testid="welcome-staff" media={<ProviderLogo id="offline" className="size-4 text-muted-foreground" />} title="Add a model"
+              description="Add a model now, or skip and use the offline judge. You can add one later in Settings." onClick={() => openSheet('staff')} />
+          </ListGroup>
+        ) : null}
         <Button size="lg" className="w-full" data-testid="begin" onClick={closeSheet}>Begin</Button>
       </>
     );

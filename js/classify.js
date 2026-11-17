@@ -1,6 +1,6 @@
 // Turns a spoken/written life update into battle orders.
-// When the private server has an OpenAI key the report is judged there (the key never reaches the browser);
-// otherwise a local keyword classifier is used.
+// When the private server has a model set up (Settings → General staff, or .env) the report is judged there, by the
+// provider chosen (the key never reaches the browser); otherwise a local keyword classifier is used.
 import { ACTIONS, WIN_ACTIONS, LOSS_ACTIONS, statusOf, frontCaps, flavor } from './engine.js';
 import { AREAS, areasForLabel } from './presets.js';
 
@@ -84,7 +84,7 @@ function sanitize(map, data, off = []) {
   return { summary: String(data.summary || '').slice(0, 600), items };
 }
 
-// One structured-output call through the private server (POST /api/llm → OpenAI Responses API).
+// One structured-output call through the private server (POST /api/llm → the provider chosen in Settings).
 async function callJudge({ name, system, user, schema, fetchImpl = fetch }) {
   const res = await fetchImpl('api/llm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, system, user, schema }) });
   let data = null; try { data = await res.json(); } catch { /* ignore */ }

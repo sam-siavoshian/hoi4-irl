@@ -1,15 +1,18 @@
 #!/bin/bash
-# Run by launchd every two minutes (com.artesh.watchdog).
+# Run by launchd every two minutes (com.homefront.watchdog).
 # - restarts the server if /healthz fails twice in a row (hung process, unreadable campaign, full disk)
 #   by stopping it: launchd (KeepAlive) starts a fresh one
 # - puts the private tailnet HTTPS address back if it went missing
 # - keeps the log files from growing without limit
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PRIVATE="$ROOT/private"
 env_value() { grep -E "^[[:space:]]*$1=" "$ROOT/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"' "; }
+setting() { local v; v="$(env_value "HOMEFRONT_$1")"; [ -n "$v" ] || v="$(env_value "ARTESH_$1")"; echo "$v"; } # ARTESH_ is the name from before the rename
+# the data folder, by the server's own rule: HOMEFRONT_DATA_DIR, else an existing ./private (older installs), else ~/.homefront
+DATA="$(setting DATA_DIR)"; DATA="${DATA/#\~/$HOME}"; [ -n "$DATA" ] || { [ -d "$ROOT/private" ] && DATA="$ROOT/private" || DATA="$HOME/.homefront"; }
+PRIVATE="$DATA"
 PORT="$(env_value PORT)"; PORT="${PORT:-8080}"
-HTTPS_PORT="$(env_value ARTESH_HTTPS_PORT)"; HTTPS_PORT="${HTTPS_PORT:-8443}"
+HTTPS_PORT="$(setting HTTPS_PORT)"; HTTPS_PORT="${HTTPS_PORT:-8443}"
 FAILS="$PRIVATE/.watchdog-failures"
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 

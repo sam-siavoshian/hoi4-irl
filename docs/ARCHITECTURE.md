@@ -1,6 +1,6 @@
 # Architecture
 
-ARTESH has four parts. The engine, map and server run as written; only the interface in `src/` is built (Vite, into `dist/`).
+Home Front has four parts. The engine, map and server run as written; only the interface in `src/` is built (Vite, into `dist/`).
 
 ```
             build time                               run time
@@ -8,8 +8,8 @@ ARTESH has four parts. The engine, map and server run as written; only the inter
   │ Natural Earth + seeds.mjs│      │ browser                                       │
   │        │                 │      │  app.js ── classify.js ── engine.js ── map.js │
   │   build-map.mjs          │      │    │            │            ▲                │
-  │        ▼                 │      │  store.js    voice.js    data/map.json        │
-  │   data/map.json ─────────┼─────▶│    │            │                             │
+  │        ▼                 │      │  store.js    voice.js    data/maps/*          │
+  │   data/maps/*   ─────────┼─────▶│    │            │                             │
   └──────────────────────────┘      └────┼────────────┼─────────────────────────────┘
                                          │ /api/state │ /api/llm, /api/transcribe
                                     ┌────▼────────────▼────┐        ┌──────────────┐
@@ -142,15 +142,20 @@ model call fails.
    session cookie. Only a hash of the session token is stored.
 3. **The wall.** Without a valid session, API paths return `401` JSON and the root returns the login
    page, also with status `401`, so the service worker never caches the login page in place of the app.
-4. **Authenticated API.** `/api/config`, `/api/state`, `/api/llm`, `/api/transcribe`, `/api/logout`.
+4. **Authenticated API.** `/api/config`, `/api/state`, `/api/llm`, `/api/transcribe`, `/api/ai`, `/api/logout`.
 5. **App files**, from an explicit allowlist.
 
 The model proxy is deliberately thin. `/api/llm` accepts `{system, user, schema}` and makes one
-structured-output call (the Responses API by default; chat completions when `LLM_API=chat`).
-`/api/transcribe` forwards raw audio to `/audio/transcriptions`. The model names and the key exist only
-on the server.
+structured-output call to the provider in force. `server/providers.mjs` holds the registry (OpenAI,
+Anthropic, Gemini, Groq, Mistral, OpenRouter, Ollama, LM Studio, another server, offline), each with a
+small default model and one of four ways to be called: OpenAI Responses, OpenAI-compatible Chat
+Completions, Anthropic Messages, Gemini Interactions. Every answer is parsed and checked against the
+schema on the server, whatever the provider enforced. `/api/transcribe` forwards raw audio to the speech
+model chosen (`/audio/transcriptions`, or Gemini with the recording as input). The choice and the keys
+are set in the app through `/api/ai` and kept in `ai.json` in the data folder; `.env` is the fallback
+(`server/llm.mjs` reads it). The keys exist only on the server.
 
-Storage is a folder, `private/`:
+Storage is a folder, `~/.homefront/`:
 
 | File | Contents |
 |---|---|
@@ -166,7 +171,7 @@ ones and use a bearer token instead of a cookie. See [API.md](API.md).
 
 ## 5. Sync
 
-`js/store.js` keeps the campaign in `localStorage` (key `artesh.v1`) so the app works with no server at
+`js/store.js` keeps the campaign in `localStorage` (key `homefront.v1`) so the app works with no server at
 all, and mirrors it to the server when there is one.
 
 - On start, the app asks `/api/config` whether a server is present, then pulls `/api/state`. A server
