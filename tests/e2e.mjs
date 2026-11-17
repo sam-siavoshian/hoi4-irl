@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
 import { mockAnthropic } from './mock-providers.mjs';
+import { mockLocal } from './mock-local.mjs';
 import { testland, FIXTURES } from './fixtures/build.mjs';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
@@ -18,8 +19,9 @@ const shots = new URL('./shots/', import.meta.url).pathname; fs.rmSync(shots, { 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-e2e-'));
 const mock = await mockOpenAI(8124);
 const STAFF_KEY = 'sk-ant-e2e-test-key-not-real-7c1d'; const anthropic = await mockAnthropic(8126, { key: STAFF_KEY }); // the provider a key is set for in Settings
+const ollama = await mockLocal(8127, { kind: 'ollama', models: ['qwen3:4b', 'llama3.2:latest', 'gemma3:4b'] }); // a model server on this machine, found by discovery
 const TL = (await testland()).fronts.map(f => f.id); // a second country, served through the test hook, to prove the app is scenario-driven
-const server = spawn('node', ['server.mjs'], { cwd: repo, env: { ...process.env, PORT, HOST: '127.0.0.1', HOMEFRONT_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:8126/v1', HOMEFRONT_DATA_DIR: dataDir, HOMEFRONT_EXTRA_SCENARIOS: FIXTURES }, stdio: 'ignore' });
+const server = spawn('node', ['server.mjs'], { cwd: repo, env: { ...process.env, PORT, HOST: '127.0.0.1', HOMEFRONT_PASSWORD: 'open sesame', OPENAI_API_KEY: 'sk-test-key', OPENAI_BASE_URL: 'http://127.0.0.1:8124/v1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:8126/v1', HOMEFRONT_DATA_DIR: dataDir, HOMEFRONT_EXTRA_SCENARIOS: FIXTURES, HOMEFRONT_DISCOVER: 'http://127.0.0.1:8127/v1,http://127.0.0.1:9/v1' }, stdio: 'ignore' });
 const login = async p => { await p.goto(URL_); if (await p.locator('#p').count()) { await p.fill('#p', 'open sesame'); await p.click('button'); } await p.waitForFunction(() => window.__homefront?.st); };
 await new Promise(r => setTimeout(r, 700));
 const browser = await chromium.launch();
@@ -231,8 +233,8 @@ try {
     // Settings names who judges now: the key in .env, which the app can use but not read or remove
     await toSettings(); await p.waitForSelector(`${T('open-staff')}[data-provider=openai]`); assert.match(await p.textContent(T('open-staff')), /OpenAI.*gpt-6-luna.*Voice by gpt-transcribe.*Ready/s);
     await p.click(T('open-staff')); await p.waitForSelector(T('provider')); assert.equal(await title(p), 'General staff');
-    assert.deepEqual(await p.locator(T('provider')).evaluateAll(els => els.map(e => e.dataset.id)), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'ollama', 'lmstudio', 'custom', 'offline']);
-    assert.deepEqual(await p.locator(`${T('provider')} svg[data-mark=brand]`).evaluateAll(els => els.map(e => e.dataset.providerLogo)), ['anthropic', 'gemini', 'mistral', 'openrouter', 'ollama', 'lmstudio'], 'real marks, in the ink of the tile');
+    assert.deepEqual(await p.locator(T('provider')).evaluateAll(els => els.map(e => e.dataset.id)), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'local', 'offline']);
+    assert.deepEqual(await p.locator(`${T('provider')} svg[data-mark=brand]`).evaluateAll(els => els.map(e => e.dataset.providerLogo)), ['anthropic', 'gemini', 'mistral', 'openrouter'], 'real marks, in the ink of the tile');
     assert.equal(await p.locator(`${T('provider')} svg`).evaluateAll(els => els.every(e => getComputedStyle(e).fill !== '' && !e.querySelector('[fill^="#"]'))), true);
     assert.equal(await p.getAttribute(`${T('provider')}[data-id=openai]`, 'aria-checked'), 'true'); await status('ready');
     assert.match(await p.textContent(T('key-saved')), /Set on the server/); assert.equal(await p.locator(T('key-remove')).count(), 0); assert.equal(await p.locator(T('key-tail')).count(), 0);
@@ -274,6 +276,43 @@ try {
     assert.deepEqual(await p.evaluate(() => { const r = window.__homefront.data.reports.at(-1); return [r.source, r.items[0].outcome]; }), ['local', 'win']); await undo();
     // back to the provider in .env, as the rest of this run expects
     await toSettings(); await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`); await status('ready');
+    assert.deepEqual(await cfg().then(c => [c.judge, c.transcribe]), ['gpt-6-luna', 'gpt-transcribe']); assert.equal((await st(p)).log, before);
+  });
+
+  await step('local model: find what is running, pick a model from its list, test it, judge a report through it', async () => {
+    const cfg = () => p.evaluate(() => window.__homefront.cfg); const status = s => p.waitForSelector(`${T('staff-provider')} ${T('staff-status')}[data-status=${s}]`);
+    const before = (await st(p)).log;
+    const toSettings = async () => { await shut(p); await p.click(T('status')); await p.waitForSelector(SHEET); await p.click(T('open-settings')); await p.waitForFunction(() => window.__homefront.ui.sheet === 'settings'); };
+    await toSettings(); await p.click(T('open-staff')); await p.waitForSelector(T('provider'));
+    await p.click(`${T('provider')}[data-id=local]`); await p.waitForSelector(`${T('staff-provider')}[data-provider=local]`);
+    assert.match(await p.textContent(T('staff-provider')), /Local model.*Nothing leaves your network.*Find local models/s); assert.equal(await p.locator(T('local-key')).count(), 0, 'the key is under Advanced, closed');
+    // find: the one server that answered is used, with the first of its models
+    await p.click(T('local-find')); await p.waitForSelector(`${T('local-found')}[data-count="1"]`); assert.equal(await p.textContent(T('local-found')), 'Found Ollama with 3 models.');
+    await p.waitForSelector(`${T('local-models-state')}[data-reason=listed]`); assert.equal(await p.inputValue(T('local-address')), 'http://127.0.0.1:8127/v1'); await status('ready');
+    assert.equal((await cfg()).judge, 'qwen3:4b');
+    // pick another from the list: sizes and quantisation as the server reports them
+    await p.click('[aria-label="Installed models"]'); await p.click('[role=option]:has-text("gemma3:4b")');
+    await p.waitForFunction(() => window.__homefront.cfg.judge === 'gemma3:4b' && document.querySelector('[data-testid=staff-model]').value === 'gemma3:4b');
+    assert.match(await p.textContent('[aria-label="Installed models"]'), /gemma3:4b · 3\.2B Q4_K_M · 2\.0 GB/);
+    await p.click(T('staff-test')); await p.waitForSelector(`${T('test-result')}[data-ok=yes]`); assert.match(await p.textContent(T('test-result')), /^Works\. gemma3:4b answered in .*, held to the schema\.$/);
+    await shot(p, '13f-local-model');
+    // "this very specific model": any name can be typed; one the server lacks is named, with the command that gets it
+    await p.fill(T('staff-model'), 'mistral-small3.2:24b'); await p.press(T('staff-model'), 'Enter');
+    await p.waitForSelector(`${T('local-models-state')}[data-reason=not_installed]`); assert.match(await p.textContent(T('local-models-state')), /mistral-small3\.2:24b isn’t in this server’s list\. To install it: ollama pull mistral-small3\.2:24b\./);
+    await p.click(T('staff-test')); await p.waitForSelector(`${T('test-result')}[data-reason=model_missing]`); assert.match(await p.textContent(T('test-result')), /has no model called mistral-small3\.2:24b\. Run ollama pull mistral-small3\.2:24b/);
+    await p.fill(T('staff-model'), 'gemma3:4b'); await p.press(T('staff-model'), 'Enter'); await p.waitForSelector(`${T('local-models-state')}[data-reason=listed]`);
+    // Advanced: the rest, closed until asked for
+    await p.click(`${T('local-advanced')} [data-slot=collapsible-trigger]`); await p.waitForSelector(T('local-key')); await p.waitForSelector(T('local-keepAlive'));
+    // a report is judged by the local model, and nothing goes to the provider in .env
+    const n = ollama.seen.length, m = mock.seen.length;
+    await send(p, 'I failed my exam'); await gone(p); await p.waitForFunction(b => window.__homefront.live.log.length === b + 1, before);
+    const sent = ollama.seen.slice(n).filter(x => /chat/.test(x.path)); assert.equal(sent.length, 1); assert.equal(sent[0].body.model, 'gemma3:4b', `judged by ${sent[0].body.model}; app says ${JSON.stringify(await cfg())}`); assert.equal(sent[0].body.response_format.type, 'json_schema'); assert.equal(mock.seen.length, m);
+    assert.deepEqual(await p.evaluate(() => { const r = window.__homefront.data.reports.at(-1); return [r.source, r.items[0].front]; }), ['llm', 'afg']);
+    await p.click('[data-slot=toast-viewport] button:has-text("Undo")'); await p.waitForFunction(() => /Undone/.test(document.querySelector('[data-slot=toast-viewport]')?.textContent || ''));
+    // Settings says which model and where
+    await toSettings(); await p.waitForSelector(`${T('open-staff')}[data-provider=local]`); assert.match(await p.textContent(T('open-staff')), /Local model.*gemma3:4b.*Ready/s);
+    // back to the provider in .env, as the rest of this run expects
+    await p.click(T('open-staff')); await p.waitForSelector(T('provider')); await p.click(`${T('provider')}[data-id=openai]`); await status('ready');
     assert.deepEqual(await cfg().then(c => [c.judge, c.transcribe]), ['gpt-6-luna', 'gpt-transcribe']); assert.equal((await st(p)).log, before);
   });
 
@@ -398,6 +437,6 @@ try {
     await p.evaluate(() => { const a = window.__homefront; const [x, y] = a.view.proj(50, 33); a.view.flyTo(x, y, a.view.minS, false); }); await shot(p, '20-empire');
   });
   await c3.close();
-} finally { await browser.close(); server.kill(); mock.close(); anthropic.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
+} finally { await browser.close(); server.kill(); mock.close(); anthropic.close(); ollama.close(); fs.rmSync(dataDir, { recursive: true, force: true }); }
 console.log(`\n${passed} passed, ${errors.length} problem(s)`);
 if (errors.length) { console.log(errors.join('\n')); process.exit(1); }

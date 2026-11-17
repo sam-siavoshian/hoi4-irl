@@ -111,7 +111,8 @@ function ServerRow({ id, p, presets, onPreset }) {
 // list: what GET /api/ai/models said. value: the model in use. save(name): keep another.
 function ModelRow({ id, list, loading, value, save, placeholder, description, extra = null }) {
   const listed = list?.ok && list.listed && list.models.length ? list.models : null;
-  const options = listed ? [...(value && !listed.some(m => m.id === value || m.id === `${value}:latest`) ? [{ value, label: `${value} (not in the list)` }] : []), ...listed.map(m => ({ value: m.id, label: modelLabel(m) }))] : null;
+  // the options stay the server's list whatever is typed: a typed name is shown in the trigger as it is
+  const options = listed ? listed.map(m => ({ value: m.id, label: modelLabel(m) })) : null;
   const chosen = listed?.find(m => m.id === value || m.id === `${value}:latest`)?.id || value;
   const status = loading ? <StatusLine data-testid={`${id}-models-state`} text="Reading the server’s list of models…" />
     : !list ? null
