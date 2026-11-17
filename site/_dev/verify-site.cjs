@@ -28,6 +28,7 @@ module.exports = async function verifySite(browser, base) {
   assert.ok(pages.length >= 15, `only ${pages.length} pages built`);
   const seen = { title: new Map(), description: new Map(), canonical: new Map() };
   const links = new Set();
+  const keywordSets = new Map();
   let site = null;
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const table = [];
@@ -44,7 +45,7 @@ module.exports = async function verifySite(browser, base) {
       const heads = [...document.querySelectorAll('h1, h2, h3, h4, h5, h6')].map(h => Number(h.tagName[1]));
       return {
         lang: document.documentElement.lang, titles: document.querySelectorAll('title').length, title: document.title,
-        description: m('meta[name=description]'), canonical: document.querySelector('link[rel=canonical]')?.getAttribute('href') || '',
+        description: m('meta[name=description]'), keywords: m('meta[name=keywords]'), canonical: document.querySelector('link[rel=canonical]')?.getAttribute('href') || '',
         markdown: document.querySelector('link[rel=alternate][type="text/markdown"]')?.getAttribute('href') || '',
         og: { title: m('meta[property="og:title"]'), image: m('meta[property="og:image"]'), w: m('meta[property="og:image:width"]'), h: m('meta[property="og:image:height"]'), alt: m('meta[property="og:image:alt"]'), url: m('meta[property="og:url"]') },
         twitter: { card: m('meta[name="twitter:card"]'), image: m('meta[name="twitter:image"]') },
@@ -64,6 +65,16 @@ module.exports = async function verifySite(browser, base) {
     assert.ok(info.title.length > 10 && info.title.length <= 60, `${where}: title is ${info.title.length} characters`);
     assert.ok(info.description.length >= 50 && info.description.length <= 160, `${where}: description is ${info.description.length} characters`);
     for (const k of ['title', 'description', 'canonical']) { assert.ok(!seen[k].has(info[k]), `${where}: same ${k} as ${seen[k].get(info[k])}`); seen[k].set(info[k], where); }
+    // keywords: 8 to 15 terms of its own, the same list in the structured data, no page's list a copy of another's
+    const terms = info.keywords.split(',').map(t => t.trim()).filter(Boolean);
+    assert.ok(terms.length >= 8 && terms.length <= 15, `${where}: ${terms.length} keywords`);
+    assert.equal(new Set(terms.map(t => t.toLowerCase())).size, terms.length, `${where}: a keyword twice`);
+    for (const [other, list] of keywordSets) {
+      const shared = terms.filter(t => list.includes(t)).length;
+      assert.ok(shared / Math.min(terms.length, list.length) < 0.75, `${where}: its keywords are mostly ${other}'s (${shared} shared)`);
+    }
+    keywordSets.set(where, terms);
+    assert.ok(info.ld.some(t => t.includes(`"keywords":"${info.keywords.replace(/"/g, '\\"')}"`)), `${where}: the keywords are not in the structured data`);
     assert.match(info.canonical, /^https:\/\/.+\/$/, `${where}: canonical address`);
     if (!site) site = info.canonical; // the landing page is first
     assert.equal(info.canonical, site + pagePath, `${where}: canonical is the page's own address`);

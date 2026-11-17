@@ -57,7 +57,7 @@ export function buildPages(data, site) {
 
   // ---------------- the landing page: only its head lives here; its body is site/Landing.jsx ----------------
   pages.push({
-    name: 'landing', path: '', kind: 'landing',
+    name: 'landing', path: '', kind: 'landing', related: ['how-it-works', 'countries', 'self-hosting', 'faq'],
     title: 'Home Front · Your life as a 1936 war map',
     description: 'Home Front is an open-source, self-hosted productivity app and daily journal that shows your life as a 1936 war map. Say what happened and the front moves.',
     h1: 'Your life as a war map',

@@ -25,6 +25,7 @@ import { contentData } from './content-data.mjs';
 import { buildPages, linkOf, keyFacts, DEFINITION, NAME } from '../site/content/pages.mjs';
 import { pageToMarkdown, blocksToMarkdown, wordCount } from '../site/content/markdown.mjs';
 import { plain } from '../site/content/inline.mjs';
+import { keywordsFor } from '../site/content/keywords.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, '_site');
@@ -48,6 +49,7 @@ const data = await contentData(root);
 const pages = buildPages(data, SITE);
 const byName = Object.fromEntries(pages.map(p => [p.name, p]));
 const flags = Object.fromEntries(data.countries.map(c => [c.id, c]));
+for (const p of pages) p.keywords = keywordsFor(p, data); // one list per page: meta keywords, article:tag, JSON-LD
 
 // ---- the browser build, then the server bundle that renders each page ----
 const { build } = await import('vite');
@@ -114,7 +116,7 @@ function structuredData(page) {
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     image: SITE + byName.landing.image.src,
     screenshot: [SITE + 'img/hero.png', ...data.countries.map(c => `${SITE}img/countries/${c.id}.png`)],
-    featureList: FEATURES, softwareHelp: SITE + 'faq/', downloadUrl: data.repo, sameAs: [data.repo],
+    featureList: FEATURES, keywords: byName.landing.keywords.join(', '), softwareHelp: SITE + 'faq/', downloadUrl: data.repo, sameAs: [data.repo],
     subjectOf: { '@id': ID.source },
   };
   const source = {
@@ -123,11 +125,11 @@ function structuredData(page) {
     version: data.version, targetProduct: { '@id': ID.app }, author: { '@type': 'Organization', name: pkg.author, url: data.repo },
   };
   if (page.kind === 'landing') {
-    graph.push(website, app, source, { '@type': 'WebPage', '@id': url + '#page', url, name: page.title, description: page.description, isPartOf: { '@id': ID.site }, about: { '@id': ID.app }, primaryImageOfPage: img, inLanguage: 'en', dateModified: LASTMOD });
+    graph.push(website, app, source, { '@type': 'WebPage', '@id': url + '#page', url, name: page.title, description: page.description, isPartOf: { '@id': ID.site }, about: { '@id': ID.app }, primaryImageOfPage: img, inLanguage: 'en', dateModified: LASTMOD, keywords: page.keywords.join(', ') });
     return graph;
   }
   const crumbs = [{ name: NAME, item: SITE }, ...page.crumbs.map(([label, p]) => ({ name: label, item: p ? SITE + p : url }))];
-  const web = { '@type': page.kind === 'TechArticle' ? 'TechArticle' : page.kind, '@id': url + '#page', url, name: page.title, headline: page.h1, description: page.description, isPartOf: { '@id': ID.site }, about: { '@id': ID.app }, image: img, inLanguage: 'en', dateModified: LASTMOD, breadcrumb: { '@id': url + '#breadcrumb' } };
+  const web = { '@type': page.kind === 'TechArticle' ? 'TechArticle' : page.kind, '@id': url + '#page', url, name: page.title, headline: page.h1, description: page.description, isPartOf: { '@id': ID.site }, about: { '@id': ID.app }, image: img, inLanguage: 'en', dateModified: LASTMOD, keywords: page.keywords.join(', '), breadcrumb: { '@id': url + '#breadcrumb' } };
   if (page.kind === 'FAQPage') {
     web.mainEntity = page.blocks.filter(b => b.t === 'faq').flatMap(b => b.items).map(({ q, a }) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: plain(a) } }));
   }
@@ -147,6 +149,7 @@ function head(page) {
   return [
     `<title>${text(page.title)}</title>`,
     `<meta name="description" content="${attr(page.description)}">`,
+    `<meta name="keywords" content="${attr(page.keywords.join(', '))}">`,
     `<meta name="robots" content="index, follow, max-image-preview:large">`,
     `<link rel="canonical" href="${attr(url)}">`,
     `<link rel="alternate" type="text/markdown" href="${rel}${page.path}index.md" title="${attr(page.title)} (Markdown)">`,
@@ -157,6 +160,8 @@ function head(page) {
     `<meta property="og:title" content="${attr(page.title)}">`,
     `<meta property="og:description" content="${attr(page.description)}">`,
     `<meta property="og:url" content="${attr(url)}">`,
+    ...(page.kind === 'landing' ? [] : page.keywords.map(k => `<meta property="article:tag" content="${attr(k)}">`)),
+    ...(page.related || []).map(n => byName[n]).filter(Boolean).map(r => `<meta property="og:see_also" content="${attr(SITE + r.path)}">`),
     `<meta property="og:image" content="${attr(imgUrl)}">`,
     `<meta property="og:image:type" content="image/png">`,
     `<meta property="og:image:width" content="${img.w}">`,
