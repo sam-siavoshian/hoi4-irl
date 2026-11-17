@@ -69,11 +69,11 @@ function limited(ip) { if (!RATE) return 0; const now = Date.now(); const a = (h
 setInterval(() => { const now = Date.now(); for (const [k, a] of hits) if (!a.length || now - a.at(-1) > 60e3) hits.delete(k); for (const [k, a] of attempts) if (!a.length || now - a.at(-1) > 10 * 60e3) attempts.delete(k); }, 5 * 60e3).unref();
 
 // ---- helpers ----
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const PUBLIC_FILES = new Set(['/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png']); // needed to install to the home screen
 // The whole whitelist. Built files come from dist/, the maps from data/; nothing else on disk is ever served.
 const BUILT_FILES = /^\/(index\.html|sw\.js|theme-boot\.js|assets\/[\w-]+(\.[\w-]+)*\.(js|css|woff2|png|svg))$/;
-const DATA_FILES = /^\/(data\/scenarios\.json|data\/maps\/[\w-]+\.json)$/;
+const DATA_FILES = /^\/(data\/scenarios\.json|data\/maps\/[\w-]+\.json|icons\/flags\/[\w-]+\.(png|webp))$/; // the maps, and the countries' flags
 const built = () => fs.existsSync(path.join(DIST, 'index.html'));
 const NOT_BUILT = 'The interface has not been built yet. Run `npm run build` in the Home Front folder (or start it with `npm start`, which builds first), then reload.';
 // Test hook: a directory of extra built maps (<id>.json) offered next to the ones in data/maps/. Never set in normal use.

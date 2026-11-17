@@ -29,7 +29,9 @@ A look the kit lacked was added to the kit, not to a screen. Each file's header 
 | `src/components/ui/section-header.tsx` | `SectionHeader level="hero" \| "display"`, `align="center"` | A page read from top to bottom (the landing page): its one headline at `text-hero` with the sentence and actions under it, and each band's heading at `text-headline`. The kit's levels stop at a settings page's title. |
 | `src/components/ui/list.tsx` | `ListRowDisclosure` | A row that opens in place, a question and its answer (the landing page's FAQ): the row's type and gutters on the kit's `Collapsible`, a chevron that turns, the answer wiped in. |
 | `src/components/ui/code-block.tsx` | new `CodeBlock` | Commands to copy and run (the landing page's install steps): a recessed plate of monospace lines, notes that are not copied, and one Copy button made as `CopyDetailsButton` is. The kit had no block of code. |
-| `src/components/ui/index.ts` | exports `DayGrid`, `Slider` and `CodeBlock` | |
+| `src/components/ui/flag-image.tsx` | new `FlagImage` (`shape`: `circle`, `rect`; `size`: `xs` to `xl`; `src`, `srcSet`, `ratio`, `focus`, `label`, `fallback`) | A country's real flag is a picture, not a drawing: round where a face would stand (the Avatar's crop and sizes) or whole at its own proportions where there is room, with a faint rim so a white stripe keeps its edge. Unlike Avatar it does not fade in, so a page rendered on the server shows it at once. |
+| `src/components/ui/logo-tile.tsx` | `LogoTile icon` (a lucide element in place of `src`); other props reach the tile | The product's own plain mark (a map on the tile), in the page's ink, where a service's logo would be. |
+| `src/components/ui/index.ts` | exports `DayGrid`, `Slider`, `CodeBlock` and `FlagImage` | |
 
 ## Updating
 

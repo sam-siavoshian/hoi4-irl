@@ -318,7 +318,8 @@ export const META = {
   year: 1935,
   blurb: 'Seven frontiers around the mountain empire, every one of them a colony. Restore Aksum from the Nile to the Red Sea.',
   pitch: 'a 1935 grand-strategy war map of Ethiopia',
-  flag: { type: 'h3', colors: ['#2f8f4e', '#f2c230', '#c8342c'] },
+  // the real flag in use in the scenario's year (icons/flags/README.md has its source and licence); `colors` are its main paints
+  flag: { image: 'icons/flags/ethiopia.png', sizes: { 64: 'icons/flags/ethiopia-64.png', 128: 'icons/flags/ethiopia-128.png', 320: 'icons/flags/ethiopia.png' }, ratio: 1.5, colors: ['#078930', '#fcdd09', '#da121a'] },
   regionWord: 'Tributary Kingdom',
   // FOREIGN region → the name it bore in Aksumite inscriptions, the Periplus of the Erythraean Sea or older tradition
   regions: {

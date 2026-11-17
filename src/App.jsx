@@ -62,7 +62,7 @@ function Chrome() {
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 px-4 pt-safe">
         <div className="mt-3 flex items-start justify-between gap-2 md:justify-start">
           <CardButton padding="sm" className="pointer-events-auto w-auto max-w-56" data-testid="identity" aria-label={`${st.nation.name}. Open the overview`} onClick={emblem}>
-            <PersonRow size="md" avatar={<Flag flag={F().flag} />} name={<span data-testid="nation-name">{st.empire ? st.nation.name : F().name}</span>} detail={fmtDate(st.now)} />
+            <PersonRow size="md" avatar={<Flag flag={F().flag} size="md" />} name={<span data-testid="nation-name">{st.empire ? st.nation.name : F().name}</span>} detail={fmtDate(st.now)} />
           </CardButton>
           <CardButton padding="sm" className="pointer-events-auto flex h-14 w-auto items-center gap-3" data-testid="status" aria-label={`Stability ${v}%, day streak ${st.dayStreak}. Open the overview`} onClick={() => openSheet('overview')}>
             <StatusLabel tone={v >= 60 ? 'success' : v >= 35 ? 'attention' : 'danger'} animate={false} className="tabular-nums">{v}%</StatusLabel>

@@ -23,7 +23,7 @@ export function Picker({ wide }) {
   const close = first ? null : <IconButton label="Close" size="md" tooltip={false} data-testid="picker-close" onClick={cancelPicker}><XIcon /></IconButton>;
   const nations = (
     <ChoiceCards variant="thumbs" flow={wide ? 'column' : 'scroll'} label="Country" value={p.id} onChange={browse} data-testid="nations"
-      options={scenarios.map(c => ({ value: c.id, label: c.name, sub: c.empire, preview: <Flag flag={c.flag} className={wide ? 'size-9' : 'size-10'} />, data: { 'data-testid': 'country', 'data-id': c.id } }))} />
+      options={scenarios.map(c => ({ value: c.id, label: c.name, sub: c.empire, preview: wide ? <Flag flag={c.flag} size="lg" /> : <Flag flag={c.flag} shape="rect" size="lg" className="max-w-full" />, data: { 'data-testid': 'country', 'data-id': c.id } }))} />
   );
   const play = (
     <Button size="lg" className="w-full" data-testid="play" loading={p.busy} onClick={playPicked}>
@@ -74,7 +74,7 @@ function Briefing({ s, playing }) {
   const b = briefOf(s.id);
   return (
     <Stagger step="settle" data-testid="briefing" data-id={s.id} className="space-y-4">
-      <PersonRow size="lg" avatar={<Flag flag={s.flag} className="size-10" />} name={<span data-testid="brief-name">{s.name}</span>} detail={`${s.long} · ${s.year}`}
+      <PersonRow size="lg" avatar={<Flag flag={s.flag} shape="rect" size="xl" />} name={<span data-testid="brief-name">{s.name}</span>} detail={`${s.long} · ${s.year}`}
         trailing={playing ? <Badge variant="secondary">Playing</Badge> : null} />
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">Empire to restore</p>

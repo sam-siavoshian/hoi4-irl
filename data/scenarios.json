@@ -1,22 +1,5 @@
 [
  {
-  "id": "iran",
-  "name": "Iran",
-  "long": "Imperial State of Iran",
-  "empire": "Achaemenid Empire",
-  "year": 1936,
-  "blurb": "Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.",
-  "flag": {
-   "type": "h3",
-   "colors": [
-    "#3f9467",
-    "#efeadb",
-    "#cf4a39"
-   ],
-   "disc": "#e3b85c"
-  }
- },
- {
   "id": "ethiopia",
   "name": "Ethiopia",
   "long": "Ethiopian Empire",
@@ -24,11 +7,17 @@
   "year": 1935,
   "blurb": "Seven frontiers around the mountain empire, every one of them a colony. Restore Aksum from the Nile to the Red Sea.",
   "flag": {
-   "type": "h3",
+   "image": "icons/flags/ethiopia.png",
+   "sizes": {
+    "64": "icons/flags/ethiopia-64.png",
+    "128": "icons/flags/ethiopia-128.png",
+    "320": "icons/flags/ethiopia.png"
+   },
+   "ratio": 1.5,
    "colors": [
-    "#2f8f4e",
-    "#f2c230",
-    "#c8342c"
+    "#078930",
+    "#fcdd09",
+    "#da121a"
    ]
   }
  },
@@ -40,11 +29,17 @@
   "year": 1936,
   "blurb": "Seven frontiers from the Rhine to the Pyrenees. Restore the empire of Napoleon.",
   "flag": {
-   "type": "v3",
+   "image": "icons/flags/france.png",
+   "sizes": {
+    "64": "icons/flags/france-64.png",
+    "128": "icons/flags/france-128.png",
+    "320": "icons/flags/france.png"
+   },
+   "ratio": 1.5,
    "colors": [
-    "#2b4a8c",
-    "#efeadb",
-    "#c9423a"
+    "#002654",
+    "#ffffff",
+    "#ce1126"
    ]
   }
  },
@@ -56,17 +51,39 @@
   "year": 1936,
   "blurb": "Three mountain borders and four seas. Restore the empire of Basil II, from the Danube to Antioch.",
   "flag": {
-   "type": "h",
-   "stripes": [
-    [
-     "#0d5eaf",
-     1
-    ]
-   ],
-   "cross": {
-    "color": "#f4f1e6",
-    "width": 0.2
-   }
+   "image": "icons/flags/greece.png",
+   "sizes": {
+    "64": "icons/flags/greece-64.png",
+    "128": "icons/flags/greece-128.png",
+    "320": "icons/flags/greece.png"
+   },
+   "ratio": 1.5,
+   "colors": [
+    "#0d5eaf",
+    "#ffffff"
+   ]
+  }
+ },
+ {
+  "id": "iran",
+  "name": "Iran",
+  "long": "Imperial State of Iran",
+  "empire": "Achaemenid Empire",
+  "year": 1936,
+  "blurb": "Seven borders from the Caucasus to the Gulf. Restore the empire of Cyrus.",
+  "flag": {
+   "image": "icons/flags/iran.png",
+   "sizes": {
+    "64": "icons/flags/iran-64.png",
+    "128": "icons/flags/iran-128.png",
+    "320": "icons/flags/iran.png"
+   },
+   "ratio": 3,
+   "colors": [
+    "#239f40",
+    "#ffffff",
+    "#da0000"
+   ]
   }
  },
  {
@@ -77,13 +94,18 @@
   "year": 1936,
   "blurb": "Seven fronts from Alta California to Costa Rica. Restore the empire of the Three Guarantees.",
   "flag": {
-   "type": "v3",
+   "image": "icons/flags/mexico.png",
+   "sizes": {
+    "64": "icons/flags/mexico-64.png",
+    "128": "icons/flags/mexico-128.png",
+    "320": "icons/flags/mexico.png"
+   },
+   "ratio": 1.75,
    "colors": [
-    "#2f7d55",
-    "#efeadb",
-    "#c0392b"
-   ],
-   "disc": "#8a6a3a"
+    "#076d4a",
+    "#ffffff",
+    "#d32927"
+   ]
   }
  },
  {
@@ -94,11 +116,16 @@
   "year": 1936,
   "blurb": "Seven frontiers from the Putumayo to Tacna. Restore the Inca realm of the four quarters.",
   "flag": {
-   "type": "v3",
+   "image": "icons/flags/peru.png",
+   "sizes": {
+    "64": "icons/flags/peru-64.png",
+    "128": "icons/flags/peru-128.png",
+    "320": "icons/flags/peru.png"
+   },
+   "ratio": 1.5,
    "colors": [
-    "#c0392f",
-    "#efeadb",
-    "#c0392f"
+    "#d91023",
+    "#ffffff"
    ]
   }
  },
@@ -110,28 +137,17 @@
   "year": 1936,
   "blurb": "Seven fronts from the Shan hills to the Malay sultanates. Restore the tributary realm of the early Chakri kings.",
   "flag": {
-   "type": "h",
-   "stripes": [
-    [
-     "#a51931",
-     1
-    ],
-    [
-     "#f4f1e6",
-     1
-    ],
-    [
-     "#2d2a4a",
-     2
-    ],
-    [
-     "#f4f1e6",
-     1
-    ],
-    [
-     "#a51931",
-     1
-    ]
+   "image": "icons/flags/siam.png",
+   "sizes": {
+    "64": "icons/flags/siam-64.png",
+    "128": "icons/flags/siam-128.png",
+    "320": "icons/flags/siam.png"
+   },
+   "ratio": 1.5,
+   "colors": [
+    "#a51931",
+    "#f4f5f8",
+    "#2d2a4a"
    ]
   }
  },
@@ -143,13 +159,17 @@
   "year": 1936,
   "blurb": "Seven fronts from the Danube to the Tigris. Restore the empire of Süleyman.",
   "flag": {
-   "type": "h3",
+   "image": "icons/flags/turkey.png",
+   "sizes": {
+    "64": "icons/flags/turkey-64.png",
+    "128": "icons/flags/turkey-128.png",
+    "320": "icons/flags/turkey.png"
+   },
+   "ratio": 1.5,
    "colors": [
-    "#d7141a",
-    "#d7141a",
-    "#d7141a"
-   ],
-   "disc": "#f4f1e8"
+    "#e30a17",
+    "#ffffff"
+   ]
   }
  }
 ]

@@ -101,3 +101,4 @@ export * from "./code-block";
 // --- Guided flows (first run), and the sound they make
 export * from "./step-shell";
 export * from "./sound";
+export * from "./flag-image";
