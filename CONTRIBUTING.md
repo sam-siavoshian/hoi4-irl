@@ -67,7 +67,7 @@ tests/mock-openai.mjs    A fake OpenAI endpoint used by the server and browser t
 tests/e2e.mjs            Headless Chromium at iPhone size against the real server.
 
 bin/homefront.mjs           Command-line client for the automation API.
-site/                    Static landing page and offline demo (GitHub Pages).
+site/                    Static landing page and offline demo (Vercel).
 deploy/                  launchd plist for running on a Mac.
 docs/                    Architecture, self-hosting, API, FAQ.
 ~/.homefront/            Runtime data. Lives outside the repository (older installs: ./private, git-ignored).

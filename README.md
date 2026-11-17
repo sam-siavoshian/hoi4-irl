@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <a href="https://sam-siavoshian.github.io/hoi4-irl/"><b>Try the demo</b></a> ·
-  <a href="https://sam-siavoshian.github.io/hoi4-irl/how-it-works/">How it works</a> ·
+  <a href="https://homefront-map.vercel.app/"><b>Try the demo</b></a> ·
+  <a href="https://homefront-map.vercel.app/how-it-works/">How it works</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="docs/SELF_HOSTING.md">Self-hosting</a> ·
   <a href="docs/API.md">API</a> ·
@@ -241,7 +241,7 @@ backups, asking before each system change.
 No API key? Add none. The offline keyword judge takes over, and you can add a key or a local model
 later, in Settings, without losing anything.
 
-Just want to look? Try the [offline demo](https://sam-siavoshian.github.io/hoi4-irl/).
+Just want to look? Try the [offline demo](https://homefront-map.vercel.app/).
 
 ## How it works
 

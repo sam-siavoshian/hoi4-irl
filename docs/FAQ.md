@@ -152,7 +152,7 @@ codebase.
 
 For development, yes: `npm run serve` is a plain static server, and the app runs with the offline judge
 and browser storage only. There is no login, no sync and no model in that mode, so it is not meant for
-real use. The hosted [demo](https://sam-siavoshian.github.io/hoi4-irl/) works the same way.
+real use. The hosted [demo](https://homefront-map.vercel.app/) works the same way.
 
 ## Data and privacy
 

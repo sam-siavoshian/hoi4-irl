@@ -8,3 +8,5 @@ private/
 _site/
 dist/
 site/_dev/*.png
+.vercel
+.env*.local

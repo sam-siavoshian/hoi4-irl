@@ -91,7 +91,7 @@ The step from a personal tool to something anyone can self-host.
 - **Shareable images.** A daily bulletin card, a newspaper front page for big events and a weekly recap
   card.
 - **Ask the staff.** Question answering over your own history.
-- **Landing page and offline demo** (`site/`), deployed to GitHub Pages.
+- **Landing page and offline demo** (`site/`), deployed to Vercel (`vercel.json`).
 - **Docker.** `Dockerfile`, `docker-compose.yml` and `npm run docker`.
 - **Project files.** MIT licence, third-party notices, contributing guide, code of conduct, security
   policy, issue and pull request templates, CI (unit, server and browser tests), and documentation for

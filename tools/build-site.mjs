@@ -1,4 +1,4 @@
-// Builds _site/ for static hosting (GitHub Pages): the landing page at the root, the content pages under it
+// Builds _site/ for static hosting (Vercel, see vercel.json): the landing page at the root, the content pages under it
 // (countries/, self-hosting/, ai-providers/, how-it-works/, faq/, compare/), and the app at /demo/.
 // Every page is a small React page on the design system (site/, vite.site.config.js). Vite builds them for the
 // browser, then builds site/prerender.jsx as a server bundle, and each page's HTML is written in, so it reads before
@@ -11,7 +11,7 @@
 // Every URL inside a page is relative, so it runs under any sub-path.
 //   node tools/build-site.mjs            build
 //   node tools/build-site.mjs --serve    build, then preview on http://localhost:$PORT (default 8080)
-// SITE_URL (e.g. https://user.github.io/repo/) is the address the site is published at: it makes the social-card
+// SITE_URL (e.g. https://homefront-map.vercel.app/) is the address the site is published at: it makes the social-card
 // images absolute, and is the base of the canonical addresses, the sitemap, llms.txt and the structured data
 // (package.json's homepage when unset).
 // Needs the dev dependencies (npm install); nothing else.

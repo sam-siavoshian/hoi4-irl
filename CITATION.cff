@@ -12,7 +12,7 @@ authors:
 version: "1.1.0"
 license: MIT
 repository-code: "https://github.com/sam-siavoshian/hoi4-irl"
-url: "https://sam-siavoshian.github.io/hoi4-irl/"
+url: "https://homefront-map.vercel.app/"
 keywords:
   - self-hosted
   - productivity

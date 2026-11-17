@@ -17,15 +17,15 @@ security policy, contributing guide, issue templates, Dependabot and `CITATION.c
 2. **Merge the working branch into `main` as one squashed commit.** The branch's history carries links to
    the private sessions it was built in (they need your login to open, but there is no reason to publish
    them). A squash merge puts a single clean commit on `main`; delete the branch afterwards.
-   GitHub shows the default branch's README, and the Pages workflow deploys from `main`.
+   GitHub shows the default branch's README, and Vercel deploys the site from `main`.
 3. **Check the first CI run is green** (Actions tab). The workflows have not run yet.
 4. **Consider the name.** The repository is called `hoi4-irl`, which contains another company's
    trademark. `homefront` is safer and matches the product. GitHub redirects the old URL after a rename,
-   but search engines and the Pages address (`<user>.github.io/<repo>/`) change with it, so rename **before**
+   but search engines index the old one, so rename **before**
    you submit the site to search engines or post anywhere. After a rename, replace `sam-siavoshian/hoi4-irl`
    across the repository (README, `package.json` `homepage` and `repository`, `site/Chrome.jsx`, `site/Landing.jsx`,
    `CITATION.cff`, `SKILL.md`, issue-template links); the site's canonical addresses, sitemap and llms.txt follow
-   `package.json`'s `homepage` and the Pages address by themselves.
+   `package.json`'s `homepage` by themselves.
 
 ## The About panel (the gear beside "About", top right of the repository page)
 
@@ -33,7 +33,7 @@ security policy, contributing guide, issue templates, Dependabot and `CITATION.c
 
 > A productivity app and daily journal that shows your life as a 1936 grand-strategy war map. Say what happened today; it files the entry and the front lines move, so you see every part of your life at a glance. Self-hosted, works with any AI provider or offline.
 
-**Website**: tick "Use your GitHub Pages website", or paste `https://sam-siavoshian.github.io/hoi4-irl/`.
+**Website**: `https://homefront-map.vercel.app/`.
 
 **Topics** (GitHub allows 20; paste these into the About panel's "Topics" field, one per space):
 
@@ -86,15 +86,16 @@ This is the picture shown when the repository's address is pasted into X, Bluesk
 iMessage or Hacker News readers. Without it GitHub makes a plain card with the name and the counts. (The website has
 its own cards, set in each page's head, so nothing is needed for it.)
 
-## GitHub Pages
+## The website (Vercel)
 
-Settings → Pages → Build and deployment → Source: **GitHub Actions**. The `pages.yml` workflow then builds
-the site on every push to `main`: the landing page, the content pages, the demo, `sitemap.xml`, `robots.txt`,
-`llms.txt`, `llms-full.txt` and `/skill.md`. Open the site after the first run and check the demo loads.
+The site is a Vercel project (`homefront-map`) connected to this repository: every push to `main` builds it
+with `vercel.json` (`npm run build:site`, output `_site/`) and publishes it at `https://homefront-map.vercel.app/`; other branches
+get preview addresses. `vercel.json` passes `SITE_URL`, so social-card images are absolute and every canonical
+address points at the production site, previews included. It holds the landing page, the content pages, the
+demo, `sitemap.xml`, `robots.txt`, `llms.txt`, `llms-full.txt` and `/skill.md`.
 
-A custom domain later: Settings → Pages → Custom domain. Then the address in `package.json` `homepage` should
-match, so the canonical addresses agree with the domain (the workflow passes the Pages address as `SITE_URL`
-either way).
+A custom domain later: Vercel → the project → Settings → Domains. Then change `homepage` in `package.json` and
+`SITE_URL` in `vercel.json` to it, so the canonical addresses agree with the domain.
 
 ## Discussions
 
@@ -132,10 +133,10 @@ Nothing tells a search engine about a new site faster than its own tools. Do the
 **Google Search Console**
 
 1. Open `https://search.google.com/search-console` and **Add property** → **URL prefix** →
-   `https://sam-siavoshian.github.io/hoi4-irl/` (a Domain property isn't possible on `github.io`).
+   `https://homefront-map.vercel.app/` (or a Domain property, once there is a custom domain).
 2. Verify with **HTML file**: download the `google….html` file it offers, put it in `site/root/` in the
    repository (create the folder; the build copies everything in it to the site's root as it is), push, wait for
-   the Pages workflow, then press **Verify**.
+   the Vercel deploy, then press **Verify**.
 3. **Sitemaps** → add `sitemap.xml` → Submit.
 4. **URL inspection** → paste the landing page's address → **Request indexing**. Do the same for `/faq/` and
    `/countries/`.
@@ -145,7 +146,7 @@ Nothing tells a search engine about a new site faster than its own tools. Do the
 1. Open `https://www.bing.com/webmasters` and sign in.
 2. Easiest: **Import from Google Search Console** once Google is verified. Otherwise add the site address and
    verify with the `BingSiteAuth.xml` file, in `site/root/` as above.
-3. **Sitemaps** → submit `https://sam-siavoshian.github.io/hoi4-irl/sitemap.xml`.
+3. **Sitemaps** → submit `https://homefront-map.vercel.app/sitemap.xml`.
 
 **AI assistants** read the same pages: `robots.txt` lets their crawlers in by name, `llms.txt` and
 `llms-full.txt` summarise the product, and every page has a Markdown copy (`<page>/index.md`). There is nothing to

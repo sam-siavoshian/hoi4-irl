@@ -27,7 +27,7 @@ Everything else here is useful, and smaller.
 
 - [ ] Every step in [PUBLISHING.md](PUBLISHING.md) up to "Search engines" is done: public, CI green, Pages live,
       description, topics, social preview, Discussions on, a `v1.1.0` release.
-- [ ] The demo opens on a phone and a laptop, in light and dark: `https://sam-siavoshian.github.io/hoi4-irl/`.
+- [ ] The demo opens on a phone and a laptop, in light and dark: `https://homefront-map.vercel.app/`.
 - [ ] The 10 good first issues below are open, labelled `good first issue`.
 - [ ] You have 2 or 3 free hours after each post to answer comments. A post with the author replying does far
       better than one without, and replies are where people decide to try it.
@@ -91,7 +91,7 @@ one part of your life. School going well pushes that front outward. Health negle
 two weeks lets the enemy mass on it.
 
 Demo, no sign-up, runs in your browser with the offline judge:
-https://sam-siavoshian.github.io/hoi4-irl/
+https://homefront-map.vercel.app/
 
 Some details that might interest people here:
 
@@ -137,7 +137,7 @@ project name and an **AI involvement** field. Answer it honestly.
 ```
 Project name: Home Front
 Repo: https://github.com/sam-siavoshian/hoi4-irl
-Demo (static, offline judge, no sign-up): https://sam-siavoshian.github.io/hoi4-irl/
+Demo (static, offline judge, no sign-up): https://homefront-map.vercel.app/
 License: MIT
 AI involvement: [say it plainly: written with an AI coding assistant, reviewed and tested by me; the app
 itself can use your own model, a local one through Ollama or LM Studio, or none]
@@ -191,7 +191,7 @@ and taking every objective restores the country's old empire.
 empire), Ethiopia (Aksum), Siam, Peru (Tawantinsuyu) and Mexico (the 1821 empire). The
 aggressors of the period are left out on purpose.
 
-Demo in the browser, no sign-up: https://sam-siavoshian.github.io/hoi4-irl/
+Demo in the browser, no sign-up: https://homefront-map.vercel.app/
 Code: https://github.com/sam-siavoshian/hoi4-irl
 
 Which country should be next?
@@ -229,7 +229,7 @@ yet (JSON export only).
 
 It's open source and self-hosted, and it draws the result as a 1936 war map, which is
 either the point or a reason to skip it:
-https://github.com/sam-siavoshian/hoi4-irl (demo: https://sam-siavoshian.github.io/hoi4-irl/)
+https://github.com/sam-siavoshian/hoi4-irl (demo: https://homefront-map.vercel.app/)
 
 How do you track the areas no device measures?
 ```
@@ -300,7 +300,7 @@ AI at all.
 4/ 8 countries, each with 7 fronts and an empire to restore: Iran, Turkey, Greece, France,
 Ethiopia, Siam, Peru, Mexico. [countries.png]
 
-5/ Try it in the browser, no sign-up: https://sam-siavoshian.github.io/hoi4-irl/
+5/ Try it in the browser, no sign-up: https://homefront-map.vercel.app/
 Code (MIT): https://github.com/sam-siavoshian/hoi4-irl
 ```
 
@@ -383,7 +383,7 @@ and `health-and-fitness.yml` are the closest; the first tag decides where it app
 
 ```yaml
 name: "Home Front"
-website_url: "https://sam-siavoshian.github.io/hoi4-irl/"
+website_url: "https://homefront-map.vercel.app/"
 source_code_url: "https://github.com/sam-siavoshian/hoi4-irl"
 description: "Daily journal and life tracker that files each entry into one of 7 areas of your life and shows them as the fronts of a 1936 war map. Works with your own AI provider, a local model or a built-in offline judge."
 licenses:
@@ -394,7 +394,7 @@ platforms:
 tags:
   - Personal Dashboards
   - Health and Fitness
-demo_url: "https://sam-siavoshian.github.io/hoi4-irl/demo/?demo=1"
+demo_url: "https://homefront-map.vercel.app/demo/?demo=1"
 ```
 
 `depends_3rdparty` is left out (false): no third-party service is needed, since the offline judge and local
