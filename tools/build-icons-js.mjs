@@ -9,7 +9,7 @@ const game = require('@iconify-json/game-icons/icons.json'), lucide = require('@
 
 const UNITS = { inf: 'brodie-helmet', arm: 'tank', art: 'field-gun', cav: 'horse-head', mtn: 'peaks', mot: 'jeep', mar: 'anchor', grd: 'imperial-crown', ship: 'battleship', air: 'airplane', port: 'anchor', naval: 'anchor', airbase: 'airplane-departure', hub: 'wooden-crate', refinery: 'oil-pump', fort: 'castle', fire: 'small-fire', battle: 'crossed-swords' };
 const UI = {
-  flag: 'flag', book: 'scroll-text', mic: 'mic', layers: 'layers', locate: 'locate-fixed', plus: 'plus', minus: 'minus', x: 'x', chev: 'chevron-right', back: 'chevron-left', check: 'check',
+  flag: 'flag', map: 'map', book: 'scroll-text', mic: 'mic', layers: 'layers', locate: 'locate-fixed', plus: 'plus', minus: 'minus', x: 'x', chev: 'chevron-right', back: 'chevron-left', check: 'check',
   trash: 'trash-2', edit: 'pencil', share: 'share', play: 'play', pause: 'pause', target: 'crosshair', medal: 'medal', flame: 'flame', factory: 'factory', plane: 'plane', anchor: 'anchor',
   arrowR: 'arrow-right', arrowL: 'arrow-left', ring: 'circle-dot', bomb: 'bomb', fort: 'castle', box: 'package', shield: 'shield', crown: 'crown', gear: 'settings', terrain: 'mountain-snow',
   user: 'user-round', info: 'info', down: 'download', up: 'upload', swords: 'swords', handshake: 'handshake', eye: 'eye', snow: 'snowflake', train: 'train-track', users: 'users-round', parachute: 'send', gift: 'gift', megaphone: 'megaphone', search: 'search', clock: 'loader', image: 'image', newspaper: 'newspaper', calendar: 'calendar-days', volume: 'volume-2', mute: 'volume-x', star: 'star', sparkles: 'sparkles', award: 'award', listchecks: 'list-checks', zap: 'zap', chevup: 'chevrons-up', keyboard: 'keyboard', bell: 'bell',
