@@ -280,7 +280,7 @@ export function toggleMic(focusField) {
   if (engine === 'keyboard') { r.note = 'Use the microphone key on your keyboard.'; change(); focusField?.(); return; }
   const base = r.text ? r.text.replace(/\s+$/, '') + ' ' : ''; r.note = '';
   const d = { state: 'starting', ctl: null }; ui.dict = d;
-  d.ctl = startDictation({
+  d.ctl = startDictation({ wav: !!app.cfg.wav,
     engine,
     onText: t => { r.text = (base + t).trimStart(); change(); },
     onState: s => { if (ui.dict !== d) return; if (s === 'idle') ui.dict = null; else d.state = s; change(); },

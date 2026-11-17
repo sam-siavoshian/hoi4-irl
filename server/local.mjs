@@ -220,12 +220,12 @@ export async function judgeLocal(c, { name, system, user, schema }, { remembered
     calls++; const t = Date.now();
     if (native) {
       const out = await c.post(rootOf(c.base) + '/api/chat', { model: c.model, messages, stream: false, ...(mode === 'json_schema' ? { format: schema } : mode === 'json_object' ? { format: 'json' } : {}),
-        options: { temperature: 0, ...(o.context ? { num_ctx: o.context } : {}), ...(o.maxTokens ? { num_predict: o.maxTokens } : {}) }, ...(o.keepAlive ? { keep_alive: o.keepAlive } : {}) });
+        options: { temperature: o.temperature ?? 0, ...(o.context ? { num_ctx: o.context } : {}), ...(o.maxTokens ? { num_predict: o.maxTokens } : {}) }, ...(o.keepAlive ? { keep_alive: o.keepAlive } : {}) });
       const tps = out.eval_count > 0 && out.eval_duration > 0 ? out.eval_count / (out.eval_duration / 1e9) : null;
       return { text: out.message?.content, cut: out.done_reason === 'length', tokens: out.eval_count ?? null, tps, ms: Date.now() - t };
     }
     const response_format = mode === 'json_schema' ? { type: 'json_schema', json_schema: { name, strict: true, schema } } : mode === 'json_object' ? { type: 'json_object' } : undefined;
-    const out = await c.post('/chat/completions', { model: c.model, messages, ...(response_format ? { response_format } : {}), temperature: 0, stream: false, ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}) });
+    const out = await c.post('/chat/completions', { model: c.model, messages, ...(response_format ? { response_format } : {}), temperature: o.temperature ?? 0, stream: false, ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}) });
     const choice = out.choices?.[0], msg = choice?.message;
     if (msg?.refusal) throw fail(422, 'The model declined this report.', { reason: 'declined' });
     const text = Array.isArray(msg?.content) ? msg.content.map(p => p?.text || '').join('') : msg?.content;
