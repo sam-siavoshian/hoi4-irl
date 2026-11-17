@@ -13,7 +13,7 @@ import { siteData } from './tools/site-data.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const BOOT = path.join(root, 'vendor/design-system/boot/theme-boot.js');
 
-// `virtual:site-data`: every country's briefing and the worked example, computed from the scenarios and the engine.
+// `virtual:site-data`: every country's briefing and its worked example, computed from the scenarios and the engine.
 function data() {
   const ID = 'virtual:site-data';
   return {
@@ -22,7 +22,7 @@ function data() {
     async load(id) {
       if (id !== '\0' + ID) return null;
       const d = await siteData(root);
-      return `export const countries = ${JSON.stringify(d.countries)};\nexport const example = ${JSON.stringify(d.example)};\n`;
+      return `export const countries = ${JSON.stringify(d.countries)};\nexport const examples = ${JSON.stringify(d.examples)};\nexport const start = ${d.start};\nexport const example = ${JSON.stringify(d.example)};\n`;
     },
   };
 }
@@ -34,6 +34,11 @@ function shellFiles() {
     name: 'homefront-site-shell',
     configureServer(server) {
       server.middlewares.use('/theme-boot.js', (req, res) => { res.setHeader('content-type', 'text/javascript'); res.end(fs.readFileSync(BOOT)); });
+      server.middlewares.use('/demo/icons/flags', (req, res, next) => {
+        const file = path.join(root, 'icons', 'flags', path.basename(req.url.split('?')[0]));
+        if (!/\.(png|webp)$/.test(file) || !fs.existsSync(file)) return next();
+        res.setHeader('content-type', file.endsWith('.png') ? 'image/png' : 'image/webp'); fs.createReadStream(file).pipe(res);
+      });
       server.middlewares.use('/demo/data/maps', (req, res, next) => {
         const file = path.join(root, 'data', 'maps', path.basename(req.url.split('?')[0]));
         if (!fs.existsSync(file)) return next();

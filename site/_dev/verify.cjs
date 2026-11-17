@@ -25,7 +25,30 @@ const fingerprint = () => {
     for (const words of ['Your life as a war map', 'Choose your nation', 'How it works', 'Your data stays yours', 'Get it', 'npm start', 'Is it a game?', 'not affiliated with Paradox Interactive']) assert.ok(html.includes(words), `prerendered HTML lacks “${words}”`);
     assert.equal((html.match(/data-testid="country"/g) || []).length, 8, 'prerendered HTML: eight countries');
     assert.doesNotMatch(html, /hearts of iron/i);
+    assert.doesNotMatch(html, /alt="[^"]*map of Iran/, 'the still behind the hero is not one country');
+    assert.equal((html.match(/data-brand-mark=""/g) || []).length, 2, 'the product wears its own mark, not a flag, in the header and the foot');
     console.log(`ok prerendered: ${(html.length / 1024).toFixed(1)} kB of HTML with the page's words in it`);
+  }
+
+  // The hero is no one country's: two fresh visits with different (seeded) randomness show different countries, and
+  // each loads that country's map alone. Math.random is pinned to the lowest and the highest draw.
+  {
+    const ids = (await (await fetch(new URL('demo/data/scenarios.json', base))).json()).map(s => s.id);
+    const seen = [];
+    for (const draw of [0.01, 0.99]) {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }); const p = await ctx.newPage(); const maps = [];
+      p.on('request', r => { const m = r.url().match(/\/data\/maps\/([\w-]+)\.json/); if (m) maps.push(m[1]); });
+      await p.addInitScript(d => { Math.random = () => d; }, draw);
+      await p.goto(base, { waitUntil: 'load' });
+      await p.waitForSelector(`${MAP}[data-country]`, { timeout: 20000 });
+      const id = await p.getAttribute(MAP, 'data-country'); seen.push(id);
+      assert.equal(id, ids[Math.floor(draw * ids.length)], `the hero picks among the ${ids.length} countries at random`);
+      assert.deepEqual(maps, [id], 'only the hero country\'s map loads');
+      assert.equal(await p.getAttribute('[data-testid=briefing]', 'data-id'), id, 'the briefing follows the hero');
+      await ctx.close();
+    }
+    assert.notEqual(seen[0], seen[1], 'two visits, two countries');
+    console.log(`ok hero: fresh visits show ${seen.join(' and ')}, each with its own map only`);
   }
 
   for (const [name, viewport, mobile] of [['mobile', { width: 390, height: 844 }, true], ['desktop', { width: 1440, height: 900 }, false]]) {
@@ -34,11 +57,13 @@ const fingerprint = () => {
     const errors = [], requests = [];
     p.on('pageerror', e => errors.push('pageerror: ' + e.message));
     p.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); }); // a hydration mismatch lands here
-    p.on('requestfailed', r => errors.push('failed: ' + r.url()));
+    // an image still loading when the page reloads (the theme check below) is cancelled, not failed
+    p.on('requestfailed', r => { if (!(r.resourceType() === 'image' && /ERR_ABORTED/.test(r.failure()?.errorText || ''))) errors.push('failed: ' + r.url() + ' ' + (r.failure()?.errorText || '')); });
     p.on('response', r => { if (r.status() >= 400) errors.push(r.status() + ' ' + r.url()); });
     p.on('request', r => requests.push(r.url()));
     await p.goto(base, { waitUntil: 'load' });
-    await p.waitForSelector(`${MAP}[data-country=iran]`, { timeout: 20000 });
+    await p.waitForSelector(`${MAP}[data-country]`, { timeout: 20000 });
+    const hero = await p.getAttribute(MAP, 'data-country');
     await p.waitForTimeout(1200);
     const a = await p.evaluate(fingerprint);
     assert.ok(a.colours > 8, `${name}: hero canvas is blank (${a.colours} colours)`);
@@ -54,7 +79,11 @@ const fingerprint = () => {
     assert.deepEqual(external, [], `${name}: third-party requests`);
     // a country's map is fetched only when that country is shown
     const maps = () => requests.filter(u => /\/data\/maps\/[\w-]+\.json/.test(u)).map(u => u.match(/maps\/([\w-]+)\.json/)[1]);
-    assert.deepEqual(maps(), ['iran'], `${name}: only the first country's map loads with the page`);
+    assert.deepEqual(maps(), [hero], `${name}: only the hero country's map loads with the page`);
+    // every flag is a real picture that loaded (the requests themselves are checked for errors below)
+    const flags = await p.evaluate(() => [...document.querySelectorAll('[data-flag] img')].map(i => ({ ok: i.complete && i.naturalWidth > 0 && i.naturalHeight > 0, src: i.currentSrc })));
+    assert.ok(flags.length >= 9, `${name}: ${flags.length} flag images`); assert.deepEqual(flags.filter(f => !f.ok), [], `${name}: flags that did not load`);
+    for (const f of new Set(flags.map(x => x.src))) assert.equal((await p.request.get(f)).status(), 200, f);
     await p.screenshot({ path: path.join(out, `landing-${name}-fold.png`) });
 
     // head metadata: one title, a description, a canonical URL, a social card that exists, structured data that parses
@@ -71,7 +100,7 @@ const fingerprint = () => {
     assert.doesNotMatch(head.seen.replace(/\S*github\.com\S*/g, ''), /hearts of iron|\bhoi\s?4\b/i, `${name}: a game's trademark on the page`);
     assert.doesNotMatch(head.seen, /!/, `${name}: an exclamation mark on the page`);
     // every image is the size its tag declares, so nothing shifts as it loads
-    const sizes = await p.evaluate(() => [...document.images].filter(i => i.naturalWidth && (i.naturalWidth !== Number(i.getAttribute('width')) || i.naturalHeight !== Number(i.getAttribute('height')))).map(i => `${i.getAttribute('src')} is ${i.naturalWidth}x${i.naturalHeight}`));
+    const sizes = await p.evaluate(() => [...document.images].filter(i => !i.closest('[data-slot=flag-image]')).filter(i => i.naturalWidth && (i.naturalWidth !== Number(i.getAttribute('width')) || i.naturalHeight !== Number(i.getAttribute('height')))).map(i => `${i.getAttribute('src')} is ${i.naturalWidth}x${i.naturalHeight}`));
     assert.deepEqual(sizes, [], `${name}: image sizes`);
     for (const f of ['robots.txt', 'sitemap.xml', 'img/hero.png']) assert.equal((await p.request.get(base + f)).status(), 200, `${name}: ${f}`);
     assert.equal(await p.locator('[data-testid=nations] [data-testid=country]').count(), 8, `${name}: eight countries listed`);
@@ -80,22 +109,23 @@ const fingerprint = () => {
     console.log(`ok ${name}: canvas ${a.colours} colours, changed over time; captions seen: ${new Set([a, b, c].map(s => s.said + '|' + s.verdict)).size}; no sideways scroll`);
 
     // picking a second country: its briefing shows at once, its map loads (with the kit's loading state) and replaces the first
+    const [other, Other, empire] = hero === 'france' ? ['greece', 'Greece', /Byzantine Empire/] : ['france', 'France', /French Empire/];
     const before = await p.evaluate(fingerprint);
-    await p.locator('[data-testid=country][data-id=france]').scrollIntoViewIfNeeded();
+    await p.locator(`[data-testid=country][data-id=${other}]`).scrollIntoViewIfNeeded();
     const y = await p.evaluate(() => scrollY);
-    await p.click('[data-testid=country][data-id=france]');
-    assert.equal(await p.textContent('[data-testid=brief-name]'), 'France', `${name}: the briefing follows the pick`);
-    assert.match(await p.textContent('[data-testid=brief-empire]'), /French Empire/);
-    await p.waitForSelector(`${MAP}[data-country=france]`, { timeout: 20000 });
+    await p.click(`[data-testid=country][data-id=${other}]`);
+    assert.equal(await p.textContent('[data-testid=brief-name]'), Other, `${name}: the briefing follows the pick`);
+    assert.match(await p.textContent('[data-testid=brief-empire]'), empire);
+    await p.waitForSelector(`${MAP}[data-country=${other}]`, { timeout: 20000 });
     await p.waitForTimeout(1500);
     const after = await p.evaluate(fingerprint);
     assert.notEqual(before.sum, after.sum, `${name}: the hero map did not change with the country`);
     assert.ok(after.colours > 8, `${name}: the second country's map is blank`);
-    assert.deepEqual(maps(), ['iran', 'france'], `${name}: the second map loads when picked, and only it`);
+    assert.deepEqual(maps(), [hero, other], `${name}: the second map loads when picked, and only it`);
     assert.equal(await sideways(), false, `${name}: the page scrolls sideways after a pick`);
-    assert.match(await p.textContent('[data-testid=play]'), /Play as France/);
+    assert.match(await p.textContent('[data-testid=play]'), new RegExp(`Play as ${Other}`));
     assert.ok(Math.abs(await p.evaluate(() => scrollY) - y) < 4, `${name}: picking a country moved the page`);
-    console.log(`ok ${name}: picking France swapped the hero map and its briefing; the page stayed where it was`);
+    console.log(`ok ${name}: the hero opened on ${hero}; picking ${Other} swapped the map and its briefing; the page stayed where it was`);
 
     // the FAQ opens and closes
     const second = p.locator('[data-testid=faq] [data-slot=collapsible-trigger]').nth(1);

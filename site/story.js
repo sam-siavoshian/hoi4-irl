@@ -1,6 +1,7 @@
 // The scripted fortnight the hero map replays, and the entry "How it works" follows through its three steps.
 // Fronts are named by slot (0 to 6, the order a country lists them), so the same story plays on any of the eight maps:
-// slot 0 is School, 1 Family, 2 Partner, 3 Work, 4 Health, 5 Friends, 6 Self under the default names.
+// slot 0 is School, 1 Family, 2 Partner, 3 Work, 4 Health, 5 Friends, 6 Self under the default names. Where each entry
+// is fought (the battle, the towns taken and lost) is the engine's, on that country's own map.
 // [days ago, what was said, [slot, outcome, size 1 to 5, battle type, headline, reason][], shown as a step on the hero]
 const DAY = 86400000;
 export const STORY = [
