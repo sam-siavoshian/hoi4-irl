@@ -10,7 +10,7 @@ import { app, useApp, chooseProvider, dropStaffKey, findLocal, loadModels, saveS
 import { ProviderLogo } from '../parts.jsx';
 
 const quiet = 'text-sm text-muted-foreground';
-const HOST_IT = 'https://github.com/sam-siavoshian/hoi4-irl#readme';
+const HOST_IT = 'https://github.com/sam-siavoshian/homefront-map#readme';
 // a state in a word. Something to act on is the attention tone; red is not used here.
 const STATUS = { ready: ['success', 'Ready'], no_key: ['attention', 'No key'], rejected: ['attention', 'Key rejected'], no_address: ['attention', 'No address'], no_model: ['attention', 'No model'], server_down: ['attention', 'Model server not running'], offline: ['idle', 'Offline'] };
 export function StaffStatus({ status }) {

@@ -11,7 +11,7 @@ code. By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md).
 You need Node 20 or newer (CI runs Node 22).
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+git clone https://github.com/sam-siavoshian/homefront-map.git homefront
 cd homefront
 npm install                  # the interface build (Vite, React, the vendored design system) and the map tools
 cp .env.example .env         # set HOMEFRONT_PASSWORD; OPENAI_API_KEY is optional
@@ -226,7 +226,7 @@ covers its path. Otherwise it will work in development and fail once installed.
 
 ## Reporting bugs and security problems
 
-Bugs go in [issues](https://github.com/sam-siavoshian/hoi4-irl/issues); the template asks for what we
+Bugs go in [issues](https://github.com/sam-siavoshian/homefront-map/issues); the template asks for what we
 need. Security problems go through private advisories; see [SECURITY.md](SECURITY.md).
 
 ## Licence

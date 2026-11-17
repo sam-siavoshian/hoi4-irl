@@ -5,7 +5,7 @@
 Please do not open a public issue for a security problem.
 
 Use GitHub's private reporting instead:
-**[Report a vulnerability](https://github.com/sam-siavoshian/hoi4-irl/security/advisories/new)**
+**[Report a vulnerability](https://github.com/sam-siavoshian/homefront-map/security/advisories/new)**
 (repository → Security → Advisories → Report a vulnerability).
 
 Include what you found, how to reproduce it, and what an attacker could do with it. You should get an

@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sam-siavoshian/hoi4-irl/actions/workflows/ci.yml"><img src="https://github.com/sam-siavoshian/hoi4-irl/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/sam-siavoshian/homefront-map/actions/workflows/ci.yml"><img src="https://github.com/sam-siavoshian/homefront-map/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-informational" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-informational" alt="Node 20 or newer">
   <img src="https://img.shields.io/badge/self--hosted-yes-informational" alt="Self-hosted">
@@ -208,7 +208,7 @@ why something happened, not just that it did:
 You need Node 20 or newer.
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+git clone https://github.com/sam-siavoshian/homefront-map.git homefront
 cd homefront
 npm install               # the build tools for the interface
 cp .env.example .env      # set HOMEFRONT_PASSWORD
@@ -229,7 +229,7 @@ docker compose up -d      # http://localhost:8080, data in the homefront-data vo
 **Let your agent do it.** Give your coding agent (Claude Code, Codex, Cursor, any of them) this one line:
 
 ```text
-Read https://raw.githubusercontent.com/sam-siavoshian/hoi4-irl/main/SKILL.md and set up Home Front for me.
+Read https://raw.githubusercontent.com/sam-siavoshian/homefront-map/main/SKILL.md and set up Home Front for me.
 ```
 
 [SKILL.md](SKILL.md) is a complete, self-contained setup guide written for agents. It covers a Mac mini,

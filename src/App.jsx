@@ -152,7 +152,7 @@ function DemoNote() {
     <Card padding="none" role="note" data-testid="demo-note" className="pointer-events-auto flex w-full max-w-md items-center gap-2 py-1.5 ps-4 pe-1.5">
       <p className="min-w-0 flex-1 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">This is a demo.</span> Your entries stay in this browser.{' '}
-        <InlineButton render={<a href="https://github.com/sam-siavoshian/hoi4-irl#readme" target="_blank" rel="noopener" />}>Host your own</InlineButton> to keep them.
+        <InlineButton render={<a href="https://github.com/sam-siavoshian/homefront-map#readme" target="_blank" rel="noopener" />}>Host your own</InlineButton> to keep them.
       </p>
       <IconButton label="Close" tooltip={false} onClick={closeDemoNote}><XIcon /></IconButton>
     </Card>

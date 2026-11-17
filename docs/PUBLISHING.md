@@ -19,13 +19,10 @@ security policy, contributing guide, issue templates, Dependabot and `CITATION.c
    them). A squash merge puts a single clean commit on `main`; delete the branch afterwards.
    GitHub shows the default branch's README, and Vercel deploys the site from `main`.
 3. **Check the first CI run is green** (Actions tab). The workflows have not run yet.
-4. **Consider the name.** The repository is called `hoi4-irl`, which contains another company's
-   trademark. `homefront` is safer and matches the product. GitHub redirects the old URL after a rename,
-   but search engines index the old one, so rename **before**
-   you submit the site to search engines or post anywhere. After a rename, replace `sam-siavoshian/hoi4-irl`
-   across the repository (README, `package.json` `homepage` and `repository`, `site/Chrome.jsx`, `site/Landing.jsx`,
-   `CITATION.cff`, `SKILL.md`, issue-template links); the site's canonical addresses, sitemap and llms.txt follow
-   `package.json`'s `homepage` by themselves.
+4. **The name.** Done: the repository was `hoi4-irl` (another company's trademark) and is now `homefront-map`,
+   the same name as the website (`homefront-map.vercel.app`). GitHub redirects the old addresses. Rename again only
+   before posting anywhere; then replace `sam-siavoshian/homefront-map` across the repository, and the site's
+   canonical addresses, sitemap and llms.txt follow `package.json`'s `homepage` by themselves.
 
 ## The About panel (the gear beside "About", top right of the repository page)
 
@@ -108,7 +105,7 @@ talk, and an active Discussions tab is part of what makes a repository look aliv
 
 Open the "good first issue" drafts in [LAUNCH.md](LAUNCH.md#good-first-issues) before the first post, with the
 labels `good first issue` and `help wanted`. GitHub lists them on
-`https://github.com/sam-siavoshian/hoi4-irl/contribute`, and some newcomers search for exactly those labels.
+`https://github.com/sam-siavoshian/homefront-map/contribute`, and some newcomers search for exactly those labels.
 
 ## First release
 

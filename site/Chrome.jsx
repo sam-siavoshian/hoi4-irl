@@ -5,7 +5,7 @@ import { Button, IconButton } from '@sam/design-system';
 import { cycleAppearance } from '@sam/design-system/theme';
 import { SunMoonIcon } from 'lucide-react';
 
-export const REPO = 'https://github.com/sam-siavoshian/hoi4-irl';
+export const REPO = 'https://github.com/sam-siavoshian/homefront-map';
 export const column = 'mx-auto w-full max-w-6xl px-4 sm:px-6';
 const SAVE = 'homefront.v1'; // the app's own key (js/store.js): the demo is on this origin, so it finds what is put here
 

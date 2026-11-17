@@ -15,7 +15,7 @@ Contents: [Quick start](#quick-start) · [Mac](#mac-launchd) · [Linux](#linux-s
 ## Quick start
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront
+git clone https://github.com/sam-siavoshian/homefront-map.git homefront
 cd homefront
 npm install               # the build tools for the interface
 cp .env.example .env      # then set HOMEFRONT_PASSWORD
@@ -89,7 +89,7 @@ Create a user and put the code somewhere it can read:
 
 ```bash
 sudo useradd --system --home /opt/homefront --shell /usr/sbin/nologin homefront
-sudo git clone https://github.com/sam-siavoshian/hoi4-irl.git /opt/homefront
+sudo git clone https://github.com/sam-siavoshian/homefront-map.git /opt/homefront
 sudo cp /opt/homefront/.env.example /opt/homefront/.env
 sudo nano /opt/homefront/.env                      # set HOMEFRONT_PASSWORD, HOST=127.0.0.1, ...
 sudo chown -R homefront:homefront /opt/homefront

@@ -107,7 +107,7 @@ function Staff() {
     return (
       <ListSection title="General staff" data-testid="staff-section">
         <ListRow media={<ProviderLogo id="offline" className="size-4 text-muted-foreground" />} title="Offline judge"
-          description={<>Keys need the self-hosted server, so there’s nothing to set here. <InlineButton render={<a href="https://github.com/sam-siavoshian/hoi4-irl#readme" target="_blank" rel="noopener noreferrer" />}>Host your own</InlineButton> to add a model.</>} />
+          description={<>Keys need the self-hosted server, so there’s nothing to set here. <InlineButton render={<a href="https://github.com/sam-siavoshian/homefront-map#readme" target="_blank" rel="noopener noreferrer" />}>Host your own</InlineButton> to add a model.</>} />
       </ListSection>
     );
   }

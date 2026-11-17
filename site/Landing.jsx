@@ -11,7 +11,7 @@ import { countries, examples, start, faq as FAQ_LANDING } from 'virtual:site-dat
 import { BrandMark, Flag, ProviderLogo } from '../src/marks.jsx';
 import { SiteFooter } from './Chrome.jsx';
 
-const REPO = 'https://github.com/sam-siavoshian/hoi4-irl';
+const REPO = 'https://github.com/sam-siavoshian/homefront-map';
 const DEMO = './demo/?demo=1';
 const SAVE = 'homefront.v1'; // the app's own key (js/store.js): the demo is on this origin, so it finds what is put here
 const column = 'mx-auto w-full max-w-6xl px-4 sm:px-6';

@@ -153,5 +153,5 @@ Iran.
 - `noindex` headers and a deny-all `robots.txt`.
 - Tests for the engine, the classifier and the server, and end-to-end browser tests at iPhone size.
 
-[Unreleased]: https://github.com/sam-siavoshian/hoi4-irl/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/sam-siavoshian/hoi4-irl/releases/tag/v1.1.0
+[Unreleased]: https://github.com/sam-siavoshian/homefront-map/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/sam-siavoshian/homefront-map/releases/tag/v1.1.0

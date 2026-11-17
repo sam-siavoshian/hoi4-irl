@@ -70,7 +70,7 @@ that went badly (fix the cause first); and never twice to the same place within 
 **When**: HN has no official best time. The common practice is a weekday morning, US Eastern time, when the
 most readers are on and the "show" page moves slowest. Treat that as a convention, not a rule.
 
-**URL**: `https://github.com/sam-siavoshian/hoi4-irl`
+**URL**: `https://github.com/sam-siavoshian/homefront-map`
 
 **Title** (75 characters):
 
@@ -136,7 +136,7 @@ project name and an **AI involvement** field. Answer it honestly.
 
 ```
 Project name: Home Front
-Repo: https://github.com/sam-siavoshian/hoi4-irl
+Repo: https://github.com/sam-siavoshian/homefront-map
 Demo (static, offline judge, no sign-up): https://homefront-map.vercel.app/
 License: MIT
 AI involvement: [say it plainly: written with an AI coding assistant, reviewed and tested by me; the app
@@ -192,7 +192,7 @@ empire), Ethiopia (Aksum), Siam, Peru (Tawantinsuyu) and Mexico (the 1821 empire
 aggressors of the period are left out on purpose.
 
 Demo in the browser, no sign-up: https://homefront-map.vercel.app/
-Code: https://github.com/sam-siavoshian/hoi4-irl
+Code: https://github.com/sam-siavoshian/homefront-map
 
 Which country should be next?
 ```
@@ -229,7 +229,7 @@ yet (JSON export only).
 
 It's open source and self-hosted, and it draws the result as a 1936 war map, which is
 either the point or a reason to skip it:
-https://github.com/sam-siavoshian/hoi4-irl (demo: https://homefront-map.vercel.app/)
+https://github.com/sam-siavoshian/homefront-map (demo: https://homefront-map.vercel.app/)
 
 How do you track the areas no device measures?
 ```
@@ -301,7 +301,7 @@ AI at all.
 Ethiopia, Siam, Peru, Mexico. [countries.png]
 
 5/ Try it in the browser, no sign-up: https://homefront-map.vercel.app/
-Code (MIT): https://github.com/sam-siavoshian/hoi4-irl
+Code (MIT): https://github.com/sam-siavoshian/homefront-map
 ```
 
 On Mastodon, add `#SelfHosted #OpenSource #QuantifiedSelf` to the last post (hashtags are how posts are found
@@ -384,7 +384,7 @@ and `health-and-fitness.yml` are the closest; the first tag decides where it app
 ```yaml
 name: "Home Front"
 website_url: "https://homefront-map.vercel.app/"
-source_code_url: "https://github.com/sam-siavoshian/hoi4-irl"
+source_code_url: "https://github.com/sam-siavoshian/homefront-map"
 description: "Daily journal and life tracker that files each entry into one of 7 areas of your life and shows them as the fronts of a 1936 war map. Works with your own AI provider, a local model or a built-in offline judge."
 licenses:
   - MIT
@@ -407,7 +407,7 @@ pull request, or an issue to discuss first. Entries are `- [Name](URL) - Descrip
 section is **Applications and Platforms → Habits** (journaling apps sit under Mood).
 
 ```markdown
-- [Home Front](https://github.com/sam-siavoshian/hoi4-irl) - Self-hosted daily journal that files each entry into one of 7 life areas and shows their balance as a map (Web, self-hosted).
+- [Home Front](https://github.com/sam-siavoshian/homefront-map) - Self-hosted daily journal that files each entry into one of 7 life areas and shows their balance as a map (Web, self-hosted).
 ```
 
 ## Directories

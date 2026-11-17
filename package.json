@@ -8,10 +8,10 @@
   "homepage": "https://homefront-map.vercel.app/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sam-siavoshian/hoi4-irl.git"
+    "url": "git+https://github.com/sam-siavoshian/homefront-map.git"
   },
   "bugs": {
-    "url": "https://github.com/sam-siavoshian/hoi4-irl/issues"
+    "url": "https://github.com/sam-siavoshian/homefront-map/issues"
   },
   "keywords": [
     "productivity",

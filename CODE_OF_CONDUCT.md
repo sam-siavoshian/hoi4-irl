@@ -35,7 +35,7 @@ Issues, pull requests, discussions and any other space run by the project.
 ## If something goes wrong
 
 Contact the maintainers privately. The simplest route is the repository's
-[private report form](https://github.com/sam-siavoshian/hoi4-irl/security/advisories/new) (mark it as a
+[private report form](https://github.com/sam-siavoshian/homefront-map/security/advisories/new) (mark it as a
 conduct report), or a direct message to a maintainer listed on the repository. Reports are kept
 confidential.
 

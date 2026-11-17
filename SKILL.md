@@ -12,7 +12,7 @@ running on the user's machine, private and durable, and to prove each step worke
 This file is self-contained: an agent that has only this file can do the whole job. Fetch it with
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sam-siavoshian/hoi4-irl/main/SKILL.md
+curl -fsSL https://raw.githubusercontent.com/sam-siavoshian/homefront-map/main/SKILL.md
 ```
 
 Once the repository is cloned, `docs/SELF_HOSTING.md` is the full reference. This file is the order to do things in and the rules to
@@ -73,7 +73,7 @@ If there is existing data, say so and confirm you will keep it.
 ## 2. Install (Node path)
 
 ```bash
-git clone https://github.com/sam-siavoshian/hoi4-irl.git homefront   # skip if already inside it
+git clone https://github.com/sam-siavoshian/homefront-map.git homefront   # skip if already inside it
 cd homefront
 npm install
 ```
@@ -126,7 +126,7 @@ Pick by platform, and get a yes first. Use absolute paths; services do not have 
 
 **Mac (launchd)**: follow "Mac (launchd)" in `docs/SELF_HOSTING.md`. In short: copy
 `deploy/com.homefront.server.plist` to `~/Library/LaunchAgents/`, replace `/PATH/TO/node` (from
-`which node`) and `/PATH/TO/hoi4-irl` (this folder), then
+`which node`) and `/PATH/TO/homefront` (this folder), then
 `launchctl load ~/Library/LaunchAgents/com.homefront.server.plist`.
 
 **Linux (systemd)**: follow "Linux (systemd)" in the same file. If the unit uses `ProtectSystem` or

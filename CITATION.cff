@@ -11,7 +11,7 @@ authors:
   - name: "Home Front contributors"
 version: "1.1.0"
 license: MIT
-repository-code: "https://github.com/sam-siavoshian/hoi4-irl"
+repository-code: "https://github.com/sam-siavoshian/homefront-map"
 url: "https://homefront-map.vercel.app/"
 keywords:
   - self-hosted
