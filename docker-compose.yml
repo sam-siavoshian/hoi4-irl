@@ -16,6 +16,10 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - homefront-data:/app/private
+    # A model server on this computer (Ollama, LM Studio, llama.cpp) is at http://host.docker.internal:<port>/v1.
+    # Docker Desktop provides that name; this line provides it on Linux. See docs/LOCAL_MODELS.md#docker.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   homefront-data:

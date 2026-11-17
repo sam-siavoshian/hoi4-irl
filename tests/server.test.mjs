@@ -6,6 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { mockOpenAI } from './mock-openai.mjs';
 import { mockAnthropic, mockGemini } from './mock-providers.mjs';
+import { mockLocal } from './mock-local.mjs';
+import { createAI } from '../server/providers.mjs';
+import { parseLoose, repair, check } from '../server/llm.mjs';
+import { discover, discoveryTargets, probeAllowed, RUNTIMES } from '../server/local.mjs';
 
 // main server: OpenAI Responses API, password, automation token
 const PORT = 8141, MOCK = 8142, U = `http://127.0.0.1:${PORT}`;
@@ -379,7 +383,7 @@ const AI = 8161, UA = `http://127.0.0.1:${AI}`, M_OPENAI = 8162, M_ANTHROPIC = 8
 const K = { env: 'sk-env-key-zz11-ENVFALLBACK', openai: 'sk-app-OPENAI-key-0a1b2c3d4e5f', anthropic: 'sk-ant-api03-ANTHROPIC-test-key-9f8e', wrong: 'sk-ant-api03-WRONG-key-7777', gemini: 'AIzaSyTEST-GEMINI-key-000111222', groq: 'gsk_GROQ_test_key_abcdef012345', mistral: 'MISTRALtestKEY0123456789abcd', openrouter: 'sk-or-v1-OPENROUTER-test-key-4242' };
 const dirAI = tmp(); let aiCookie = '', aiLog = ''; const said = []; // every response body and header this server gave
 const mocks = {};
-const envAI = { ...base, PORT: AI, HOMEFRONT_PASSWORD: 'staff pw', HOMEFRONT_TOKEN: TOKEN, HOMEFRONT_DATA_DIR: dirAI, OPENAI_API_KEY: K.env, OPENAI_BASE_URL: `http://127.0.0.1:${M_OPENAI}/v1`, OPENAI_MODEL: 'gpt-env-model',
+const envAI = { ...base, PORT: AI, HOMEFRONT_RATE_LIMIT: '0', /* this session makes well over 60 costly calls a minute; the limit is tested on its own server */ HOMEFRONT_PASSWORD: 'staff pw', HOMEFRONT_TOKEN: TOKEN, HOMEFRONT_DATA_DIR: dirAI, OPENAI_API_KEY: K.env, OPENAI_BASE_URL: `http://127.0.0.1:${M_OPENAI}/v1`, OPENAI_MODEL: 'gpt-env-model',
   ANTHROPIC_BASE_URL: `http://127.0.0.1:${M_ANTHROPIC}/v1`, GEMINI_BASE_URL: `http://127.0.0.1:${M_GEMINI}/v1beta`, GROQ_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1`, MISTRAL_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1`, OPENROUTER_BASE_URL: `http://127.0.0.1:${M_CHAT}/v1` };
 const ai = async (p, init = {}, cookie = aiCookie) => {
   const r = await fetch(UA + p, { ...init, headers: { ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}), ...(init.headers || {}), ...(cookie ? { cookie } : {}) }, redirect: 'manual' });
@@ -412,12 +416,12 @@ test.after(() => { for (const m of Object.values(mocks)) m.close(); fs.rmSync(di
 test('the general staff: with nothing chosen in the app, .env is in force and its key is only "set on the server"', async () => {
   const v = (await ai('/api/ai')).json;
   assert.equal(v.provider, 'openai'); assert.equal(v.source, 'env'); assert.equal(v.status, 'ready'); assert.equal(v.model, 'gpt-env-model');
-  assert.deepEqual(v.providers.map(p => p.id), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'ollama', 'lmstudio', 'custom', 'offline']);
+  assert.deepEqual(v.providers.map(p => p.id), ['openai', 'anthropic', 'gemini', 'groq', 'mistral', 'openrouter', 'local', 'speech', 'offline']);
   const o = of(v, 'openai'); assert.equal(o.hasKey, true); assert.equal(o.keySource, 'server'); assert.equal(o.last4, '', 'not even the tail of a key from .env is shown');
   for (const p of v.providers) { assert.ok(!('key' in p)); if (p.id !== 'openai') assert.equal(p.hasKey, false, p.id); }
   // the small, cheap defaults, and who can turn speech into text
   assert.deepEqual(Object.fromEntries(v.providers.map(p => [p.id, [p.defaultModel, p.defaultStt]])), { openai: ['gpt-6-luna', 'gpt-transcribe'], anthropic: ['claude-haiku-5-5', null], gemini: ['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite'],
-    groq: ['openai/gpt-oss-20b', 'whisper-large-v3-turbo'], mistral: ['mistral-small-latest', 'voxtral-mini-latest'], openrouter: ['openai/gpt-6-luna', null], ollama: ['llama3.2', null], lmstudio: ['openai/gpt-oss-20b', null], custom: ['', null], offline: ['', null] });
+    groq: ['openai/gpt-oss-20b', 'whisper-large-v3-turbo'], mistral: ['mistral-small-latest', 'voxtral-mini-latest'], openrouter: ['openai/gpt-6-luna', null], local: ['', null], speech: ['', 'Systran/faster-distil-whisper-small.en'], offline: ['', null] });
   assert.equal((await judgeAI('we closed the round')).status, 200); const sent = mocks.openai.seen.at(-1);
   assert.equal(sent.path, '/v1/responses'); assert.equal(sent.auth, `Bearer ${K.env}`); assert.equal(sent.body.model, 'gpt-env-model');
   // a key from .env cannot be removed from the app
@@ -430,6 +434,7 @@ test('the general staff: writes from another site are refused, and bad input is 
   for (const headers of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }, { 'sec-fetch-site': 'same-site' }, { origin: 'null' }]) {
     assert.equal((await ai('/api/ai', { method: 'PUT', body, headers })).status, 403, JSON.stringify(headers));
     assert.equal((await ai('/api/ai/key/openai', { method: 'DELETE', headers })).status, 403); assert.equal((await ai('/api/ai/test', { method: 'POST', body: '{}', headers })).status, 403);
+    assert.equal((await ai('/api/ai/discover', { method: 'POST', body: '{}', headers })).status, 403); assert.equal((await ai('/api/ai/models?provider=local', { headers })).status, 403);
   }
   assert.equal((await ai('/api/ai')).json.provider, 'openai', 'nothing changed');
   for (const headers of [{ origin: UA, 'sec-fetch-site': 'same-origin' }, { origin: UA }, { 'sec-fetch-site': 'none' }]) assert.equal((await ai('/api/ai', { method: 'PUT', body: '{}', headers })).status, 200, JSON.stringify(headers));
@@ -439,7 +444,7 @@ test('the general staff: writes from another site are refused, and bad input is 
   await refused({ bases: { ollama: 'http://user:hunter2@localhost:11434/v1' } }, /user name and password/);
   await refused({ bases: { anthropic: 'http://127.0.0.1:1/v1' } }, /fixed address/);
   assert.doesNotMatch(await refused({ keys: { anthropic: 'sk-ant with a space in it' } }, /look like a key/), /sk-ant/);
-  await refused({ keys: { anthropic: 'short' } }, /look like a key/); await refused({ keys: { ollama: 'sk-not-needed-here' } }, /takes no key/);
+  await refused({ keys: { anthropic: 'short' } }, /look like a key/); await refused({ keys: { offline: 'sk-not-needed-here' } }, /takes no key/);
   await refused({ models: { openai: 'gpt 6; drop table' } }, /model name/); await refused({ transcribe: { mode: 'anthropic' } }, /speech into text/);
   // all or nothing: a good choice beside a bad key saves neither
   await refused({ provider: 'anthropic', keys: { anthropic: 'x' } }, /look like a key/); assert.equal((await ai('/api/ai')).json.provider, 'openai');
@@ -552,15 +557,23 @@ test('speech is chosen apart from the staff: another provider with its own key, 
   v = (await setAI({ provider: 'groq', transcribe: { mode: 'same' } })).json; assert.equal(v.transcribe.model, 'whisper-large-v3-turbo');
 });
 
-test('local models need no key; "offline" turns the model off', async () => {
-  let v = (await setAI({ provider: 'ollama' })).json; assert.equal(v.status, 'ready'); assert.equal(v.model, 'llama3.2'); assert.equal(of(v, 'ollama').base, 'http://localhost:11434/v1'); assert.equal(of(v, 'ollama').needsKey, false);
-  v = (await setAI({ bases: { ollama: `http://127.0.0.1:${M_CHAT}/v1/` }, models: { ollama: 'qwen3:8b' } })).json; assert.equal(of(v, 'ollama').base, `http://127.0.0.1:${M_CHAT}/v1`);
-  assert.equal((await judgeAI('we closed the round')).json.model, 'qwen3:8b'); const sent = mocks.chat.seen.at(-1); assert.equal(sent.auth, undefined, 'no Authorization header'); assert.equal(sent.body.model, 'qwen3:8b');
-  v = (await setAI({ provider: 'lmstudio', bases: { lmstudio: 'http://127.0.0.1:9/v1' } })).json; assert.equal(v.status, 'ready');
-  const down = await testAI(); assert.equal(down.json.ok, false); assert.equal(down.json.reason, 'unreachable'); assert.match(down.json.message, /Check the address/);
-  v = (await setAI({ provider: 'custom' })).json; assert.equal(v.status, 'no_address');
-  v = (await setAI({ bases: { custom: `http://127.0.0.1:${M_CHAT}/v1` } })).json; assert.equal(v.status, 'no_model');
-  v = (await setAI({ models: { custom: 'any-model' }, keys: { custom: 'optional-key-123456' } })).json; assert.equal(v.status, 'ready'); await judgeAI('we closed the round'); assert.equal(mocks.chat.seen.at(-1).auth, 'Bearer optional-key-123456');
+test('a local model needs no key; Ollama, LM Studio and "Other server" are read as the Local model; "offline" turns the model off', async () => {
+  let v = (await setAI({ provider: 'ollama' })).json; assert.equal(v.provider, 'local'); assert.equal(v.status, 'ready'); assert.equal(v.model, 'llama3.2');
+  const l = of(v, 'local'); assert.equal(l.base, 'http://127.0.0.1:11434/v1'); assert.equal(l.runtime, 'ollama'); assert.equal(l.needsKey, false); assert.equal(l.keyOptional, true);
+  v = (await setAI({ bases: { local: `http://127.0.0.1:${M_CHAT}/v1/` }, models: { local: 'qwen3:8b' } })).json; assert.equal(of(v, 'local').base, `http://127.0.0.1:${M_CHAT}/v1`);
+  assert.equal((await judgeAI('we closed the round')).json.model, 'qwen3:8b'); const sent = mocks.chat.seen.at(-1);
+  assert.equal(sent.auth, undefined, 'no Authorization header'); assert.equal(sent.body.model, 'qwen3:8b'); assert.equal(sent.body.temperature, 0); assert.equal(sent.body.response_format.type, 'json_schema');
+  // a server that is not running: said plainly, in Settings too
+  v = (await setAI({ bases: { local: 'http://127.0.0.1:9/v1' } })).json; assert.equal(v.status, 'ready');
+  const down = await testAI(); assert.equal(down.json.ok, false, JSON.stringify(down)); assert.equal(down.json.reason, 'unreachable');
+  assert.equal(down.json.message, 'Nothing answered at 127.0.0.1:9. Check that Ollama is running. If Home Front runs in Docker, use http://host.docker.internal:9/v1 instead.');
+  assert.equal((await ai('/api/ai')).json.status, 'server_down', '"Model server not running", not "No key"');
+  v = (await setAI({ models: { local: null } })).json; assert.equal(v.status, 'no_model'); assert.equal(v.model, null);
+  // "Other server" with a key it needs
+  v = (await setAI({ provider: 'custom', bases: { custom: `http://127.0.0.1:${M_CHAT}/v1` }, models: { custom: 'any-model' }, keys: { custom: 'optional-key-123456' } })).json;
+  assert.equal(v.provider, 'local'); assert.equal(v.status, 'ready'); assert.equal(of(v, 'local').runtime, 'other'); assert.equal(of(v, 'local').hasKey, true);
+  await judgeAI('we closed the round'); assert.equal(mocks.chat.seen.at(-1).auth, 'Bearer optional-key-123456');
+  const saved = JSON.parse(fs.readFileSync(aiFile())); assert.equal(saved.provider, 'local'); assert.equal(saved.keys.local, 'optional-key-123456'); assert.equal(saved.keys.custom, undefined);
   v = (await setAI({ provider: 'offline' })).json; assert.equal(v.status, 'offline'); assert.equal(v.model, null);
   assert.deepEqual((await ai('/api/config')).json, { server: true, judge: null, transcribe: null, login: true, provider: null, api: 'responses' });
   const n = Object.values(mocks).reduce((a, m) => a + m.seen.length, 0);
@@ -597,3 +610,171 @@ test('SKILL.md at the root is the same file agents get from .claude/skills', () 
   const a = fs.readFileSync(new URL('../SKILL.md', import.meta.url), 'utf8'), b = fs.readFileSync(new URL('../.claude/skills/setup-home-front/SKILL.md', import.meta.url), 'utf8');
   assert.equal(a, b); assert.match(a, /^---\nname: setup-home-front\n/);
 });
+
+// ---- local models: any server that speaks the OpenAI-compatible API, on this machine or the owner's network ----
+test('reading a small model\'s answer: thinking dropped, the first balanced object taken, what can be mended mended', () => {
+  assert.deepEqual(parseLoose('<think>\nmaybe {"draft": true}\n</think>\nHere:\n```json\n{"ok": true, "s": "a } b"}\n```\nBye {"no": 1}'), { ok: true, s: 'a } b' });
+  assert.deepEqual(parseLoose('it was hard</think> Result: {"a": {"b": "{"}} and } more'), { a: { b: '{' } }, 'a lone closing tag: the thinking before it is dropped');
+  assert.deepEqual(parseLoose('Sure! {"x": [1, 2]} hope that helps'), { x: [1, 2] });
+  assert.equal(parseLoose('<think>I will answer {"a": 1} later'), undefined, 'a model that never stopped thinking gave no answer');
+  assert.equal(parseLoose('no json here'), undefined);
+  const s = { type: 'object', properties: { summary: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: ['afg', 'irq'] }, outcome: { type: 'string', enum: ['win', 'loss'] }, severity: { type: 'integer', minimum: 1, maximum: 5 } }, required: ['front', 'severity'], additionalProperties: false } } }, required: ['summary', 'items'], additionalProperties: false };
+  const fixed = repair(s, { summary: 'x', mood: 'grim', items: { front: 'nowhere', outcome: 'Win', severity: '9.4', confidence: 1 } });
+  assert.deepEqual(fixed, { summary: 'x', items: [{ front: 'nowhere', outcome: 'win', severity: 5 }] }, 'clamped, cased, unknown keys dropped; an unknown front is left for the app to drop');
+  assert.equal(check(s, fixed), null);
+  assert.equal(check(s, { items: [] }), '"summary" is missing from the answer.');
+  assert.equal(check(s, { summary: 'x', items: [{ front: 'afg', severity: 'high' }] }), '"severity" of item 1 of "items" must be an integer, but it is a string.');
+});
+
+test('discovery only ever speaks to this machine: loopback and host.docker.internal, the runtimes\' own ports', async () => {
+  const targets = discoveryTargets();
+  assert.deepEqual([...new Set(targets.map(t => new URL(t).hostname))], ['127.0.0.1', 'host.docker.internal']);
+  assert.deepEqual([...new Set(targets.map(t => Number(new URL(t).port)))].sort((a, b) => a - b), [1234, 1337, 5000, 5001, 8000, 8080, 9931, 11434]);
+  assert.ok(!discoveryTargets({ skipPort: 8080 }).includes('http://127.0.0.1:8080/v1'), 'never this server itself');
+  for (const u of ['http://192.168.1.5:11434/v1', 'http://10.0.0.2:1234/v1', 'http://example.com/v1', 'http://100.64.0.1:11434/v1', 'http://u:p@127.0.0.1:11434/v1', 'file:///etc/passwd', 'http://127.0.0.1.example.com/v1']) assert.equal(probeAllowed(u), false, u);
+  for (const u of ['http://127.0.0.1:11434/v1', 'http://localhost:1234/v1', 'http://[::1]:8080/v1', 'http://host.docker.internal:11434/v1']) assert.equal(probeAllowed(u), true, u);
+  const asked = []; const fetchImpl = async url => { asked.push(url); throw new Error('nothing there'); };
+  const r = await discover({ fetchImpl, targets: [...targets, 'http://192.168.1.5:11434/v1', 'http://example.com/v1'] });
+  assert.deepEqual(r.found, []); assert.equal(r.tried, targets.length);
+  assert.ok(asked.length === targets.length && asked.every(u => probeAllowed(u)), `only loopback was contacted: ${asked.filter(u => !probeAllowed(u))}`);
+  // every preset names where its documentation was read
+  for (const rt of RUNTIMES.filter(x => x.id !== 'other')) assert.match(rt.base, /^http:\/\/127\.0\.0\.1:\d+\/v1$/, rt.id);
+});
+
+const LP = 8170, UP = `http://127.0.0.1:${LP}`, dirLM = tmp();
+const lm = {}; let lmCookie = '';
+const big = { type: 'object', properties: { summary: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { front: { type: 'string' }, outcome: { type: 'string', enum: ['win', 'loss', 'neutral'] }, severity: { type: 'integer', minimum: 1, maximum: 5 }, action: { type: 'string' }, headline: { type: 'string' } }, required: ['front', 'outcome', 'severity'], additionalProperties: false } } }, required: ['summary', 'items'], additionalProperties: false };
+const la = async (p, init = {}) => {
+  const r = await fetch(UP + p, { ...init, headers: { ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}), ...(init.headers || {}), cookie: lmCookie } });
+  const text = await r.text(); let json = null; try { json = JSON.parse(text); } catch { /* not json */ } return { status: r.status, json };
+};
+const lset = body => la('/api/ai', { method: 'PUT', body: JSON.stringify(body) });
+const ljudge = (user, s = big) => la('/api/llm', { method: 'POST', body: JSON.stringify({ name: 'battle_report', system: 'sys', user, schema: s }) });
+const ltest = (what = 'judge') => la('/api/ai/test', { method: 'POST', body: JSON.stringify({ what }) });
+const point = (m, extra = {}) => lset({ provider: 'local', bases: { local: `http://127.0.0.1:${m.port}/v1` }, local: { runtime: null, ...extra }, models: { local: 'qwen3:4b' } });
+const chats = m => m.seen.filter(x => x.method === 'POST' && /chat/.test(x.path));
+
+test('local models: discover what is running, list its models, say when one is missing', async () => {
+  lm.schema = await mockLocal(8171, { kind: 'schema' }); lm.object = await mockLocal(8172, { kind: 'object' }); lm.prose = await mockLocal(8173, { kind: 'prose' });
+  lm.ollama = await mockLocal(8174, { kind: 'ollama' }); lm.speech = await mockLocal(8175, { kind: 'speech', models: ['Systran/faster-distil-whisper-small.en'] });
+  // the probe list is injectable (HOMEFRONT_DISCOVER); what is not loopback is still never contacted
+  await start({ ...base, PORT: LP, HOMEFRONT_PASSWORD: 'local pw', HOMEFRONT_DATA_DIR: dirLM, OPENAI_API_KEY: '', OPENAI_BASE_URL: '', HOMEFRONT_RATE_LIMIT: '0',
+    HOMEFRONT_DISCOVER: 'http://127.0.0.1:8174/v1,http://127.0.0.1:8171/v1,http://127.0.0.1:9/v1,http://192.168.1.77:11434/v1,http://example.com/v1' }, UP);
+  const login = await fetch(UP + '/api/login', { method: 'POST', body: JSON.stringify({ password: 'local pw' }) }); lmCookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(UP + '/api/ai/discover', { method: 'POST' })).status, 401, 'signed in only');
+  const d = await la('/api/ai/discover', { method: 'POST', body: '{}' }); assert.equal(d.status, 200); assert.equal(d.json.tried, 3, 'the two addresses off this machine were dropped');
+  assert.deepEqual(d.json.found.map(f => [f.runtime, f.name, f.base, f.models.length]), [['ollama', 'Ollama', 'http://127.0.0.1:8174/v1', 2], ['llamacpp', 'llama.cpp', 'http://127.0.0.1:8171/v1', 2]]);
+  assert.deepEqual(d.json.found[0].models[0], { id: 'qwen3:4b', size: 2019393189, params: '3.2B', quant: 'Q4_K_M' }, 'Ollama\'s /api/tags when /v1/models is absent');
+  assert.deepEqual(d.json.found[1].models[0], { id: 'qwen3:4b', size: 2497280000, params: '4.0B', quant: null }, 'llama.cpp\'s meta');
+  // pick the Ollama server and a model from its list
+  let v = (await lset({ provider: 'local', bases: { local: d.json.found[0].base }, local: { runtime: 'ollama' }, models: { local: 'llama3.2' } })).json; assert.equal(v.status, 'ready');
+  let m = (await la('/api/ai/models?provider=local')).json; assert.equal(m.ok, true); assert.equal(m.installed, true, '"llama3.2" is "llama3.2:latest"'); assert.equal(m.models.length, 2);
+  // a model that is not installed: the list says so, and the test gives the exact command
+  v = (await lset({ models: { local: 'mistral-small3.2:24b' } })).json;
+  m = (await la('/api/ai/models?provider=local')).json; assert.equal(m.installed, false); assert.equal(m.get, 'ollama pull mistral-small3.2:24b');
+  let t = (await ltest()).json; assert.equal(t.ok, false); assert.equal(t.reason, 'model_missing');
+  assert.equal(t.message, 'The server answered, but it has no model called mistral-small3.2:24b. Run ollama pull mistral-small3.2:24b, or pick one from the list.');
+  // any name the server takes can be typed, a file path included
+  v = (await lset({ models: { local: '/models/My Model-Q4_K_M.gguf' } })).json; assert.equal(v.model, '/models/My Model-Q4_K_M.gguf');
+  assert.equal((await lset({ models: { local: 'bad"name<' } })).status, 400);
+  // nothing running at the address
+  v = (await lset({ bases: { local: 'http://127.0.0.1:9/v1' }, local: { runtime: 'lmstudio' } })).json;
+  m = (await la('/api/ai/models?provider=local')).json; assert.equal(m.ok, false); assert.equal(m.reason, 'unreachable');
+  assert.equal((await la('/api/ai')).json.status, 'server_down');
+  t = (await ltest()).json; assert.equal(t.message, 'Nothing answered at 127.0.0.1:9. Check that LM Studio is running. If Home Front runs in Docker, use http://host.docker.internal:9/v1 instead.');
+  v = (await lset({ bases: { local: 'http://192.0.2.10:11434/v1' } })).json; assert.equal(v.status, 'ready', 'a new address is tried afresh');
+});
+
+test('local models: json_schema, then JSON mode, then plain text; what worked is remembered per address and model', async () => {
+  // a server that does json_schema: one call, strict
+  await point(lm.schema); let n = chats(lm.schema).length;
+  let r = await ljudge('we closed the round'); assert.equal(r.status, 200); assert.equal(r.json.result.items[0].front, 'irq');
+  let sent = chats(lm.schema).slice(n); assert.equal(sent.length, 1); assert.deepEqual(sent[0].body.response_format, { type: 'json_schema', json_schema: { name: 'battle_report', strict: true, schema: big } });
+  assert.equal(sent[0].body.temperature, 0); assert.equal(sent[0].body.stream, false);
+  // one that refuses json_schema (400) but does JSON mode: the schema goes into the prompt
+  await point(lm.object); n = chats(lm.object).length;
+  r = await ljudge('we closed the round'); assert.equal(r.status, 200);
+  sent = chats(lm.object).slice(n); assert.deepEqual(sent.map(x => x.body.response_format?.type), ['json_schema', 'json_object']);
+  assert.ok(sent[1].body.messages[0].content.startsWith('sys\n') && sent[1].body.messages[0].content.includes(JSON.stringify(big)));
+  n = chats(lm.object).length; await ljudge('we closed the round');
+  assert.deepEqual(chats(lm.object).slice(n).map(x => x.body.response_format?.type), ['json_object'], 'remembered: no json_schema attempt the second time');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dirLM, 'ai.json'))).local.learned[`http://127.0.0.1:${lm.object.port}/v1|qwen3:4b`], 'json_object', 'kept across restarts');
+  assert.equal((await la('/api/ai')).json.providers.find(p => p.id === 'local').learned, 'json_object');
+  // one that refuses any response_format and answers in prose, with a <think> block and a fenced JSON block
+  await point(lm.prose); n = chats(lm.prose).length;
+  r = await ljudge('we closed the round'); assert.equal(r.status, 200); assert.equal(r.json.result.items[1].front, 'glf');
+  sent = chats(lm.prose).slice(n); assert.deepEqual(sent.map(x => x.body.response_format?.type ?? 'text'), ['json_schema', 'json_object', 'text']);
+  let t = (await ltest()).json; assert.equal(t.ok, true); assert.equal(t.mode, 'text');
+  // the owner can fix the way
+  await lset({ local: { mode: 'json_object' } }); n = chats(lm.prose).length; assert.equal((await ljudge('we closed the round')).status, 502);
+  assert.deepEqual(chats(lm.prose).slice(n).map(x => x.body.response_format?.type), ['json_object'], 'a fixed mode is the only one tried');
+  await lset({ local: { mode: 'auto' } });
+});
+
+test('local models: an answer is mended where that is safe, and asked for again once with what was wrong', async () => {
+  await point(lm.schema);
+  // mended: a severity as a string and one out of range, an outcome in capitals, keys nobody asked for
+  let r = await ljudge('SLOPPY we closed the round'); assert.equal(r.status, 200);
+  assert.deepEqual(r.json.result.items.map(i => [i.outcome, i.severity, 'confidence' in i]), [['win', 5, false], ['loss', 5, false]]); assert.ok(!('mood' in r.json.result));
+  // a missing field: one more try, with the error said back to the model
+  let n = chats(lm.schema).length; r = await ljudge('FIXME we closed the round'); assert.equal(r.status, 200); assert.equal(typeof r.json.result.summary, 'string');
+  const sent = chats(lm.schema).slice(n); assert.equal(sent.length, 2); assert.equal(sent[1].body.messages.length, 4);
+  assert.equal(sent[1].body.messages[2].role, 'assistant'); assert.match(sent[1].body.messages[3].content, /"summary" is missing from the answer\./);
+  // never JSON: one retry, then the 502 that sends the app to its offline judge
+  n = chats(lm.schema).length; r = await ljudge('HOPELESS'); assert.equal(r.status, 502); assert.equal(chats(lm.schema).length - n, 2);
+  const rep = (await la('/api/report', { method: 'POST', body: JSON.stringify({ text: 'HOPELESS. I failed my exam at school.' }) })).json; assert.equal(rep.ok, true); assert.equal(rep.source, 'local');
+});
+
+test('local models: the test says what works and what to do', async () => {
+  await point(lm.schema);
+  let t = (await ltest()).json; assert.equal(t.ok, true); assert.equal(t.model, 'qwen3:4b'); assert.equal(t.mode, 'json_schema'); assert.equal(t.tps, 31.3, 'llama.cpp reports tokens a second'); assert.equal(typeof t.ms, 'number');
+  lm.schema.garbage = true;
+  try { t = (await ltest()).json; assert.equal(t.ok, false); assert.equal(t.reason, 'bad_answer'); assert.equal(t.message, 'qwen3:4b answered, but not with JSON that could be used. Try a larger model, or another mode under Advanced.'); }
+  finally { lm.schema.garbage = false; }
+  // a server with a key
+  const keyed = await mockLocal(8176, { kind: 'schema', key: 'local-server-key-1234' });
+  try {
+    await point(keyed); t = (await ltest()).json; assert.equal(t.ok, false); assert.equal(t.reason, 'key_rejected'); assert.match(t.message, /Add its key under Advanced/);
+    await lset({ keys: { local: 'local-server-key-1234' } }); t = (await ltest()).json; assert.equal(t.ok, true); assert.equal(keyed.seen.at(-1).auth, 'Bearer local-server-key-1234');
+    assert.doesNotMatch(JSON.stringify((await la('/api/ai')).json), /local-server-key/);
+    await la('/api/ai/key/local', { method: 'DELETE' });
+  } finally { keyed.close(); }
+  // Ollama's own API carries the context length and keep_alive, which its OpenAI-compatible one cannot
+  await point(lm.ollama, { runtime: 'ollama', keepAlive: '10m', context: 8192, maxTokens: 600 });
+  t = (await ltest()).json; assert.equal(t.ok, true); assert.equal(t.tps, 20, 'eval_count over eval_duration');
+  const sent = lm.ollama.seen.at(-1); assert.equal(sent.path, '/api/chat'); assert.equal(sent.body.keep_alive, '10m'); assert.deepEqual(sent.body.options, { temperature: 0, num_ctx: 8192, num_predict: 600 }); assert.equal(sent.body.stream, false);
+  assert.equal(typeof sent.body.format, 'object', 'the schema itself as the format');
+  for (const bad of [{ keepAlive: 'forever' }, { timeout: 1 }, { context: 'big' }, { temperature: 3 }, { mode: 'yaml' }, { runtime: 'skynet' }]) assert.equal((await lset({ local: bad })).status, 400, JSON.stringify(bad));
+  await lset({ local: { keepAlive: '', context: null, maxTokens: null, timeout: 300 } });
+  const o = (await la('/api/ai')).json.providers.find(p => p.id === 'local').options; assert.equal(o.timeout, 300); assert.equal(o.keepAlive, ''); assert.equal(o.context, null);
+});
+
+test('local speech-to-text: any /v1/audio/transcriptions server, its own address and model; cloud speech models are editable too', async () => {
+  let v = (await lset({ transcribe: { mode: 'speech' }, bases: { speech: `http://127.0.0.1:${lm.speech.port}/v1` }, speech: { runtime: 'speaches' } })).json;
+  assert.deepEqual(v.transcribe, { mode: 'speech', provider: 'speech', model: 'Systran/faster-distil-whisper-small.en', status: 'ready' });
+  const tr = await la('/api/transcribe', { method: 'POST', body: Buffer.alloc(4000, 7), headers: { 'content-type': 'audio/webm' } }); assert.equal(tr.json.text, 'I failed my exam.');
+  assert.match(lm.speech.seen.at(-1).raw.toString('latin1'), /name="model"\r\n\r\nSystran\/faster-distil-whisper-small\.en/);
+  assert.equal((await ltest('transcribe')).json.ok, true);
+  const list = (await la('/api/ai/models?provider=speech')).json; assert.equal(list.ok, true); assert.equal(list.installed, true);
+  v = (await lset({ transcribe: { models: { speech: 'Systran/faster-whisper-large-v3' } } })).json; assert.equal(v.transcribe.model, 'Systran/faster-whisper-large-v3');
+  let t = (await ltest('transcribe')).json; assert.equal(t.ok, false); assert.match(t.message, /uvx speaches-cli model download Systran\/faster-whisper-large-v3/);
+  // whisper.cpp's server takes WAV only: the app is told to convert
+  assert.equal((await la('/api/config')).json.wav, undefined);
+  v = (await lset({ speech: { runtime: 'whispercpp' }, transcribe: { models: { speech: null } } })).json; assert.equal(v.transcribe.wav, true); assert.equal((await la('/api/config')).json.wav, true);
+  v = (await lset({ bases: { speech: 'http://127.0.0.1:9/v1' } })).json; t = (await ltest('transcribe')).json; assert.equal(t.reason, 'unreachable'); assert.match(t.message, /Check that whisper\.cpp is running/);
+  // a cloud provider's speech model can be changed, and put back
+  v = (await lset({ transcribe: { mode: 'groq', models: { groq: 'whisper-large-v3' } } })).json; assert.equal(v.providers.find(p => p.id === 'groq').sttModel, 'whisper-large-v3');
+  v = (await lset({ transcribe: { models: { groq: null } } })).json; assert.equal(v.providers.find(p => p.id === 'groq').sttModel, 'whisper-large-v3-turbo');
+  assert.equal((await lset({ provider: 'speech' })).status, 400, 'a speech server judges nothing');
+});
+test('.env alone can name a local model and a local speech server (LOCAL_BASE_URL, LOCAL_MODEL, LOCAL_STT_BASE_URL)', async () => {
+  const mem = {}; const store = { readJSON: (n, d) => mem[n] ?? d, writeJSON: (n, v) => { mem[n] = v; } };
+  const a = createAI({ env: { LOCAL_BASE_URL: `http://127.0.0.1:${lm.schema.port}/v1`, LOCAL_MODEL: 'qwen3:4b', LOCAL_STT_BASE_URL: `http://127.0.0.1:${lm.speech.port}/v1`, LOCAL_TIMEOUT_MS: '30000' }, store });
+  const v = a.view(); assert.equal(v.provider, 'local'); assert.equal(v.source, 'env'); assert.equal(v.status, 'ready'); assert.equal(v.model, 'qwen3:4b');
+  assert.deepEqual(v.transcribe, { mode: 'speech', provider: 'speech', model: 'Systran/faster-distil-whisper-small.en', status: 'ready' });
+  assert.equal((await a.judge({ name: 'x', system: 'sys', user: 'we closed the round', schema: big })).items[0].front, 'irq');
+  assert.equal((await a.transcribe(Buffer.alloc(4000, 7), 'audio/webm')).text, 'I failed my exam.');
+  assert.deepEqual(mem, {}, 'nothing is written while nothing is chosen in the app');
+  assert.equal(createAI({ env: { LOCAL_BASE_URL: 'http://127.0.0.1:1/v1' }, store }).view().provider, 'offline', 'an address with no model turns nothing on');
+});
+test.after(() => { for (const m of Object.values(lm)) m.close(); fs.rmSync(dirLM, { recursive: true, force: true }); });

@@ -22,7 +22,7 @@ export const app = {
   map: null, view: null, data: null, st: null, live: null, scenarios: [],
   cfg: { server: false, judge: null, transcribe: null }, // what the private server offers
   ai: null, // the general staff as the server describes it (GET /api/ai): the provider in use and each provider's state, never a key
-  ui: { ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, picker: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false, staff: { busy: null, test: null, voiceTest: null, error: '' } },
+  ui: { local: { finding: false, found: null, models: {}, loading: {} }, ask: { q: '', busy: false, res: null }, sheet: null, arg: null, stack: [], report: null, dict: null, edit: null, picker: null, preset: null, asOf: null, playing: null, assess: null, assessAt: 0, assessN: 0, emblem: 0, confirm: null, demoNote: false, staff: { busy: null, test: null, voiceTest: null, error: '' } },
 };
 const ui = app.ui;
 let version = 0; const listeners = new Set();
@@ -251,7 +251,7 @@ export function openSheet(name, arg = null, push = true) {
   ui.sheet = name; ui.arg = arg;
   if (name === 'report' && !ui.report) ui.report = newReport();
   if (name === 'overview') autoAssess();
-  if (name === 'settings' || name === 'staff') { ui.staff = { busy: null, test: null, voiceTest: null, error: '' }; loadAI(); }
+  if (name === 'settings' || name === 'staff') { ui.staff = { busy: null, test: null, voiceTest: null, error: '' }; if (name === 'staff') ui.local = { finding: false, found: null, models: {}, loading: {} }; loadAI(); }
   change();
 }
 export function closeSheet() {
@@ -282,7 +282,7 @@ export function setReportText(t) { ui.report.text = t; if (!ui.dict) ui.report.n
 function voiceHints() {
   const L = labels(); const areas = activeFronts().map(f => L[f.id]);
   const names = namesFrom(app.data.reports.slice(-200).flatMap(r => [r.text, ...(r.items || []).map(i => i.details)]));
-  return { prompt: `One person's spoken update about their day, for a personal life tracker. Topics: ${areas.join(', ')}.`, keywords: [...new Set([...names, ...areas])].slice(0, 50) };
+  return { prompt: `One person's spoken update about their day, for a personal life tracker. Topics: ${areas.join(', ')}.`, keywords: [...new Set([...names, ...areas])].slice(0, 50), wav: !!app.cfg.wav };
 }
 function dictationHandlers(d, base, focusField) {
   const r = ui.report;
@@ -482,6 +482,31 @@ export async function testStaff(what = 'judge') {
   catch (e) { st[slot] = { ok: false, message: e.message }; }
   try { app.ai = await staffSay('api/ai'); } catch { /* keep the last answer */ } // a rejected key shows in the status at once
   st.busy = null; change();
+}
+
+// ---------- a model on the owner's own machine or network ----------
+// What is running here (the server tries the well-known local ports on this machine only), and what a server has.
+export async function loadModels(id = 'local') {
+  const L = ui.local; L.loading = { ...L.loading, [id]: true }; change();
+  try { L.models = { ...L.models, [id]: await staffSay(`api/ai/models?provider=${id}`) }; }
+  catch (e) { L.models = { ...L.models, [id]: { ok: false, message: e.message } }; }
+  try { app.ai = await staffSay('api/ai'); } catch { /* keep the last answer */ } // "Model server not running" shows at once
+  L.loading = { ...L.loading, [id]: false }; change();
+}
+// a server found, or a model picked: saved, then its list read again
+export async function applyLocal(patch, id = 'local') { if (await saveStaff(patch, id === 'speech' ? 'voice' : 'save')) await loadModels(id); }
+export async function findLocal() {
+  const L = ui.local; L.finding = true; L.found = null; ui.staff.error = ''; change();
+  try { L.found = (await staffSay('api/ai/discover', asJson('POST', {}))).found; }
+  catch (e) { ui.staff.error = e.message; }
+  L.finding = false; change();
+  const f = L.found || [], p = staffOf('local');
+  // one server answered: use it, and its first model unless the one chosen is there
+  if (f.length === 1 && p) {
+    const s = f[0], keep = p.base === s.base && s.models.some(m => m.id === p.model);
+    const model = keep ? null : s.models[0]?.id;
+    await applyLocal({ provider: 'local', bases: { local: s.base }, local: { runtime: s.runtime === 'other' ? null : s.runtime }, ...(model ? { models: { local: model } } : {}) });
+  }
 }
 
 // ---------- settings ----------
