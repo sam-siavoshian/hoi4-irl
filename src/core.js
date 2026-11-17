@@ -68,11 +68,15 @@ let booted = false;
 export async function boot(base, over, wrap) {
   if (booted) return; booted = true;
   let cfg = app.cfg;
-  app.data = store.load();
+  app.data = store.load(); let saved = store.hasSave();
   try { const r = await fetch('api/config'); if (r.ok) cfg = app.cfg = await r.json(); } catch { /* static hosting: offline judge only */ }
   try { app.scenarios = await (await fetch('data/scenarios.json')).json(); } catch { app.scenarios = []; }
-  if (cfg.server) { try { const remote = await store.pull(); if (remote) { adopt(remote); store.save(app.data); } else if (app.data.reports.length) store.push(() => app.data); } catch { /* offline: use the local copy */ } }
-  // the country being played (Iran for saves from before there was a choice); one that is no longer offered falls back without losing its campaign
+  if (cfg.server) { try { const remote = await store.pull(); if (remote) { adopt(remote); store.save(app.data); saved = true; } else if (app.data.reports.length) store.push(() => app.data); } catch { /* offline: use the local copy */ } }
+  // A new visitor (nothing saved here or on the server) favours no country: the selection screen, or the static demo
+  // opened without a country from the landing page, starts on one picked at random.
+  if (!saved && app.scenarios.length) app.data.scenario = app.scenarios[Math.floor(Math.random() * app.scenarios.length)].id;
+  // the country being played (Iran for saves from before there was a choice, store.DEFAULT_SCENARIO); one that is no
+  // longer offered falls back without losing its campaign
   try { app.map = await loadMap(app.data.scenario); }
   catch (e) { if (app.data.scenario === store.DEFAULT_SCENARIO) throw e; app.map = await loadMap(store.DEFAULT_SCENARIO); store.switchScenario(app.data, app.map.id); store.save(app.data); }
   // Static demo (…/demo/?demo=1): a first-time visitor finds a campaign already in progress.

@@ -17,6 +17,23 @@ test('the index lists every built map', () => {
   for (const s of index) for (const k of ['name', 'long', 'empire', 'year', 'blurb', 'flag']) assert.ok(s[k], `${s.id}.${k}`);
 });
 
+test('every shipped country flies its real flag: a PNG or WebP that exists, credited in NOTICE.md', () => {
+  const notice = fs.readFileSync(new URL('NOTICE.md', root), 'utf8'), credits = fs.readFileSync(new URL('icons/flags/README.md', root), 'utf8');
+  for (const s of index) {
+    const fl = s.flag; assert.equal(typeof fl.image, 'string', `${s.id}: an image, not stripes`); assert.ok(fl.ratio > 0, `${s.id}: ratio`);
+    for (const f of new Set([fl.image, ...Object.values(fl.sizes || {})])) {
+      assert.match(f, /^icons\/flags\/[\w-]+\.(png|webp)$/, `${s.id}: ${f}`);
+      const b = fs.readFileSync(new URL(f, root)); assert.ok(b.length > 100 && b.length < 64 * 1024, `${f}: ${b.length} bytes`);
+      const png = b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), webp = b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP';
+      assert.ok(png || webp, `${f} is a PNG or WebP`);
+      if (png) { const w = b.readUInt32BE(16), h = b.readUInt32BE(20); assert.ok(Math.abs(w / h - fl.ratio) < 0.06, `${f}: ${w}x${h} is not ${fl.ratio}:1`); if (fl.sizes) assert.ok(Object.entries(fl.sizes).some(([n, x]) => x === f && Number(n) === w) || f === fl.image, `${f}: listed at its width`); }
+    }
+    assert.ok(Object.keys(fl.sizes || {}).map(Number).some(w => w >= 256), `${s.id}: a size sharp enough for 2x`);
+    const name = fl.image.split('/').pop();
+    assert.ok(notice.includes(name), `NOTICE.md credits ${name}`); assert.ok(credits.includes('`' + name + '`'), `icons/flags/README.md credits ${name}`);
+  }
+});
+
 for (const { id } of index) {
   const map = JSON.parse(fs.readFileSync(new URL(`data/maps/${id}.json`, root)));
   const F = flavor(map), M = mapMeta(map), ids = map.fronts.map(f => f.id);

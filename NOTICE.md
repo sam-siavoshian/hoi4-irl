@@ -54,6 +54,27 @@ These are embedded in files the browser loads.
   name with a plain Lucide icon and no logo: neither mark is in Simple Icons, and Groq's trademark
   policy does not permit its logo in an interface without a licence.
 
+### Wikimedia Commons: the countries' flags
+
+- Source: the files on Wikimedia Commons named below, each the country's flag as it was in official use in its
+  scenario's year. They are rendered to PNG by `tools/build-flags.cjs` and shipped in `icons/flags/` (320, 128 and
+  64 px wide); the vector files are not in this repository. `icons/flags/README.md` has the details.
+- Licence: all eight are in the public domain (the tag on each Commons page is given). No attribution is required;
+  the authors are credited anyway.
+- **Insignia.** Flags are official insignia of their states. Their use can be restricted by national law whatever
+  their copyright status; they are shown here only to say which country a map is of.
+
+| Shipped as | Commons file | Author | Licence | In use |
+|---|---|---|---|---|
+| `ethiopia.png` | [Flag of Ethiopia (1897–1974).svg](https://commons.wikimedia.org/wiki/File:Flag_of_Ethiopia_(1897%E2%80%931974).svg) | Oren neu dag | Public domain (PD-Ethiopia) | 1897, 1914–1936, 1941–1974 |
+| `france.png` | [Flag of France.svg](https://commons.wikimedia.org/wiki/File:Flag_of_France.svg) | SKopp | Public domain (PD-shape, PD-flag) | 1794–1815, 1830 to today |
+| `greece.png` | [State Flag of Greece (1863-1924 and 1935-1973).svg](https://commons.wikimedia.org/wiki/File:State_Flag_of_Greece_(1863-1924_and_1935-1973).svg) | Peeperman | Public domain (PD-self) | 1863–1924, 1935–1973 |
+| `iran.png` | [State flag of Iran (1933–1964).svg](https://commons.wikimedia.org/wiki/File:State_flag_of_Iran_(1933%E2%80%931964).svg) | Orange Tuesday | Public domain (PD-user, PD-Iran) | 1933–1964 |
+| `mexico.png` | [Flag of Mexico (1934-1968).svg](https://commons.wikimedia.org/wiki/File:Flag_of_Mexico_(1934-1968).svg) | TownDown | Public domain (PD-Coa-Mexico) | 1934–1968 |
+| `peru.png` | [Flag of Peru (1884–1950).svg](https://commons.wikimedia.org/wiki/File:Flag_of_Peru_(1884%E2%80%931950).svg) | Huhsunqu | Public domain (PD-ineligible) | 1825–1950 (these arms from 1884) |
+| `siam.png` | [Flag of Thailand.svg](https://commons.wikimedia.org/wiki/File:Flag_of_Thailand.svg) | Zscout370 | Public domain (PD-Thailand, PD-shape) | 1917 to today |
+| `turkey.png` | [Flag of Turkey.svg](https://commons.wikimedia.org/wiki/File:Flag_of_Turkey.svg) | David Benbennick | Public domain (PD-Turkey, PD-shape) | 1936 to today |
+
 ### Natural Earth: country borders and coastlines
 
 - Source: <https://www.naturalearthdata.com>
@@ -82,10 +103,10 @@ These packages run when a developer regenerates `data/maps/*.json`, `js/icons.js
 ## Used for testing only
 
 - [Playwright](https://playwright.dev) (Apache-2.0) drives the end-to-end tests and renders the app
-  icons. It is installed on demand and is not a dependency of the app.
+  icons and the flags. It is installed on demand and is not a dependency of the app.
 
 ## A note on the setting
 
-The map, the 1936 borders, the place names and the Old Persian satrapy names are used as a historical
+The maps, the 1936 borders, the place names, the historical region names and the flags are used as a historical
 backdrop for a personal metaphor. Home Front is not affiliated with, and does not use any assets from,
 any commercial strategy game.

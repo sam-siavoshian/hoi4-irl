@@ -76,12 +76,18 @@ try {
     await p.waitForSelector(PICKER); assert.equal(await p.textContent(T('picker-title')), 'Choose your country'); assert.equal(await sheetOpen(p), false);
     assert.equal(await p.locator(T('picker-close')).count(), 0, 'a first run has to choose'); assert.equal(await p.locator('nav[aria-label=Main]').count(), 0);
     assert.deepEqual(await p.evaluate(() => window.__homefront.scenarios.map(s => s.id).filter(id => id === 'iran' || id === 'testland')), ['iran', 'testland']);
-    assert.equal(await p.locator(T('country')).count(), await p.evaluate(() => window.__homefront.scenarios.length)); assert.equal(await p.locator(`${T('country')} svg[data-flag]`).count(), await p.locator(T('country')).count());
+    assert.equal(await p.locator(T('country')).count(), await p.evaluate(() => window.__homefront.scenarios.length)); assert.equal(await p.locator(`${T('country')} [data-flag]`).count(), await p.locator(T('country')).count());
+    // the shipped countries wear their real flag, a picture that loads; the test country keeps its stripes
+    assert.equal(await p.locator(`${T('country')}[data-id=iran] img`).evaluate(i => i.complete && i.naturalWidth > 0), true); assert.equal(await p.locator(`${T('country')}[data-id=testland] [data-flag-kind=stripes]`).count(), 1);
+    assert.deepEqual(await p.evaluate(() => window.__homefront.scenarios.filter(s => s.id !== 'testland').map(s => s.name)), ['Ethiopia', 'France', 'Greece', 'Iran', 'Mexico', 'Peru', 'Siam', 'Turkey'], 'in alphabetical order');
+    // a new visitor starts on a country picked at random, not on any one country
+    const first = await p.evaluate(() => window.__homefront.ui.picker.id); assert.equal(await p.evaluate(() => window.__homefront.data.scenario), first);
+    assert.equal(await p.getAttribute(`${T('country')}[data-id=${first}]`, 'aria-checked'), 'true'); await browse(p, 'iran');
     assert.equal(await p.getAttribute(`${T('country')}[data-id=iran]`, 'aria-checked'), 'true'); assert.match(await p.textContent(`${T('country')}[data-id=testland]`), /Testland/);
     // the briefing: who it is, what it restores, and its real numbers on the first day
     const brief = () => p.textContent(T('briefing'));
     assert.match(await brief(), /Iran.*Imperial State of Iran · 1936.*Achaemenid Empire.*Restore the empire of Cyrus/s);
-    const n = await p.evaluate(() => { const s = window.__homefront.live; return [s.divisions.length, s.fleets.reduce((a, f) => a + f.ships.length, 0), s.wings.length]; });
+    const n = await p.evaluate(() => { const s = window.__homefront.view.st; return [s.divisions.length, s.fleets.reduce((a, f) => a + f.ships.length, 0), s.wings.length]; });
     assert.deepEqual(await p.locator(`${T('brief-stats')} [data-slot=stat-value]`).evaluateAll(els => els.map(e => Number(e.textContent))), n);
     assert.equal(await p.locator(T('brief-front')).count(), 7); assert.match(await p.textContent(`${T('brief-front')}[data-front=glf]`), /Persian Gulf Theatre.*Royal Navy · Naval.*Self/s); assert.match(await p.textContent(`${T('brief-front')}[data-front=afg]`), /Afghan Front.*Afghanistan · Land.*School/s);
     assert.equal(await p.textContent(T('play')), 'Play as Iran');
@@ -93,11 +99,11 @@ try {
     await browse(p, 'testland');
     assert.equal(await p.getAttribute(`${T('country')}[data-id=testland]`, 'aria-checked'), 'true'); assert.match(await brief(), /Testland.*Platine Confederation/s); assert.equal(await p.textContent(T('play')), 'Play as Testland'); assert.equal(await p.locator(T('brief-front')).count(), 7);
     const b = await p.evaluate(() => { const a = window.__homefront; return { view: a.view.map.id, home: a.view.homeTag, scenario: a.data.scenario, map: a.map.id, fronts: Object.keys(a.view.st.fronts), log: a.view.st.log.length }; });
-    assert.equal(b.view, 'testland'); assert.equal(b.home, 'URU'); assert.equal(b.scenario, 'iran'); assert.equal(b.map, 'iran'); assert.deepEqual(b.fronts, TL); assert.equal(b.log, 0);
+    assert.equal(b.view, 'testland'); assert.equal(b.home, 'URU'); assert.equal(b.scenario, first); assert.equal(b.map, first); assert.deepEqual(b.fronts, TL); assert.equal(b.log, 0);
     assert.equal(await p.locator('#mapwrap canvas').count(), 2, 'the same two canvases'); await shot(p, '00-country-browse');
     await browse(p, 'iran'); await p.click(T('play')); await p.waitForFunction(() => document.querySelector('[data-testid=sheet-title]')?.textContent === 'Your fronts');
     assert.equal(await p.locator(PICKER).count(), 0); assert.equal(await p.evaluate(() => window.__homefront.view.map.id), 'iran'); assert.equal(await p.evaluate(() => document.querySelector('#mapwrap').getBoundingClientRect().height === innerHeight), true);
-    assert.equal(await p.evaluate(() => window.__homefront.data.scenario), 'iran'); assert.equal(await p.textContent(T('nation-name')), 'Iran'); assert.equal(await p.locator(`${T('identity')} svg[data-flag]`).count(), 1);
+    assert.equal(await p.evaluate(() => window.__homefront.data.scenario), 'iran'); assert.equal(await p.textContent(T('nation-name')), 'Iran'); assert.equal(await p.locator(`${T('identity')} [data-flag]`).count(), 1);
   });
   await step('first run: name your fronts', async () => {
     assert.equal(await title(p), 'Your fronts'); assert.match(await body(p), /Each border of Iran/);

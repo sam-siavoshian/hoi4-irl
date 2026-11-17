@@ -7,6 +7,9 @@
 const KEY = 'homefront.v1';
 // a browser that used the project under its earlier name keeps its campaign
 try { const old = localStorage.getItem('artesh.v1'); if (old && !localStorage.getItem(KEY)) localStorage.setItem(KEY, old); } catch { /* no storage */ }
+// Only for compatibility: a save from before there was a choice of country (v2, no `scenario`) is a campaign in Iran,
+// the one country there was then. A new visitor gets no default: the country selection screen opens on a country picked
+// at random (src/core.js, boot), and nothing is chosen until they choose.
 export const DEFAULT_SCENARIO = 'iran';
 const CAMPAIGN_KEYS = ['reports', 'labels', 'notes', 'off'];
 const blank = () => ({ v: 3, scenario: DEFAULT_SCENARIO, reports: [], labels: {}, notes: {}, off: [], campaigns: {}, ops: [], seen: [], settings: {}, mode: 'political', onboarded: false });
@@ -44,6 +47,8 @@ export function load() {
   try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && Array.isArray(d.reports)) return migrate(d); } catch { /* corrupt → start fresh */ }
   return blank();
 }
+// Whether this browser has a save at all (a new visitor has none; the landing page's demo link leaves one).
+export function hasSave() { try { return !!localStorage.getItem(KEY); } catch { return false; } }
 export function save(data) { try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch { return false; } }
 export function exportData(data) {
   const d = JSON.parse(JSON.stringify(data)); d.settings = {};

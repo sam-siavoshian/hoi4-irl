@@ -273,8 +273,10 @@ test.after(() => { proc?.kill(); fs.rmSync(dir, { recursive: true, force: true }
 
 test('server: every built map is served, and nothing else under data/', async () => {
   const list = (await json('/data/scenarios.json')).body;
-  assert.deepEqual(list.map(x => x.id).filter(id => id === 'iran' || id === 'testland'), ['iran', 'testland']); assert.equal(list[0].id, 'iran'); assert.equal(list.find(x => x.id === 'testland').empire, 'Platine Confederation'); assert.equal(list[0].flag.type, 'h3');
+  assert.deepEqual(list.map(x => x.id).filter(id => id === 'iran' || id === 'testland'), ['iran', 'testland']); assert.deepEqual(list.filter(x => x.id !== 'testland').map(x => x.name), list.filter(x => x.id !== 'testland').map(x => x.name).sort(), 'alphabetical'); assert.equal(list.find(x => x.id === 'testland').empire, 'Platine Confederation'); assert.equal(list.find(x => x.id === 'iran').flag.image, 'icons/flags/iran.png'); assert.equal(list.find(x => x.id === 'testland').flag.type, 'v3');
   assert.equal((await json('/data/maps/iran.json')).body.home, 'IRN'); assert.equal((await json('/data/maps/testland.json')).body.home, 'URU');
+  const flag = await fetch(U + '/icons/flags/iran.png'); assert.equal(flag.status, 200); assert.equal(flag.headers.get('content-type'), 'image/png'); assert.ok((await flag.arrayBuffer()).byteLength > 100);
+  for (const p of ['/icons/flags/README.md', '/icons/flags/', '/icons/flags/..%2F..%2Fpackage.json', '/icons/flags/nope.png']) assert.equal((await fetch(U + p)).status, 404, p);
   for (const p of ['/data/map.json', '/data/maps/nope.json', '/data/maps/..%2F..%2Fpackage.json', '/data/maps/testland.mjs', '/data/maps/build.json', '/data/maps/', '/data/', '/tests/fixtures/testland.json', '/data/maps/iran.json/x']) assert.equal((await fetch(U + p)).status, 404, p);
 });
 
