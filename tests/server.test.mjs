@@ -536,3 +536,8 @@ test('no key ever leaves the server: not in a response, the journal, a backup, t
   for (const f of walk(new URL('../dist', import.meta.url).pathname)) if (/\.(js|html|css)$/.test(f)) leak(f, fs.readFileSync(f, 'latin1'));
   assert.equal(JSON.parse(fs.readFileSync(aiFile())).provider, 'anthropic');
 });
+
+test('SKILL.md at the root is the same file agents get from .claude/skills', () => {
+  const a = fs.readFileSync(new URL('../SKILL.md', import.meta.url), 'utf8'), b = fs.readFileSync(new URL('../.claude/skills/setup-home-front/SKILL.md', import.meta.url), 'utf8');
+  assert.equal(a, b); assert.match(a, /^---\nname: setup-home-front\n/);
+});
