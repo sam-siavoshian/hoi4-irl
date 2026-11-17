@@ -9,6 +9,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { siteData } from './tools/site-data.mjs';
+import { FAQ_LANDING } from './site/content/faq.mjs'; // the landing page's 5 questions, without the other 30 in its bundle
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const BOOT = path.join(root, 'vendor/design-system/boot/theme-boot.js');
@@ -22,7 +23,7 @@ function data() {
     async load(id) {
       if (id !== '\0' + ID) return null;
       const d = await siteData(root);
-      return `export const countries = ${JSON.stringify(d.countries)};\nexport const example = ${JSON.stringify(d.example)};\n`;
+      return `export const countries = ${JSON.stringify(d.countries)};\nexport const example = ${JSON.stringify(d.example)};\nexport const faq = ${JSON.stringify(FAQ_LANDING)};\n`;
     },
   };
 }

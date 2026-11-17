@@ -51,7 +51,29 @@ const flags = Object.fromEntries(data.countries.map(c => [c.id, c]));
 
 // ---- the browser build, then the server bundle that renders each page ----
 const { build } = await import('vite');
-await build({ configFile: config, logLevel: 'warn' }); // empties _site/ first
+// The kit is one package with one stylesheet, and Tailwind makes classes for every file in it. The site loads only
+// some of those files, so the rest are listed in site/kit-unused.css (`@source not`) and their classes are left out:
+// the build learns which files it bundled, and when the list is out of date it writes it and builds once more.
+const KIT = path.join(root, 'vendor', 'design-system', 'src');
+const UNUSED = path.join(root, 'site', 'kit-unused.css');
+async function client() {
+  const bundled = new Set();
+  const seen = { name: 'homefront-kit-files', generateBundle(_, bundle) { for (const c of Object.values(bundle)) if (c.type === 'chunk') for (const id of Object.keys(c.modules)) bundled.add(id.split('?')[0]); } };
+  await build({ configFile: config, logLevel: 'warn', plugins: [seen] }); // empties _site/ first
+  const files = [];
+  (function walk(d) { for (const n of fs.readdirSync(d).sort()) { const f = path.join(d, n); if (fs.statSync(f).isDirectory()) walk(f); else if (/\.(?:tsx?|jsx?)$/.test(n) && !/\.d\.ts$/.test(n)) files.push(f); } })(KIT);
+  const list = files.filter(f => !bundled.has(f)).map(f => `@source not "${path.relative(path.dirname(UNUSED), f).split(path.sep).join('/')}";`);
+  return `/* Written by tools/build-site.mjs: the design system's files the site doesn't load (${list.length} of ${files.length}). */\n${list.join('\n')}\n`;
+}
+{
+  const want = await client();
+  if (!fs.existsSync(UNUSED) || fs.readFileSync(UNUSED, 'utf8') !== want) {
+    fs.writeFileSync(UNUSED, want);
+    console.log('build-site: site/kit-unused.css was out of date; written, building again');
+    const again = await client();
+    if (again !== want) fail('site/kit-unused.css does not settle: the bundle depends on the list');
+  }
+}
 const ssr = path.join(root, 'node_modules', '.homefront-site-prerender'); // under node_modules so the bundle finds react
 await build({ configFile: config, logLevel: 'warn', build: { ssr: 'prerender.jsx', outDir: ssr, emptyOutDir: true } });
 const { render, renderDoc } = await import(pathToFileURL(path.join(ssr, 'prerender.js')).href);

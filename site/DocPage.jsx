@@ -1,7 +1,7 @@
 // A content page of the site (the countries, self-hosting, AI providers, how it works, FAQ, compare), drawn from its
 // blocks (site/content/pages.mjs) with the design system only. Rendered to HTML at build time (prerender.jsx) and
 // hydrated in the browser from the same object (doc.jsx), so it must render the same on both sides.
-import { Breadcrumbs, Button, Card, CodeBlock, ListGroup, ListRowLink, Prose, ProseTable, SectionHeader, ToastProvider, TooltipProvider } from '@sam/design-system';
+import { Breadcrumbs, Button, Card, CodeBlock, ListGroup, ListRowLink, Prose, ProseTable, SectionHeader, TooltipProvider } from '@sam/design-system';
 import { ArrowRightIcon } from 'lucide-react';
 import { inline, resolve } from './content/inline.mjs';
 import { Flag } from '../src/marks.jsx';
@@ -64,7 +64,6 @@ export function DocPage({ view }) {
   );
   return (
     <TooltipProvider>
-      <ToastProvider position="top-center">
         <div className="flex min-h-dvh flex-col gap-16 pb-12 sm:gap-24">
           <div className="flex flex-col gap-8 sm:gap-12">
             <SiteHeader root={root} />
@@ -90,7 +89,6 @@ export function DocPage({ view }) {
           </div>
           <SiteFooter root={root} />
         </div>
-      </ToastProvider>
     </TooltipProvider>
   );
 }

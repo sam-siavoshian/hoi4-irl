@@ -29,7 +29,11 @@ A look the kit lacked was added to the kit, not to a screen. Each file's header 
 | `src/components/ui/section-header.tsx` | `SectionHeader level="hero" \| "display"`, `align="center"` | A page read from top to bottom (the landing page): its one headline at `text-hero` with the sentence and actions under it, and each band's heading at `text-headline`. The kit's levels stop at a settings page's title. |
 | `src/components/ui/list.tsx` | `ListRowDisclosure` | A row that opens in place, a question and its answer (the landing page's FAQ): the row's type and gutters on the kit's `Collapsible`, a chevron that turns, the answer wiped in. |
 | `src/components/ui/code-block.tsx` | new `CodeBlock` | Commands to copy and run (the landing page's install steps): a recessed plate of monospace lines, notes that are not copied, and one Copy button made as `CopyDetailsButton` is. The kit had no block of code. |
-| `src/components/ui/index.ts` | exports `DayGrid`, `Slider` and `CodeBlock` | |
+| `src/components/ui/prose.tsx` | new `Prose`, `ProseTable` | The site's content pages (a country, self-hosting, the FAQ): a column of words to read at length, styled from the kit's tokens (the reading size, the headline size, the inks, Button `link`'s underline, `ProblemDetails`' plate for inline code), and a table of facts that scrolls sideways inside its own frame. The kit had type for a screen, not for a page of sentences. |
+| `src/components/ui/breadcrumbs.tsx` | new `Breadcrumbs` | Where a content page sits on the site, under its header: parents as links, the current page last with `aria-current`. |
+| `src/components/ui/list.tsx` | `ListRowLink`; `ListRowDisclosure findable` | A row that goes to another page (the site's "Read next"); a closed answer that stays in the HTML (`hidden="until-found"`), so a search engine reads it and find-in-page opens it. |
+| `src/components/ui/section-header.tsx` | `hero` and `display` actions follow `align` | A content page's heading starts at the left; its buttons were centred under it. |
+| `src/components/ui/index.ts` | exports `DayGrid`, `Slider`, `CodeBlock`, `Prose`, `ProseTable` and `Breadcrumbs` | |
 
 ## Updating
 

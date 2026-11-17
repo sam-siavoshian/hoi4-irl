@@ -4,13 +4,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Badge, Button, Card, ChoiceCards, Chip, CodeBlock, IconButton, ListGroup, ListRow, ListRowDisclosure, PersonRow, SectionHeader, Spinner, StatTile, StatusLabel,
-  toastManager,
 } from '@sam/design-system';
 import { cycleAppearance } from '@sam/design-system/theme';
 import { AnchorIcon, ArrowRightIcon, FolderIcon, GamepadIcon, KeyRoundIcon, LayersIcon, ListXIcon, MicIcon, NotebookPenIcon, ServerIcon, SunMoonIcon, SwordsIcon } from 'lucide-react';
-import { countries, example } from 'virtual:site-data';
+import { countries, example, faq as FAQ_LANDING } from 'virtual:site-data';
 import { Flag, ProviderLogo } from '../src/marks.jsx';
-import { FAQ_LANDING } from './content/faq.mjs';
 import { SiteFooter } from './Chrome.jsx';
 
 const REPO = 'https://github.com/sam-siavoshian/hoi4-irl';
@@ -53,7 +51,7 @@ function TopBar() {
   const appearance = () => {
     cycleAppearance();
     const now = document.documentElement.dataset.appearance;
-    toastManager.add({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 });
+    import('./toasts.jsx').then(t => t.say({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 })).catch(() => { /* the change itself has happened */ });
   };
   return (
     <header className={`${column} flex items-center justify-between gap-3 pt-4`}>

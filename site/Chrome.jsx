@@ -1,7 +1,7 @@
 // The header and the foot every page of the site shares, from the design system only. `root` is the way back to the
 // site's root from the page (./ on the landing page, ../ one level down), so every link is relative and the site
 // works under any sub-path. Rendered at build time and hydrated, so nothing here reads the window outside a handler.
-import { Button, IconButton, toastManager } from '@sam/design-system';
+import { Button, IconButton } from '@sam/design-system';
 import { cycleAppearance } from '@sam/design-system/theme';
 import { SunMoonIcon } from 'lucide-react';
 
@@ -15,10 +15,11 @@ export function seedDemo(id) {
   try { if (!localStorage.getItem(SAVE)) localStorage.setItem(SAVE, JSON.stringify({ v: 3, scenario: id, reports: [], labels: {}, notes: {}, off: [], campaigns: {} })); } catch { /* private mode: the demo starts on its own picker */ }
 }
 
-function appearance() {
+// Light, dark or Auto, said in a toast that is loaded on the first press (site/toasts.jsx).
+export function appearance() {
   cycleAppearance();
   const now = document.documentElement.dataset.appearance;
-  toastManager.add({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 });
+  import('./toasts.jsx').then(t => t.say({ title: `Appearance: ${now === 'light' ? 'Light' : now === 'dark' ? 'Dark' : 'Auto'}`, timeout: 1500 })).catch(() => { /* the change itself has happened */ });
 }
 
 const NAV = [['how-it-works/', 'How it works'], ['countries/', 'Countries'], ['self-hosting/', 'Self-hosting'], ['faq/', 'FAQ']];
