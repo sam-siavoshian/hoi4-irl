@@ -10,6 +10,8 @@ import { cycleAppearance } from '@sam/design-system/theme';
 import { AnchorIcon, ArrowRightIcon, FolderIcon, GamepadIcon, KeyRoundIcon, LayersIcon, ListXIcon, MicIcon, NotebookPenIcon, ServerIcon, SunMoonIcon, SwordsIcon } from 'lucide-react';
 import { countries, example } from 'virtual:site-data';
 import { Flag, ProviderLogo } from '../src/marks.jsx';
+import { FAQ_LANDING } from './content/faq.mjs';
+import { SiteFooter } from './Chrome.jsx';
 
 const REPO = 'https://github.com/sam-siavoshian/hoi4-irl';
 const DEMO = './demo/?demo=1';
@@ -317,38 +319,22 @@ function GetIt() {
   );
 }
 
-// 7. Five questions.
-const FAQ = [
-  ['Is it a game?', 'No. It looks like one, but there is nothing to play. The map only moves when you report something real. It is a diary with consequences.'],
-  ['Does it need an API key?', 'No. With no key, the offline keyword judge files your entries on the device. Add your own key or a local model later, in Settings, without losing anything.'],
-  ['What does it cost to run?', '1 short model call for each entry, plus speech to text if you use voice. With a local model or the offline judge it costs nothing.'],
-  ['Does it work on a phone?', 'Yes. It installs to the iPhone or Android home screen and keeps working offline. Entries made offline are kept on the phone and sent when you are back online.'],
-  ['Can I change the map?', 'Yes. Pick any of the 8 countries, rename every front and pause the ones you don’t need. Each country keeps its own campaign.'],
-];
+// 7. Five questions, from the site's one list of questions (site/content/faq.mjs); the rest are on /faq/.
 function Faq() {
   return (
     <section id="faq" aria-labelledby="faq-title" className={`${column} grid gap-8 lg:grid-cols-2 lg:gap-12`}>
-      <SectionHeader level="display" title={<span id="faq-title">Questions</span>} description="The short answers. The repository has the long ones." />
+      <div className="flex flex-col gap-6">
+        <SectionHeader level="display" title={<span id="faq-title">Questions</span>} description="The short answers. There are more on the questions page." />
+        <div><Button variant="outline" render={<a href="./faq/" />}>Read all questions</Button></div>
+      </div>
       <ListGroup data-testid="faq">
-        {FAQ.map(([q, a], at) => <ListRowDisclosure key={q} title={q} defaultOpen={at === 0}>{a}</ListRowDisclosure>)}
+        {FAQ_LANDING.map(({ q, a }, at) => <ListRowDisclosure key={q} title={q} defaultOpen={at === 0} findable>{a}</ListRowDisclosure>)}
       </ListGroup>
     </section>
   );
 }
 
-// 8. The foot.
+// 8. The foot: the site's own (site/Chrome.jsx), with a link to every page.
 function Foot() {
-  return (
-    <footer className={`${column} flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-start sm:justify-between sm:gap-8`}>
-      <p className="flex items-center gap-2 font-medium text-foreground"><Flag flag={countries[0].flag} className="size-5" />Home Front</p>
-      <div className="max-w-2xl space-y-1.5 sm:text-end">
-        <p className="-mx-2 flex items-center gap-1 sm:justify-end">
-          <Button variant="link" size="xs" render={<a href={`${REPO}/blob/main/LICENSE`} />}>MIT licence</Button>
-          <Button variant="link" size="xs" render={<a href={REPO} />}>GitHub</Button>
-        </p>
-        <p>Home Front is not affiliated with Paradox Interactive.</p>
-        <p>Unit silhouettes from Game-icons.net, CC BY 3.0. Icons by Lucide. Borders from Natural Earth.</p>
-      </div>
-    </footer>
-  );
+  return <SiteFooter root="./" />;
 }

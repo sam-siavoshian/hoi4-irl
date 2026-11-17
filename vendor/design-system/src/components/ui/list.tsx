@@ -21,6 +21,9 @@
 //   * ListRowDisclosure (ARTESH's vendored copy): a row that opens in place, a question and its answer. The
 //     row's own type and gutters on ./collapsible.tsx: the title is the press, a chevron turns as it opens,
 //     and the answer wipes in under it (rule 17). A full-width row, so it answers with its fill, not a scale.
+//   * ListRowLink (ARTESH's vendored copy): ListRowButton's row on an <a>, for a row that goes to another page
+//     (the site's lists of pages). ListRowDisclosure `findable`: a closed answer stays in the HTML
+//     (`hidden="until-found"`), so a search engine reads it and find-in-page opens it. Its title wraps instead of being cut, since a page's name should read whole.
 
 import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
@@ -251,16 +254,49 @@ export function ListRowButton({
   );
 }
 
+export type ListRowLinkProps = Omit<ComponentPropsWithoutRef<"a">, "title"> & {
+  title: ReactNode;
+  description?: ReactNode;
+  media?: ReactNode;
+};
+
+/** ListRowButton's row on a link: a row that goes to another page (the site's "Read next" lists). */
+export function ListRowLink({ title, description, media, className, ...props }: ListRowLinkProps) {
+  return (
+    <a
+      {...props}
+      data-slot="settings-row"
+      className={cn(
+        listRowVariants({ variant: "item", hover: true }),
+        "block w-full py-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        className,
+      )}
+    >
+      <span className="flex items-center gap-3">
+        {media ? <span className="flex shrink-0 items-center text-muted-foreground">{media}</span> : null}
+        <span className="block min-w-0 flex-1 space-y-1">
+          <span className="block text-sm font-medium text-foreground">{title}</span>
+          {description ? <span className="block text-xs leading-normal text-muted-foreground">{description}</span> : null}
+        </span>
+        <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground/70" />
+      </span>
+    </a>
+  );
+}
+
 export type ListRowDisclosureProps = Omit<ComponentPropsWithoutRef<"div">, "title"> & {
   /** The question: the row's title, and the press that opens it. */
   title: ReactNode;
   /** The answer, shown under the title when open. */
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Closed, the answer stays in the page as `hidden="until-found"`: in the HTML a search engine reads, found by the
+   * browser's find-in-page (which opens the row), and still hidden from sight and from screen readers until then. */
+  findable?: boolean;
 };
 
 /** A row that opens in place: a question, and its answer under it. */
-export function ListRowDisclosure({ title, children, defaultOpen = false, className, ...props }: ListRowDisclosureProps) {
+export function ListRowDisclosure({ title, children, defaultOpen = false, findable = false, className, ...props }: ListRowDisclosureProps) {
   return (
     <Collapsible
       defaultOpen={defaultOpen}
@@ -275,7 +311,7 @@ export function ListRowDisclosure({ title, children, defaultOpen = false, classN
           className="size-4 shrink-0 text-muted-foreground/70 transition-transform duration-(--motion-base) ease-out"
         />
       </CollapsibleTrigger>
-      <CollapsiblePanel>
+      <CollapsiblePanel hiddenUntilFound={findable || undefined}>
         <div className="max-w-prose px-3 pb-4 text-sm leading-relaxed text-pretty text-muted-foreground sm:px-4">{children}</div>
       </CollapsiblePanel>
     </Collapsible>
