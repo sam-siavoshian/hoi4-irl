@@ -326,6 +326,30 @@
   scroll-snap-align: center;
 }
 
+/* `strip` (ARTESH's vendored copy): the scrolling line again, but each thumb takes a share of the row, up
+ * to the wrapping row's width, so eight flags fill a wide page and scroll sideways on a phone. The row is
+ * a positioned box, so a thumb's offset is measured from it. */
+[data-slot="choice-cards"][data-variant="thumbs"][data-flow="strip"] {
+  position: relative;
+  flex-wrap: nowrap;
+  justify-content: safe center;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 4px;
+  scroll-padding-inline: 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+[data-slot="choice-cards"][data-variant="thumbs"][data-flow="strip"]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-flow="strip"] > .choice-thumb {
+  flex: 1 0 4.75rem;
+  scroll-snap-align: center;
+}
+
 [data-slot="choice-cards"][data-variant="thumbs"][data-flow="column"] {
   flex-direction: column;
   flex-wrap: nowrap;

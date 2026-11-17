@@ -18,12 +18,16 @@
 //     (a switch, a segmented choice, two small buttons) in a narrow panel, where the row would otherwise stack.
 //   * ListRowButton (ARTESH's vendored copy): an `item` row that is one press, a <button> with the row's own
 //     type and gutters, the overlay hover, and a chevron (or any `trailing`) at its end.
+//   * ListRowDisclosure (ARTESH's vendored copy): a row that opens in place, a question and its answer. The
+//     row's own type and gutters on ./collapsible.tsx: the title is the press, a chevron turns as it opens,
+//     and the answer wipes in under it (rule 17). A full-width row, so it answers with its fill, not a scale.
 
 import { cva, type VariantProps } from "class-variance-authority";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "./collapsible";
 import { SectionHeader } from "./section-header";
 
 export const listGroupVariants = cva("relative overflow-visible text-foreground", {
@@ -244,5 +248,36 @@ export function ListRowButton({
       </span>
       {children}
     </button>
+  );
+}
+
+export type ListRowDisclosureProps = Omit<ComponentPropsWithoutRef<"div">, "title"> & {
+  /** The question: the row's title, and the press that opens it. */
+  title: ReactNode;
+  /** The answer, shown under the title when open. */
+  children: ReactNode;
+  defaultOpen?: boolean;
+};
+
+/** A row that opens in place: a question, and its answer under it. */
+export function ListRowDisclosure({ title, children, defaultOpen = false, className, ...props }: ListRowDisclosureProps) {
+  return (
+    <Collapsible
+      defaultOpen={defaultOpen}
+      {...props}
+      data-slot="settings-row"
+      className={cn("group/settings-row rounded-xl", className)}
+    >
+      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-start outline-none transition-colors duration-(--motion-fast) hover:bg-fill-hover/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4 [&[data-panel-open]>svg]:rotate-180">
+        <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</span>
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground/70 transition-transform duration-(--motion-base) ease-out"
+        />
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <div className="max-w-prose px-3 pb-4 text-sm leading-relaxed text-pretty text-muted-foreground sm:px-4">{children}</div>
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }

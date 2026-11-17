@@ -1,7 +1,7 @@
 # @sam/design-system (vendored)
 
 The Lanes design system: tokens, motion, and the component kit (React 19 + Tailwind 4). ARTESH's interface in
-`src/` is built only from this kit.
+`src/` and its landing page in `site/` are built only from this kit.
 
 - **From**: the `sam-designsystem` repository, `packages/design`.
 - **At commit**: `adcc1cf9515be9a8c5cae7add60e9cd86344f7b5`.
@@ -25,9 +25,13 @@ A look the kit lacked was added to the kit, not to a screen. Each file's header 
 | `src/components/ui/slider.tsx` | new `Slider` (Base UI) | The replay's date. The kit had no slider. |
 | `src/components/ui/choice-cards.tsx`, `choice-cards.css` | `ChoiceCards variant="thumbs" flow="scroll" \| "column"` | The country picker's nations: one line of flags that scrolls sideways on a phone, a stacked column (flag, name, a line under it) on a wide screen. |
 | `src/components/ui/choice-cards.tsx`, `choice-cards.css` | `ChoiceCards variant="tiles" columns={2}` | The provider tiles in Settings: two across at any width. The tiles' grid follows the window, so three across in a narrow side panel on a wide screen cut the names. |
-| `src/components/ui/index.ts` | exports `DayGrid` and `Slider` | |
+| `src/components/ui/choice-cards.tsx`, `choice-cards.css` | `ChoiceCards variant="thumbs" flow="strip"` | The landing page's nations: one line that shares the row when all eight flags fit and scrolls sideways on a phone. It brings the chosen one into view by scrolling only itself, so a page that scrolls never jumps (`scroll` uses `scrollIntoView`, right for a full-screen picker, wrong on a page). |
+| `src/components/ui/section-header.tsx` | `SectionHeader level="hero" \| "display"`, `align="center"` | A page read from top to bottom (the landing page): its one headline at `text-hero` with the sentence and actions under it, and each band's heading at `text-headline`. The kit's levels stop at a settings page's title. |
+| `src/components/ui/list.tsx` | `ListRowDisclosure` | A row that opens in place, a question and its answer (the landing page's FAQ): the row's type and gutters on the kit's `Collapsible`, a chevron that turns, the answer wiped in. |
+| `src/components/ui/code-block.tsx` | new `CodeBlock` | Commands to copy and run (the landing page's install steps): a recessed plate of monospace lines, notes that are not copied, and one Copy button made as `CopyDetailsButton` is. The kit had no block of code. |
+| `src/components/ui/index.ts` | exports `DayGrid`, `Slider` and `CodeBlock` | |
 
 ## Updating
 
 Copy the same folders over this one from a newer commit, re-apply the changes in the table (or upstream them first),
-update the commit above, then run `npm run build`, `npx sam-design-check src` and the tests.
+update the commit above, then run `npm run build`, `npm run build:site`, `npx sam-design-check src site` and the tests.
