@@ -41,7 +41,9 @@
 // The thumbs' `flow` (ARTESH's vendored copy; the country picker's nations): `wrap` is the row above;
 // `scroll` keeps them on one line that scrolls sideways, each thumb one width, the chosen one brought
 // into view (a phone's strip); `column` stacks them, the picture before the name and the option's `sub`
-// under it (a wide screen's column).
+// under it (a wide screen's column); `strip` is one line that shares the row when every thumb fits and
+// scrolls sideways when they do not, and brings the chosen one into view by scrolling only itself, so the
+// page it stands on never jumps (the landing page's nations).
 //
 // `onClear` makes the choice optional: pressing the chosen option again
 // clears it (About you, where every answer can be left out).
@@ -119,8 +121,9 @@ export function ChoiceCards<T extends string>({
   /** How many across: `preview` (3 when left out), `sample` (2 or 4; five, or three in a narrow column, when left out),
    *  `tiles` (2: two across at any width, for tiles in a narrow panel; three, or two on a phone, when left out). */
   columns?: 2 | 3 | 4;
-  /** `thumbs`: `wrap` (a row that wraps), `scroll` (one line, sideways), `column` (stacked, the picture before the name). */
-  flow?: "wrap" | "scroll" | "column";
+  /** `thumbs`: `wrap` (a row that wraps), `scroll` (one line, sideways), `column` (stacked, the picture before the name),
+   *  `strip` (one line on a page that scrolls: shared when it fits, sideways when it does not). */
+  flow?: "wrap" | "scroll" | "column" | "strip";
   disabled?: boolean;
   className?: string;
 } & Record<`data-${string}`, string | undefined>) {
@@ -132,9 +135,18 @@ export function ChoiceCards<T extends string>({
 
   // A strip or a column of thumbs can be longer than its room: the chosen one stays in view.
   const scrolls = variant === "thumbs" && flow !== "wrap";
+  const strip = variant === "thumbs" && flow === "strip";
+  // A strip stands on a page that scrolls: it moves only itself, never the page (scrollIntoView would).
+  const centre = (button: HTMLButtonElement | null | undefined, smooth: boolean) => {
+    const row = button?.parentElement;
+    if (!button || !row || row.scrollWidth <= row.clientWidth) return;
+    row.scrollTo?.({ left: button.offsetLeft - (row.clientWidth - button.offsetWidth) / 2, behavior: smooth ? "smooth" : "auto" });
+  };
   useEffect(() => {
-    if (scrolls && chosen >= 0) buttons.current[chosen]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [scrolls, chosen]);
+    if (!scrolls || chosen < 0) return;
+    if (strip) centre(buttons.current[chosen], false);
+    else buttons.current[chosen]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [scrolls, strip, chosen]);
 
   const choose = (index: number) => {
     const option = options[index];
@@ -144,8 +156,9 @@ export function ChoiceCards<T extends string>({
     // picks. Elsewhere the choice follows focus, as a radio group's does.
     if (variant !== "chips" && variant !== "tiles") onChange(option.value);
     const button = buttons.current[index];
-    button?.focus();
-    button?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    button?.focus({ preventScroll: strip });
+    if (strip) centre(button, true);
+    else button?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
   };
 
   const onKeyDown = (index: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
