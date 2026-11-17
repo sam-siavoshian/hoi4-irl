@@ -97,7 +97,7 @@ try {
       return { big, wBig, fontAfter, small, wSmall, floor, lines, widths, joined: lines.join(' ') === text, brk, brkW: brk.map(l => x.measureText(l).width), empty: wrapLines(x, '', 300), one: wrapLines(x, 'Hi', 300), nl: wrapLines(x, 'a\nb', 300) };
     });
     assert.equal(r.big, 120); assert.ok(r.wBig <= 600); assert.match(r.fontAfter, /120px/);
-    assert.ok(r.small < 120 && r.small >= 20 && r.wSmall <= 600, `fitted ${r.small}px, ${r.wSmall}px wide`);
+    assert.ok(r.small < 120 && r.small >= 20 && (r.wSmall <= 600 || r.small === 20), `fitted ${r.small}px, ${r.wSmall}px wide`); // shrinks to fit, or stops at the floor (how wide the floor is depends on the system's fonts)
     assert.equal(r.floor, 20);
     assert.ok(r.lines.length >= 3 && r.joined, 'wraps without losing or hyphenating words'); assert.ok(r.widths.every(w => w <= 300));
     assert.ok(r.brk.length >= 3 && r.brkW.every(w => w <= 200) && r.brk.join('').replace(/\s/g, '') === 'Supercalifragilisticexpialidociousandthensomeword' && !r.brk.join('').includes('-'), 'over-long words split by character');

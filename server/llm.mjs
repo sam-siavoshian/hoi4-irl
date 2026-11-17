@@ -5,6 +5,8 @@
 const fail = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
 const clean = u => String(u || '').trim().replace(/\/+$/, '');
 const hostOf = u => { try { return new URL(u).hostname; } catch { return null; } };
+// transcription hints from the app (life areas, names it has heard before), cleaned so a hint can never break the request
+export const cleanHint = (v, max) => String(v || '').replace(/[<>\r\n\t\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export function llmConfig(env) {
   const key = (env.OPENAI_API_KEY || '').trim();
@@ -25,7 +27,7 @@ export function llmConfig(env) {
   // on with a key; without one only when a transcription endpoint or model was named on purpose
   const transcribe = !sttOff && (!!sttKey || sttBaseSet || (baseSet && !!sttModelSet));
 
-  const timeout = Math.max(1, Number(env.LLM_TIMEOUT_MS) || 60000);
+  const timeout = Math.max(1, Number(env.LLM_TIMEOUT_MS) || 180000); // a few minutes of speech judged with per-event details can take over a minute
   return { key, base, api, model, judge, provider: judge ? hostOf(base) : null, sttBase, sttKey, sttModel, transcribe, timeout };
 }
 
@@ -79,7 +81,7 @@ export function createLLM(cfg, fetchImpl = (...a) => fetch(...a)) {
 
   async function viaResponses({ name, system, user, schema }) {
     const out = await post('/responses', {
-      model: cfg.model, max_output_tokens: 2000, store: false,
+      model: cfg.model, max_output_tokens: 16000, store: false, // room for every event's details from a long report; 2000 cut them off
       input: [{ role: 'system', content: system }, { role: 'user', content: user }],
       text: { format: { type: 'json_schema', name, strict: true, schema } },
     });
@@ -118,12 +120,27 @@ export function createLLM(cfg, fetchImpl = (...a) => fetch(...a)) {
       const req = { name: String(name || 'result').replace(/\W/g, '_').slice(0, 40), system, user, schema };
       return cfg.api === 'chat' ? viaChat(req) : viaResponses(req);
     },
-    async transcribe(audio, type) {
+    // → { text, seconds (of audio, when the provider says), plain (true when the hints had to be dropped) }
+    // hints: { prompt, keywords[] }. The first try adds chunking_strategy=auto (voice-activity chunks, so a long pause does not
+    // swallow what follows), the prompt and the keywords. A provider that rejects any of that with a 400 (a non-OpenAI server,
+    // a hint it dislikes) gets one plain retry, so hints can never cost a transcription.
+    async transcribe(audio, type, hints = {}) {
       if (!cfg.transcribe) throw fail(503, 'Transcription is not configured on the server.');
       const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
-      const fd = new FormData(); fd.append('model', cfg.sttModel); fd.append('file', new Blob([audio], { type }), `report.${ext}`);
-      const out = await call(cfg.sttBase, cfg.sttKey, '/audio/transcriptions', { method: 'POST', body: fd });
-      return String(out.text || '').trim();
+      const form = rich => {
+        const fd = new FormData(); fd.append('model', cfg.sttModel);
+        if (rich) {
+          fd.append('chunking_strategy', 'auto');
+          const prompt = cleanHint(hints.prompt, 400); if (prompt) fd.append('prompt', prompt);
+          for (const k of [...new Set((Array.isArray(hints.keywords) ? hints.keywords : []).map(k => cleanHint(k, 40)).filter(Boolean))].slice(0, 50)) fd.append('keywords[]', k);
+        }
+        fd.append('file', new Blob([audio], { type }), `report.${ext}`); return fd;
+      };
+      const send = rich => call(cfg.sttBase, cfg.sttKey, '/audio/transcriptions', { method: 'POST', body: form(rich) });
+      let out, plain = false;
+      try { out = await send(true); } catch (e) { if (e.upstream !== 400) throw e; plain = true; out = await send(false); }
+      const seconds = Number(out.usage?.seconds ?? out.duration);
+      return { text: String(out.text || '').trim(), seconds: Number.isFinite(seconds) ? seconds : null, plain };
     },
   };
 }

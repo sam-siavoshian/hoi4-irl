@@ -47,6 +47,8 @@ const nav = async (p, name) => { await shut(p); await p.click(T(`nav-${name}`));
 const overview = async p => { await shut(p); await p.click(T('identity')); await p.waitForSelector(SHEET); };
 const settings = async p => { await overview(p); await p.click(T('open-settings')); await p.waitForFunction(() => window.__artesh.ui.sheet === 'settings'); };
 const toasts = p => p.textContent('[data-slot=toast-viewport]');
+// toasts pause while the pointer rests on them, and a headless pointer never leaves: move it off and let them go
+const calm = async p => { await p.mouse.move(1, 1); await p.waitForFunction(() => !document.querySelector('[data-slot=toast-title]'), null, { timeout: 20000 }); };
 const saved = p => p.waitForFunction(() => /Saved/.test(document.querySelector('[data-slot=toast-viewport]')?.textContent || ''));
 const confirmYes = p => p.click(T('confirm-yes'));
 const send = async (p, text) => { await nav(p, 'report'); await p.fill('#report-text', text); await p.click(T('send')); };
@@ -78,7 +80,7 @@ try {
   await step('first run: name your fronts', async () => {
     assert.equal(await title(p), 'Your fronts'); assert.match(await body(p), /Each border of Iran/);
     assert.ok(await p.locator(`${SHEET} [role=radio]`).count() >= 7); await p.click('[data-choice=founder]');
-    assert.notEqual(await p.inputValue('input[data-front=afg]'), 'School'); await shot(p, '00-welcome');
+    await p.waitForFunction(() => document.querySelector('input[data-front=afg]')?.value !== 'School', null, { timeout: 3000 }); // the preset fills the names on the next render await shot(p, '00-welcome');
     await p.evaluate(() => { const a = window.__artesh; a.data.labels = {}; a.data.notes = {}; a.data.off = []; a.save(); a.refresh(); });
     await p.fill('input[data-front=tur]', 'Guitar'); await p.click(T('begin')); await gone(p);
     assert.equal(await p.evaluate(() => window.__artesh.data.labels.tur), 'Guitar'); assert.equal(await p.evaluate(() => window.__artesh.data.onboarded), true);
@@ -118,7 +120,7 @@ try {
     await p.click(`${T('front')}[data-front=afg]`); await p.waitForSelector(T('sheet-back')); assert.equal(await title(p), 'School');
     assert.match(await body(p), /Next objective/); assert.match(await body(p), /Capture /);
     assert.equal(await p.locator(`${T('division')} [data-unit-icon] svg`).count(), 4, 'every division in the list wears its icon'); await shot(p, '06-front');
-    await p.click(T('quick-loss')); await p.waitForTimeout(200);
+    await calm(p); await p.click(T('quick-loss')); await p.waitForTimeout(200);
     assert.equal((await st(p)).fronts.afg.losses, 1);
     await nav(p, 'fronts'); await p.click(`${T('front')}[data-front=afg]`); await p.click(`${T('division')} >> nth=0`); await p.waitForFunction(() => window.__artesh.ui.sheet === 'division');
     assert.match(await title(p), /Khorasan Infantry|Mashhad Infantry/); assert.match(await body(p), /Brig\. Gen\./); assert.match(await body(p), /Battle honours/); assert.equal(await p.locator(`${SHEET} [data-unit-icon] svg`).count(), 1); await shot(p, '07-division');
@@ -275,6 +277,39 @@ try {
     await p.click(T('mic')); await p.waitForFunction(() => document.querySelector('#report-text')?.value.includes('failed my exam'), null, { timeout: 8000 });
     const sent = mock.seen.filter(x => x.path === '/v1/audio/transcriptions').at(-1); assert.match(sent.type, /multipart/); assert.ok(sent.raw.length > 2000);
     await p.click(T('send')); await saved(p); assert.equal((await st(p)).fronts.afg.losses, before + 1);
+  });
+  await step('voice: a running clock, and Send while recording waits for the words', async () => {
+    const before = (await st(p)).fronts.afg.losses;
+    await nav(p, 'report'); await p.fill('#report-text', 'Typed first.'); await p.click(T('mic')); await p.waitForSelector(`${T('mic')}[data-state=live]`);
+    await p.waitForFunction(() => /Listening 0:0[1-9]\. Press the square to stop\./.test(document.querySelector('[data-testid=mic-clock]')?.textContent), null, { timeout: 4000 });
+    await p.click(T('send')); // still recording: the words must not be lost
+    await p.waitForFunction(() => window.__artesh.data.reports.some(r => /Typed first\. I failed my exam\./.test(r.text)), null, { timeout: 8000 });
+    assert.equal((await st(p)).fronts.afg.losses, before + 1);
+    const sent = mock.seen.filter(x => x.path === '/v1/audio/transcriptions').at(-1).raw.toString('latin1');
+    assert.match(sent, /name="chunking_strategy"\r\n\r\nauto/); assert.match(sent, /name="prompt"\r\n\r\nOne person's spoken update/); assert.match(sent, /name="keywords\[\]"\r\n\r\nSchool/);
+  });
+  await step('voice: a failed transcription keeps the recording; Retry gets the words', async () => {
+    await nav(p, 'report'); mock.ctl.failTranscribe = 1;
+    await p.click(T('mic')); await p.waitForSelector(`${T('mic')}[data-state=live]`); await p.waitForTimeout(1300); await p.click(T('mic'));
+    await p.waitForSelector(T('retry-mic'), { timeout: 8000 }); assert.match(await body(p), /Your recording is kept/); await p.screenshot({ path: shots + '16b-retry.png' });
+    await p.click(T('send')); await p.waitForFunction(() => /not been turned into text/.test(document.querySelector('[data-slot=toast-viewport]')?.textContent || ''));
+    await p.click(T('retry-mic')); await p.waitForFunction(() => document.querySelector('#report-text')?.value.includes('failed my exam'), null, { timeout: 8000 });
+    assert.equal(await p.locator(T('retry-mic')).count(), 0); await p.fill('#report-text', ''); await shut(p);
+  });
+  await step('history keeps every detail and the report as you said it', async () => {
+    await send(p, "Yesterday school was bad, I'm failing this class. I had a fight with my mother. Guitar practice went great today."); await saved(p);
+    await nav(p, 'history');
+    const yest = p.locator(T('entry'), { hasText: 'Failing the class' }).first(), today = p.locator(T('entry'), { hasText: 'Guitar practice' }).first();
+    assert.match(await yest.textContent(), /Got a 41 on the midterm on Monday; Mr\. Patel says a retake is possible/, 'details shown under the event');
+    const said = today.locator(T('said')); assert.equal(await said.count(), 1);
+    await said.locator('button').click(); await p.waitForTimeout(250); assert.match(await said.textContent(), /I had a fight with my mother/);
+    await today.locator('[aria-label=Edit]').click(); await p.waitForSelector(T('edit-item'));
+    await p.fill(`${T('edit-details')} >> nth=0`, 'Practised the Hotel California solo for 45 minutes, finally clean at full speed.'); await p.click(T('save-edit')); await saved(p);
+    const kept = await p.evaluate(() => window.__artesh.data.reports.flatMap(r => r.items).filter(i => i.details).map(i => `${i.front}:${i.details}`).join('|')); assert.match(kept, /cau:Practised the Hotel California solo for 45 minutes/);
+    assert.match(await body(p), /Hotel California/); await shot(p, '21-details');
+    await nav(p, 'fronts'); await p.click(`${T('front')}[data-front=cau]`); await p.waitForSelector(T('sheet-back'));
+    const prev = p.locator(T('event-details'), { hasText: 'Hotel California solo' }).first();
+    assert.match(await prev.getAttribute('class'), /line-clamp-3/, 'the front previews the details in three lines'); await shot(p, '22-front-details');
   });
   await b2.close();
 

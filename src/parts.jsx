@@ -57,15 +57,20 @@ export function OutcomeIcon({ action, outcome }) {
   return <Icon className={`size-4 ${outcome === 'win' ? 'text-success' : outcome === 'loss' ? 'text-destructive' : 'text-muted-foreground'}`} />;
 }
 
-// One thing that happened on a front: what, then where and how.
-export function EventRow({ item: i, ts }) {
+// One thing that happened on a front: what, then where and how, then the user's own account of it.
+// clamp: a three-line preview of the details (a front's latest); History shows them in full.
+export function EventRow({ item: i, ts, clamp = false }) {
   const { map } = app; const L = labels();
   const meta = [
     L[i.front],
     i.battle ? `${ACTIONS[i.action].label} · ${i.battle}` : ACTIONS[i.action].label,
     i.unit ? i.unit.replace(/ (Division|Brigade).*$/, '') : '',
   ].filter(Boolean).join(' · ') + (i.reason ? ` (${i.reason})` : '') + (i.at != null ? ` at ${map.provinces[i.at].n}` : '') + (ts ? ` · ${fmtDate(ts, { day: 'numeric', month: 'short' })}` : '');
-  return <ListRow data-testid="event" media={<OutcomeIcon action={i.action} outcome={i.outcome} />} title={i.headline} description={meta} />;
+  return (
+    <ListRow data-testid="event" media={<OutcomeIcon action={i.action} outcome={i.outcome} />} title={i.headline} description={meta}>
+      {i.details ? <p data-testid="event-details" className={`mt-1 pl-7 text-sm whitespace-pre-line text-foreground${clamp ? ' line-clamp-3' : ''}`}>{i.details}</p> : null}
+    </ListRow>
+  );
 }
 
 // Where a front stands: left of the middle the enemy is inside the country, right of it you are pushing out.

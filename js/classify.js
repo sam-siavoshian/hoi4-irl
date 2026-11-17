@@ -19,9 +19,10 @@ const schemaFor = (map, off = []) => ({
           reason: { type: 'string', description: 'In the user\'s own terms, the specific thing about this event that decides the battle type, e.g. "was ill all week, nobody\'s fault". Max 12 words.' },
           action: { type: 'string', enum: Object.keys(ACTIONS) },
           headline: { type: 'string', description: 'Short battle-report headline (max ~12 words) that names what really happened.' },
+          details: { type: 'string', description: 'Everything the user said about this event, kept as their record of it. First person, their own words, filler removed, nothing summarised away: every name, number, time, place, reason, feeling, plan and follow-up. As long as the user made it. Empty string only if they said nothing beyond the headline.' },
           days_ago: { type: 'integer', enum: [0, 1, 2, 3, 4, 5, 6, 7], description: 'How many days before the report the event happened. 0 unless the user says otherwise (yesterday = 1).' },
         },
-        required: ['front', 'outcome', 'severity', 'reason', 'action', 'headline', 'days_ago'],
+        required: ['front', 'outcome', 'severity', 'reason', 'action', 'headline', 'details', 'days_ago'],
         additionalProperties: false,
       },
     },
@@ -56,6 +57,7 @@ ${list('loss')}
   Examples: "I had the flu and missed three classes" → winter (illness, nobody's fault). "I stayed up scrolling and slept through my exam" → sabotage (own doing). "My co-founder tore my work apart in front of everyone" → enemy_cas (attacked by a person). "I just stopped going to the gym, can't be bothered" → desertion (lost motivation). "Bad day at school" → enemy_offensive (nothing more specific). "A friend introduced me to an investor" → lend_lease (received a resource). "I finally understood recursion" → intelligence (an insight). "I apologised to my mom and we're fine" → treaty (made peace). "Good day at the gym" → offensive.
 - days_ago: 0 for today; if the user places an event in the past ("yesterday", "on Monday", "two days ago"), the number of days back, at most 7.
 - headline: a short dispatch that names the real event first and then the matching battle image, e.g. "Flu for a week — blizzard closes the passes" (winter) or "Chemistry midterm failed — enemy armour breaks the line" (enemy_breakthrough). The image must be the one that belongs to the chosen action.
+- details: the user's own account of this event, kept so they can look back on it. This is a record, not a summary: write it in the first person, in plain language (no war metaphor), close to their words, and keep every specific they gave — who, what, numbers, scores, times, places, why it happened, how they felt, what was said, what they plan to do next and when. Drop only filler ("um", "like", repetitions). Every fact in the report must end up in the details of exactly one item; if one event has a lot of detail, its details are long. If they said nothing beyond the headline, use an empty string.
 
 Then write "summary": a 1–3 sentence communiqué covering the whole report in the same voice, honest about how things are going. If the user explicitly uses war language ("heavy tank attack", "they bombed our supply hub", "we broke through"), honour it when choosing action and severity. If the report contains nothing to classify, return an empty items list and say so in the summary.`;
 }
@@ -66,6 +68,8 @@ export function buildUser(map, st, labels, text) {
   return `Current situation:\n${sit}\n\nRecent dispatches (for continuity):\n${recent || '(none yet)'}\n\nToday's report from the user:\n"""\n${text}\n"""`;
 }
 
+export const DETAILS_MAX = 8000; // per event; a few minutes of speech
+
 function sanitize(map, data, off = []) {
   const ids = new Set(map.fronts.map(f => f.id).filter(id => !off.includes(id)));
   const items = [];
@@ -74,7 +78,8 @@ function sanitize(map, data, off = []) {
     const outcome = ['win', 'loss', 'neutral'].includes(i.outcome) ? i.outcome : 'neutral';
     let action = i.action;
     if (!ACTIONS[action] || ACTIONS[action].side !== outcome) action = outcome === 'win' ? 'offensive' : outcome === 'loss' ? 'enemy_offensive' : 'skirmish';
-    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160), ...(i.reason && action === i.action ? { reason: String(i.reason).slice(0, 120) } : {}), days_ago: Math.max(0, Math.min(7, Math.round(Number(i.days_ago) || 0))) });
+    const details = String(i.details || '').trim().slice(0, DETAILS_MAX);
+    items.push({ front: i.front, outcome, severity: Math.max(1, Math.min(5, Math.round(Number(i.severity) || 2))), action, headline: String(i.headline || ACTIONS[action].label).slice(0, 160), ...(i.reason && action === i.action ? { reason: String(i.reason).slice(0, 120) } : {}), ...(details ? { details } : {}), days_ago: Math.max(0, Math.min(7, Math.round(Number(i.days_ago) || 0))) });
   }
   return { summary: String(data.summary || '').slice(0, 600), items };
 }
@@ -197,8 +202,9 @@ export function classifyLocal({ map, labels, text, off = [], notes = {} }) {
     const head = c.length > 90 ? c.slice(0, 87) + '…' : c;
     const days_ago = /day before yesterday|two days ago|2 days ago/i.test(lc) ? 2 : /three days ago|3 days ago/i.test(lc) ? 3 : /yesterday/i.test(lc) ? 1 : 0;
     const dup = items.find(i => i.front === front && i.outcome === outcome && i.days_ago === days_ago);
-    if (dup) { dup.severity = Math.min(5, Math.max(dup.severity, sev) + (dup.severity === sev ? 1 : 0)); if (GENERIC.has(dup.action) && !GENERIC.has(action)) { dup.action = action; if (reason) dup.reason = reason; } dup.headline = `${dup.headline}; ${head}`.slice(0, 160); continue; }
-    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1), ...(reason ? { reason } : {}), days_ago });
+    const sentence = c.charAt(0).toUpperCase() + c.slice(1) + '.';
+    if (dup) { dup.severity = Math.min(5, Math.max(dup.severity, sev) + (dup.severity === sev ? 1 : 0)); if (GENERIC.has(dup.action) && !GENERIC.has(action)) { dup.action = action; if (reason) dup.reason = reason; } dup.headline = `${dup.headline}; ${head}`.slice(0, 160); dup.details = `${dup.details} ${sentence}`.slice(0, DETAILS_MAX); continue; }
+    items.push({ front, outcome, severity: sev, action, headline: head.charAt(0).toUpperCase() + head.slice(1), ...(reason ? { reason } : {}), details: sentence.slice(0, DETAILS_MAX), days_ago });
   }
   const w = items.filter(i => i.outcome === 'win').length, l = items.filter(i => i.outcome === 'loss').length;
   const names = ids => [...new Set(ids)].map(id => map.fronts.find(f => f.id === id).name).join(', ');
@@ -225,7 +231,7 @@ export { WIN_ACTIONS, LOSS_ACTIONS };
 export async function assessLLM({ map, st, labels, off = [], fetchImpl = fetch }) {
   const active = map.fronts.filter(f => !off.includes(f.id));
   const sit = active.map(f => { const fr = st.fronts[f.id]; return `${f.id} — ${labels[f.id] || f.defaultLabel} (${f.name}): ${statusOf(fr.pos, map).text}, position ${Math.round(fr.pos)}, streak ${fr.streak}, record ${fr.wins}W/${fr.losses}L`; }).join('\n');
-  const recent = st.log.filter(l => !l.kind).slice(-20).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${labels[i.front] || i.front} ${i.outcome} ${i.severity}] ${i.headline}`).join('; ')}`).join('\n');
+  const recent = st.log.filter(l => !l.kind).slice(-20).map(l => `${new Date(l.ts).toISOString().slice(0, 10)}: ${l.items.map(i => `[${labels[i.front] || i.front} ${i.outcome} ${i.severity}] ${i.headline}${i.details ? ` (${i.details.slice(0, 300)})` : ''}`).join('; ')}`).join('\n');
   const d = await callJudge({ name: 'staff_assessment', system: `You are the chief of staff in a personal life tracker drawn as ${flavor(map).pitch}. Each front is an area of the user's real life. Write a short, honest staff assessment of how their life is going, in the dry voice of a staff officer, but always about the real events behind the metaphor. Be specific, name patterns you see in the dispatches, do not flatter, do not moralise. Then give up to three concrete orders for the coming week, each tied to one front, each something the user can actually do.`, user: `Fronts (position −100 = all objectives taken, 0 = border, +100 = ${flavor(map).capital} falls):\n${sit}\n\nDispatches, oldest first:\n${recent || '(none)'}`, schema: { type: 'object', properties: { assessment: { type: 'string', description: '3–6 sentences.' }, orders: { type: 'array', items: { type: 'object', properties: { front: { type: 'string', enum: active.map(f => f.id) }, order: { type: 'string' } }, required: ['front', 'order'], additionalProperties: false } } }, required: ['assessment', 'orders'], additionalProperties: false }, fetchImpl });
   return { assessment: String(d.assessment || ''), orders: (d.orders || []).filter(o => active.some(f => f.id === o.front)).slice(0, 3), source: 'llm' };
 }

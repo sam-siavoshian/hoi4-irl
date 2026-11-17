@@ -37,6 +37,9 @@ if (!PASSWORD && process.env.ARTESH_OPEN !== '1') die('Refusing to start without
 if (TOKEN && TOKEN.length < 16) die('ARTESH_TOKEN is too short: use at least 16 random characters (for example `openssl rand -hex 24`).');
 let cfg; try { cfg = llmConfig(process.env); } catch (e) { die(e.message); }
 const store = createStore(PRIVATE);
+const stamp = () => new Date().toISOString();
+try { const r = store.recover(); if (r) console.error(`${stamp()} state.json was unreadable (${r.why}). Restored the campaign from ${r.from} (rev ${r.rev}); the broken file is kept as ${r.aside}.`); }
+catch (e) { die(`${stamp()} ${e.message}`); }
 const { readJSON, writeJSON } = store;
 const llm = createLLM(cfg);
 const auto = createAutomation({ root: ROOT, store, llm, judgeOn: cfg.judge, extraScenarios: process.env.ARTESH_EXTRA_SCENARIOS || null });
@@ -90,7 +93,8 @@ const server = http.createServer(async (req, res) => {
   const ip = req.socket.remoteAddress || '?';
   try {
     const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname); if (p === '/') p = '/index.html';
-    if (p === '/healthz') return send(res, 200, 'ok'); // liveness only: says nothing about the app or its data
+    // real health, for the watchdog: the campaign can be read and the data folder written. Says nothing else.
+    if (p === '/healthz') { try { store.read(); fs.accessSync(PRIVATE, fs.constants.W_OK); return send(res, 200, 'ok'); } catch (e) { console.error(`${stamp()} health check failed: ${e.message}`); return send(res, 503, 'unhealthy'); } }
     if (p === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /\n');
     if (PUBLIC_FILES.has(p) && req.method === 'GET') return fs.createReadStream(path.join(ROOT, p)).on('error', () => send(res, 404, 'Not found')).pipe(res.writeHead(200, { 'content-type': TYPES[path.extname(p)], ...SECURITY, 'cache-control': 'public, max-age=86400' }) && res);
 
@@ -141,8 +145,10 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/transcribe' && req.method === 'POST') {
       const audio = await readBody(req, 25e6); if (audio.length < 500) return send(res, 400, { error: 'No audio' });
-      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0];
-      return send(res, 200, { text: await llm.transcribe(audio, type), model: cfg.sttModel });
+      const type = (req.headers['content-type'] || 'audio/webm').split(';')[0]; const t0 = Date.now();
+      const out = await llm.transcribe(audio, type, { prompt: url.searchParams.get('prompt'), keywords: url.searchParams.getAll('k') }); // hints: see llm.transcribe
+      console.log(`${stamp()} transcribed ${(audio.length / 1024).toFixed(0)} KB ${type}, ${out.seconds ?? '?'} s of audio -> ${out.text.length} chars in ${Date.now() - t0} ms${out.plain ? ' (hints dropped)' : ''}`); // sizes only, never the words
+      return send(res, 200, { text: out.text, model: cfg.sttModel });
     }
 
     // automation: file a report in one request (iOS Shortcuts, Siri, scripts)
@@ -177,4 +183,6 @@ const server = http.createServer(async (req, res) => {
     if (!e.status && !badInput) console.error(e?.stack || String(e)); // the error only: never the request body or a key
   }
 });
-server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });
+// launchd, Docker and Ctrl-C stop the server with a signal: finish open requests, then exit (at most 5 s later)
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log(`${stamp()} ${sig}: stopping`); server.close(() => process.exit(0)); server.closeIdleConnections(); setTimeout(() => process.exit(0), 5000).unref(); });
+server.listen(PORT, HOST, () => { if (!built()) console.warn(`\n${NOT_BUILT}\n`); console.log(`${stamp()} ARTESH on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} — login ${PASSWORD ? 'on' : 'OFF'}, judge ${cfg.judge ? `${cfg.model} via ${cfg.provider} (${cfg.api})` : 'offline (no provider)'}, transcription ${cfg.transcribe ? cfg.sttModel : 'off'}, automation token ${TOKEN ? 'on' : 'off'}`); });

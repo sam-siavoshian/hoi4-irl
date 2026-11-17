@@ -12,6 +12,7 @@ const PORT = 8141, MOCK = 8142, U = `http://127.0.0.1:${PORT}`;
 const CHAT = 8144, UC = `http://127.0.0.1:${CHAT}`;   // chat-completions provider with a key (same mock as the main server)
 const MOCK2 = 8145;                                   // a keyless local provider (Ollama-like)
 const LOCAL = 8146, UL = `http://127.0.0.1:${LOCAL}`; // keyless + ARTESH_OPEN + tight rate limit + short provider timeout
+const BOOT = 8149, UB = `http://127.0.0.1:${BOOT}`, STOP = 8150; // boot recovery, SIGTERM
 const TOKEN = 'test-token-0123456789abcdef';
 const DAY = 86400000;
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'artesh-'));
@@ -84,6 +85,7 @@ test('judging is proxied to the OpenAI Responses API with a strict schema', asyn
   const r = await req('/api/llm', { method: 'POST', body: JSON.stringify({ name: 'battle_report', system: 'sys', user: 'we closed the round', schema }) }); assert.equal(r.status, 200);
   const j = await r.json(); assert.equal(j.result.items[0].front, 'irq'); assert.equal(j.model, 'gpt-6-luna');
   const sent = mock.seen.at(-1); assert.equal(sent.path, '/v1/responses'); assert.equal(sent.auth, 'Bearer sk-test-key'); assert.equal(sent.body.model, 'gpt-6-luna'); assert.equal(sent.body.store, false);
+  assert.equal(sent.body.max_output_tokens, 16000, 'room for the details of every event in a long report');
   assert.deepEqual(sent.body.text.format, { type: 'json_schema', name: 'battle_report', strict: true, schema }); assert.deepEqual(sent.body.input.map(m => m.role), ['system', 'user']);
   assert.equal((await req('/api/llm', { method: 'POST', body: JSON.stringify({ name: 'x', system: 's', user: 'REFUSE', schema }) })).status, 422);
   assert.equal((await req('/api/llm', { method: 'POST', body: '{"nope":1}' })).status, 400);
@@ -97,6 +99,25 @@ test('audio is transcribed with gpt-transcribe', async () => {
   const sent = mock.seen.at(-1); assert.equal(sent.path, '/v1/audio/transcriptions'); assert.match(sent.type, /multipart\/form-data/);
   const raw = sent.raw.toString('latin1'); assert.match(raw, /name="model"\r\n\r\ngpt-transcribe/); assert.match(raw, /filename="report\.m4a"/);
   assert.equal((await req('/api/transcribe', { method: 'POST', body: 'x' })).status, 400);
+});
+test('transcription: VAD chunking, cleaned hints, and a rejected hint never costs the recording', async () => {
+  const audio = { method: 'POST', headers: { 'content-type': 'audio/mp4' }, body: Buffer.alloc(4000, 7) };
+  const q = new URLSearchParams({ prompt: 'Daily update.\r\nTopics: School <b>, Gym' }); for (const k of ['Arya', 'Kian\nIrvine', '<script>', 'Arya']) q.append('k', k);
+  assert.equal((await req('/api/transcribe?' + q, audio)).status, 200);
+  const raw = mock.seen.at(-1).raw.toString('latin1');
+  assert.match(raw, /name="chunking_strategy"\r\n\r\nauto/); assert.match(raw, /name="model"\r\n\r\ngpt-transcribe/);
+  assert.match(raw, /name="prompt"\r\n\r\nDaily update\. Topics: School b , Gym\r\n/, 'line breaks and angle brackets removed');
+  assert.deepEqual([...raw.matchAll(/name="keywords\[\]"\r\n\r\n([^\r]*)\r\n/g)].map(m => m[1]), ['Arya', 'Kian Irvine', 'script'], 'cleaned and de-duplicated');
+  const many = new URLSearchParams(); for (let i = 0; i < 80; i++) many.append('k', 'w' + i + 'x'.repeat(60)); many.set('prompt', 'x'.repeat(5000));
+  await req('/api/transcribe?' + many, audio); const raw2 = mock.seen.at(-1).raw.toString('latin1');
+  const kws = [...raw2.matchAll(/name="keywords\[\]"\r\n\r\n([^\r]*)\r\n/g)].map(m => m[1]); assert.equal(kws.length, 50); assert.ok(kws.every(k => k.length === 40));
+  assert.equal(raw2.match(/name="prompt"\r\n\r\n(x+)/)[1].length, 400);
+
+  // a provider that rejects the hints (400) gets one plain retry; any other failure is not retried
+  const n = mock.seen.length;
+  const r = await req('/api/transcribe?k=Arya&k=REJECTME', audio); assert.equal(r.status, 200); assert.equal((await r.json()).text, 'I failed my exam.');
+  assert.equal(mock.seen.length, n + 2, 'retried once'); assert.doesNotMatch(mock.seen.at(-1).raw.toString('latin1'), /keywords|chunking_strategy|REJECTME|Arya/, 'the retry is sent without hints');
+  mock.ctl.failTranscribe = 1; const down = await req('/api/transcribe', audio); assert.equal(down.status, 502); assert.equal(mock.seen.length, n + 3, 'a 500 is not retried');
 });
 test('the campaign is stored on the server and guarded against overwrites', async () => {
   assert.deepEqual(await (await req('/api/state')).json(), { rev: 0, data: null });
@@ -144,6 +165,41 @@ test('the first save of the day keeps a dated backup; only the newest 30 are kep
   assert.equal(fs.statSync(path.join(dir, 'backups', files.at(-1))).mode & 0o077, 0);
 });
 
+test('an unreadable campaign is never handed out as empty, and health reports it', async () => {
+  const f = path.join(dir, 'state.json'), good = fs.readFileSync(f), rev = JSON.parse(good).rev, n = lines().length;
+  for (const bad of ['{"rev":5,"data":{"repo', '{"rev":"5","data":null}', '[]']) {
+    fs.writeFileSync(f, bad);
+    assert.equal((await req('/api/state')).status, 500, 'not {rev:0,data:null}, which the next save would use to wipe the campaign');
+    const p0 = await put(0, { reports: [] }); assert.equal(p0.status, 500, 'nor a 409 handing out an empty copy'); assert.doesNotMatch(await p0.text(), /reports/);
+    assert.equal((await put(rev, { reports: [] })).status, 500);
+    const h = await fetch(U + '/healthz'); assert.equal(h.status, 503); assert.equal(await h.text(), 'unhealthy');
+    assert.equal(fs.readFileSync(f, 'utf8'), bad, 'the broken file is left alone');
+  }
+  assert.equal(lines().length, n, 'nothing was journaled');
+  fs.writeFileSync(f, good); assert.equal((await fetch(U + '/healthz')).status, 200); assert.equal((await state()).rev, rev);
+});
+test('on boot a broken campaign is restored from the newest good backup, or the server refuses to start', async () => {
+  const d = tmp(); fs.mkdirSync(path.join(d, 'backups'));
+  try {
+    fs.writeFileSync(path.join(d, 'state.json'), 'garbage');
+    assert.equal(await exitCode({ ...env, ARTESH_DATA_DIR: d }), 1, 'no backup: refuse to start');
+    assert.equal(fs.readFileSync(path.join(d, 'state.json'), 'utf8'), 'garbage', 'and leave the broken file alone');
+    fs.writeFileSync(path.join(d, 'backups', 'state-2026-01-01.json'), JSON.stringify({ rev: 3, data: { reports: [{ id: 'old' }] } }));
+    fs.writeFileSync(path.join(d, 'backups', 'state-2026-01-02.json'), JSON.stringify({ rev: 4, data: { reports: [{ id: 'new' }] } }));
+    fs.writeFileSync(path.join(d, 'backups', 'state-2026-01-03.json'), '{"half a fi');
+    fs.writeFileSync(path.join(d, 'backups', 'state-2026-01-04.json'), '{}');
+    await start({ ...env, PORT: BOOT, ARTESH_DATA_DIR: d }, UB); assert.equal((await fetch(UB + '/healthz')).status, 200);
+    const st = JSON.parse(fs.readFileSync(path.join(d, 'state.json'))); assert.equal(st.rev, 4); assert.equal(st.data.reports[0].id, 'new', 'the newest readable backup wins');
+    assert.equal(fs.statSync(path.join(d, 'state.json')).mode & 0o077, 0);
+    const kept = fs.readdirSync(d).find(f => f.startsWith('state.json.broken-')); assert.ok(kept); assert.equal(fs.readFileSync(path.join(d, kept), 'utf8'), 'garbage', 'the broken file is kept');
+  } finally { procs.at(-1)?.kill(); fs.rmSync(d, { recursive: true, force: true }); }
+});
+test('the server stops cleanly on SIGTERM (how launchd stops it)', async () => {
+  const d = tmp(), c = spawn('node', ['server.mjs'], { env: { ...env, PORT: STOP, ARTESH_DATA_DIR: d }, stdio: 'ignore' });
+  for (let i = 0; i < 60; i++) { try { await fetch(`http://127.0.0.1:${STOP}/healthz`); break; } catch { await new Promise(t => setTimeout(t, 100)); } }
+  const t0 = Date.now(); const code = await new Promise(r => { c.on('exit', r); c.kill('SIGTERM'); }); assert.equal(code, 0); assert.ok(Date.now() - t0 < 4000, 'without waiting for the 5 s fallback');
+  fs.rmSync(d, { recursive: true, force: true });
+});
 test('the automation token opens /api/report, /api/sitrep and /api/journal — and nothing else', async () => {
   assert.equal((await bearer('/api/sitrep')).status, 200); assert.equal((await bearer('/api/journal')).status, 200);
   for (const p of ['/', '/assets/index.js', '/api/state', '/api/config', '/data/maps/iran.json']) assert.equal((await bearer(p)).status, 401, p);

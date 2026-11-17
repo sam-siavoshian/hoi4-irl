@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { simulate } from '../js/engine.js';
-import { classifyLocal, classifyLLM, classify, buildSystem, assess } from '../js/classify.js';
+import { classifyLocal, classifyLLM, classify, buildSystem, assess, DETAILS_MAX } from '../js/classify.js';
 
 const map = JSON.parse(fs.readFileSync(new URL('../data/maps/iran.json', import.meta.url)));
 const labels = Object.fromEntries(map.fronts.map(f => [f.id, f.defaultLabel]));
@@ -78,4 +78,19 @@ test('the battle type follows from what happened, not from chance', async () => 
   assert.equal(ok.items[0].reason, 'was ill all week'); assert.equal(ok.items[0].action, 'winter');
   const bad = await classifyLLM({ map, st, labels, text: 'x', fetchImpl: mk([{ front: 'afg', outcome: 'loss', severity: 3, reason: 'a great insight', action: 'intelligence', headline: 'x', days_ago: 0 }]) });
   assert.equal(bad.items[0].action, 'enemy_offensive'); assert.equal(bad.items[0].reason, undefined);
+});
+
+test('every event keeps the full details the user gave', async () => {
+  const long = 'I got a 71 on the chemistry midterm. '.repeat(400);
+  const fetchImpl = async (url, init) => ({ ok: true, status: 200, json: async () => ({ result: { summary: 'S', items: [
+    { front: 'afg', outcome: 'loss', severity: 3, reason: 'bad exam', action: 'enemy_offensive', headline: 'Midterm', details: '  I got a 71 on chemistry. Mr. Patel offers a retake next Thursday if I do tutoring Monday and Wednesday.  ', days_ago: 0 },
+    { front: 'raj', outcome: 'win', severity: 2, reason: 'gym', action: 'offensive', headline: 'Squat PR', details: '', days_ago: 0 },
+    { front: 'irq', outcome: 'win', severity: 2, reason: 'big win', action: 'offensive', headline: 'Huge', details: long, days_ago: 0 }] } }) });
+  let sys; const r = await classifyLLM({ map, st, labels, text: 'x', fetchImpl: async (u, i) => { sys = JSON.parse(i.body).system; return fetchImpl(u, i); } });
+  assert.equal(r.items[0].details, 'I got a 71 on chemistry. Mr. Patel offers a retake next Thursday if I do tutoring Monday and Wednesday.');
+  assert.ok(!('details' in r.items[1]), 'no empty details stored'); assert.equal(r.items[2].details.length, DETAILS_MAX);
+  assert.match(sys, /details: the user's own account/); assert.match(sys, /Every fact in the report must end up/);
+  assert.equal(r.items[0].reason, 'bad exam', 'details sit next to the reason, not in place of it');
+  const local = classifyLocal({ map, labels, text: 'Hit a new PR on squat at the gym today, 225 pounds for five reps with Daniel spotting me. I failed my chemistry exam.' });
+  const gym = local.items.find(i => i.front === 'raj'); assert.match(gym.details, /225 pounds for five reps with Daniel spotting me/, 'offline judge keeps the whole sentence, not just a headline');
 });
