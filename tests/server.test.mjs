@@ -17,7 +17,7 @@ const PORT = 8141, MOCK = 8142, U = `http://127.0.0.1:${PORT}`;
 const CHAT = 8144, UC = `http://127.0.0.1:${CHAT}`;   // chat-completions provider with a key (same mock as the main server)
 const MOCK2 = 8145;                                   // a keyless local provider (Ollama-like)
 const LOCAL = 8146, UL = `http://127.0.0.1:${LOCAL}`; // keyless + HOMEFRONT_OPEN + tight rate limit + short provider timeout
-const BOOT = 8149, UB = `http://127.0.0.1:${BOOT}`, STOP = 8150; // boot recovery, SIGTERM
+const BOOT = 8149, UB = `http://127.0.0.1:${BOOT}`, STOP = 8150; // boot recovery, SIGTERM (8148: the shared login cap)
 const TOKEN = 'test-token-0123456789abcdef';
 const DAY = 86400000;
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'homefront-'));
@@ -376,6 +376,15 @@ test('behind a local proxy the login lockout is per device, and a client cannot 
   assert.equal((await login('open sesame', '100.64.0.11')).status, 200, 'another device still signs in');
   assert.equal((await login('open sesame', '100.64.0.99, 100.64.0.10')).status, 429, 'an address the client added in front is ignored');
   assert.equal((await login('open sesame', 'not-an-address')).status, 200, 'a malformed header falls back to the socket address');
+});
+
+test('a client that changes its forwarded address each time still gets only 30 guesses in 10 minutes', async () => {
+  const PORT2 = 8148, U2 = `http://127.0.0.1:${PORT2}`; await start({ ...env, PORT: PORT2, HOMEFRONT_DATA_DIR: tmp() }, U2);
+  const login = (password, xff) => fetch(U2 + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': xff }, body: JSON.stringify({ password }) });
+  const codes = await Promise.all(Array.from({ length: 30 }, (_, i) => login('wrong', `100.64.1.${i}`).then(r => r.status)));
+  assert.ok(codes.every(c => c === 401), 'each new address is allowed to try');
+  assert.equal((await login('wrong', '100.64.2.1')).status, 429, 'the 31st guess is refused, whatever the address');
+  assert.equal((await login('open sesame', '100.64.2.2')).status, 429, 'and so is the right password, until the window passes');
 });
 
 test('logging out ends the session; the server will not start without a password', async () => {
