@@ -309,6 +309,8 @@ function copy(from, to) {
   fs.copyFileSync(from, to);
 }
 for (const p of STATIC) copy(path.join(root, 'site', p), path.join(out, p));
+// site/root/: files that must sit at the site's root as they are, such as a search engine's verification file
+if (fs.existsSync(path.join(root, 'site', 'root'))) copy(path.join(root, 'site', 'root'), out);
 for (const [p, to] of APP) {
   const from = path.join(root, p);
   if (!fs.existsSync(from)) fail(`missing ${p}`);
