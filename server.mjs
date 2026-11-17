@@ -65,10 +65,13 @@ const attempts = new Map(); // ip → [timestamps]
 // past 30 in 10 minutes only devices that have signed in before may try: a client that changes its address each time (a
 // forged X-Forwarded-For from this machine, a pool of addresses) gets no more than 30 guesses per 10 minutes, and your
 // own devices are never locked out by it.
+// Only a process on this machine can forge a forwarded address (tailscale serve overwrites the header), and such a
+// process can already read .env; the exemption costs nothing beyond each known address's own limit of 8.
 const ALL = '*'; const known = new Map(); // address → last good sign-in (the newest 200)
 function throttled(ip) {
   const now = Date.now(), fresh = k => { const a = (attempts.get(k) || []).filter(t => now - t < 10 * 60e3); attempts.set(k, a); return a; };
-  return fresh(ip).length >= 8 || (!known.has(ip) && fresh(ALL).length >= 30);
+  const seen = known.get(ip), trusted = seen && now - seen < 30 * 86400e3 && !LOOPBACK.test(ip); // a good sign-in in the last 30 days, never loopback itself
+  return fresh(ip).length >= 8 || (!trusted && fresh(ALL).length >= 30);
 }
 function failed(ip) { const now = Date.now(); for (const k of [ip, ALL]) { const a = attempts.get(k) || []; a.push(now); attempts.set(k, a); } }
 function signedIn(ip) { known.delete(ip); known.set(ip, Date.now()); if (known.size > 200) known.delete(known.keys().next().value); }

@@ -382,11 +382,14 @@ test('a client that changes its forwarded address each time gets only 30 guesses
   const PORT2 = 8148, U2 = `http://127.0.0.1:${PORT2}`; await start({ ...env, PORT: PORT2, HOMEFRONT_DATA_DIR: tmp() }, U2);
   const login = (password, xff) => fetch(U2 + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': xff }, body: JSON.stringify({ password }) });
   assert.equal((await login('open sesame', '100.64.9.9')).status, 200, 'your phone signs in once');
+  const direct = password => fetch(U2 + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
+  assert.equal((await direct('open sesame')).status, 200, 'something on this machine signs in directly');
   const codes = await Promise.all(Array.from({ length: 30 }, (_, i) => login('wrong', `100.64.1.${i}`).then(r => r.status)));
   assert.ok(codes.every(c => c === 401), 'each new address is allowed to try');
   assert.equal((await login('wrong', '100.64.2.1')).status, 429, 'the 31st guess from a new address is refused');
   assert.equal((await login('open sesame', '100.64.2.2')).status, 429, 'so is the right password from a new address, until the window passes');
   assert.equal((await login('open sesame', '100.64.9.9')).status, 200, 'a device that signed in before still can');
+  assert.equal((await direct('open sesame')).status, 429, 'loopback itself is never exempt');
   for (let i = 0; i < 8; i++) assert.equal((await login('wrong', '100.64.9.9')).status, 401);
   assert.equal((await login('open sesame', '100.64.9.9')).status, 429, 'but it keeps its own limit of 8');
 });
