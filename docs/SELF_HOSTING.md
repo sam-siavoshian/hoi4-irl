@@ -61,39 +61,27 @@ listed in the [README](../README.md#configuration).
 
 ## Mac (launchd)
 
-A Mac Mini or any Mac that stays on is a good host. The repository ships a launchd agent,
-`deploy/com.homefront.server.plist`, that starts the server at login and restarts it if it stops.
+A Mac Mini or any Mac that stays on is a good host. One script installs Home Front as two system LaunchDaemons that run
+as you (not root) and start at boot, with nobody logged in to the desktop:
 
-1. Find your paths:
+- `com.homefront.server` runs the server and restarts it within seconds if it stops.
+- `com.homefront.watchdog` checks `/healthz` every 2 minutes. After two failures in a row it restarts a server that is
+  running but stuck, puts back a missing `tailscale serve` route, and trims any log over 10 MB.
 
-   ```bash
-   which node        # e.g. /opt/homebrew/bin/node
-   pwd               # the repository, e.g. /Users/you/homefront
-   ```
+```bash
+cp .env.example .env    # set HOMEFRONT_PASSWORD and OPENAI_API_KEY; HOST=127.0.0.1 behind Tailscale
+bash deploy/install-macos.sh
+```
 
-2. Open `deploy/com.homefront.server.plist` and replace each `/PATH/TO/node` and `/PATH/TO/hoi4-irl` with
-   those values. launchd does not read your shell profile, so the path to `node` must be absolute.
+The script installs the build tools (Bun if present, else `npm ci`), builds `dist/`, installs and starts both
+daemons, waits for `/healthz` and, when Tailscale is installed, serves the app on your tailnet only
+(`HOMEFRONT_HTTPS_PORT`, default 8443). Run it again after every update. It asks for your password once, for `sudo`.
 
-3. Install and start it:
+Check it: `curl -s http://127.0.0.1:8080/healthz` (says `ok` only when the saved campaign can be read) and
+`tail` the `server.log` in your data folder. Stop it: `sudo launchctl bootout system/com.homefront.server`.
 
-   ```bash
-   mkdir -p private
-   cp deploy/com.homefront.server.plist ~/Library/LaunchAgents/
-   launchctl load ~/Library/LaunchAgents/com.homefront.server.plist
-   ```
-
-4. Check it:
-
-   ```bash
-   curl -s http://localhost:8080/robots.txt
-   tail private/server.log
-   ```
-
-To stop it: `launchctl unload ~/Library/LaunchAgents/com.homefront.server.plist`. After changing `.env`,
-unload and load again.
-
-A launch agent runs while you are logged in. On a headless Mac, turn on automatic login, and set
-*Prevent automatic sleeping* in System Settings → Energy.
+On a Mac with FileVault, a power cut leaves it at the unlock screen until someone types the password; the daemons
+start after that. Set *Prevent automatic sleeping* in System Settings → Energy.
 
 ## Linux (systemd)
 

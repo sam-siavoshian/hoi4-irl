@@ -6,7 +6,7 @@
 // Nothing here logs or returns a key: responses carry `hasKey` and the last 4 characters of a key saved in the app,
 // and a provider's error is summarised, with anything key-shaped cut out, before it leaves this file.
 // No dependencies: Node 20 built-ins and fetch.
-import { llmConfig, parseLoose, matches } from './llm.mjs';
+import { llmConfig, parseLoose, matches, cleanHint } from './llm.mjs';
 import { RUNTIMES, RUNTIME, SPEECH_RUNTIMES, SPEECH_RUNTIME, MODES, runtimeOfAddress, discoveryTargets, discover, listModels, hasModel, judgeLocal, unreachableWords, missingWords, saysNoModel, LOCAL_WORDS } from './local.mjs';
 
 const fail = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
@@ -86,6 +86,8 @@ function upstream(status, json, secrets) {
 }
 
 // ---- the calls ----
+// Output room for every event's details from a few minutes of speech: 2000 tokens cut long reports off ("too long to judge").
+const MAX_OUT = 16000;
 const JSON_ONLY = schema => `\n\nAnswer with one JSON object only: no prose, no code fence. It must validate against this JSON Schema:\n${JSON.stringify(schema)}`;
 // every provider's answer is read and checked here, whether or not the provider enforced the schema
 const read = (text, schema) => {
@@ -102,7 +104,7 @@ const retriable = e => e.upstream === 400 || e.upstream === 422;
 const JUDGES = {
   // OpenAI Responses API: text.format json_schema, strict
   async responses(c, { name, system, user, schema }) {
-    const out = await c.post('/responses', { model: c.model, max_output_tokens: 2000, store: false, input: [{ role: 'system', content: system }, { role: 'user', content: user }], text: { format: { type: 'json_schema', name, strict: true, schema } } });
+    const out = await c.post('/responses', { model: c.model, max_output_tokens: MAX_OUT, store: false, input: [{ role: 'system', content: system }, { role: 'user', content: user }], text: { format: { type: 'json_schema', name, strict: true, schema } } });
     if (out.status === 'incomplete') throw TOO_LONG();
     const parts = (out.output || []).filter(o => o.type === 'message').flatMap(o => o.content || []);
     if (parts.find(p => p.type === 'refusal')) throw DECLINED();
@@ -124,7 +126,7 @@ const JUDGES = {
   // No sampling parameters and no prefill (current models refuse both). A model from before `effort` or structured
   // outputs gets the same request without them.
   async anthropic(c, { system, user, schema }) {
-    const body = (sys, output_config) => ({ model: c.model, max_tokens: 4000, system: sys, messages: [{ role: 'user', content: user }], ...(output_config ? { output_config } : {}) });
+    const body = (sys, output_config) => ({ model: c.model, max_tokens: MAX_OUT, system: sys, messages: [{ role: 'user', content: user }], ...(output_config ? { output_config } : {}) });
     const format = { type: 'json_schema', schema };
     let out;
     try { out = await c.post('/messages', body(system, { effort: 'low', format })); }
@@ -141,7 +143,7 @@ const JUDGES = {
   // Gemini Interactions API: response_format carries the JSON schema; store: false keeps nothing at Google after the call
   async gemini(c, { system, user, schema }) {
     let out;
-    try { out = await c.post('/interactions', { model: c.model, input: user, system_instruction: system, store: false, generation_config: { max_output_tokens: 4000 }, response_format: { type: 'text', mime_type: 'application/json', schema } }); }
+    try { out = await c.post('/interactions', { model: c.model, input: user, system_instruction: system, store: false, generation_config: { max_output_tokens: MAX_OUT }, response_format: { type: 'text', mime_type: 'application/json', schema } }); }
     catch (e) { if (!retriable(e)) throw e; out = await c.post('/interactions', { model: c.model, input: user, system_instruction: system + JSON_ONLY(schema), store: false }); }
     if (out.status === 'incomplete') throw TOO_LONG();
     if (out.status === 'failed' || out.status === 'cancelled') throw fail(502, scrub(out.errors?.[0]?.message || 'The model could not answer.', c.secrets), { reason: 'provider_down' });
@@ -151,17 +153,35 @@ const JUDGES = {
 const geminiText = out => (out.steps || []).filter(s => s.type === 'model_output').flatMap(s => s.content || []).filter(p => p.type === 'text').map(p => p.text).join('') || (typeof out.output_text === 'string' ? out.output_text : '');
 
 const SCRIBES = {
-  // POST <base>/audio/transcriptions, multipart (OpenAI, Groq's Whisper, Mistral's Voxtral)
-  async openai(c, audio, type) {
+  // POST <base>/audio/transcriptions, multipart (OpenAI, Groq's Whisper, Mistral's Voxtral).
+  // hints = { prompt, keywords[] }: the topics and the names the user has used before, so they are spelled the same way.
+  // Every Whisper-style server takes a prompt; OpenAI also takes keywords and chunking_strategy=auto (voice-activity chunks,
+  // so a long pause does not swallow what follows). A server that rejects any of it with a 400 gets one plain retry,
+  // so the hints can never cost a transcription. → { text, seconds (of audio, when the provider says), plain }
+  async openai(c, audio, type, hints = {}) {
     const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
-    const fd = new FormData(); fd.append('model', c.model); fd.append('file', new Blob([audio], { type }), `report.${ext}`);
-    return String((await c.send('/audio/transcriptions', { method: 'POST', body: fd })).text || '').trim();
+    const form = rich => {
+      const fd = new FormData(); fd.append('model', c.model);
+      if (rich) {
+        const prompt = cleanHint(hints.prompt, 400); if (prompt) fd.append('prompt', prompt);
+        if (c.id === 'openai') {
+          fd.append('chunking_strategy', 'auto');
+          for (const k of [...new Set((Array.isArray(hints.keywords) ? hints.keywords : []).map(k => cleanHint(k, 40)).filter(Boolean))].slice(0, 50)) fd.append('keywords[]', k);
+        }
+      }
+      fd.append('file', new Blob([audio], { type }), `report.${ext}`); return fd;
+    };
+    const go = rich => c.send('/audio/transcriptions', { method: 'POST', body: form(rich) });
+    let out, plain = false;
+    try { out = await go(true); } catch (e) { if (e.upstream !== 400) throw e; plain = true; out = await go(false); }
+    const seconds = Number(out.usage?.seconds ?? out.duration);
+    return { text: String(out.text || '').trim(), seconds: Number.isFinite(seconds) ? seconds : null, plain };
   },
   // Gemini has no transcription endpoint: the recording goes to the model with one instruction
   async gemini(c, audio, type) {
     const out = await c.post('/interactions', { model: c.model, store: false, input: [{ type: 'text', text: 'Write down exactly what is said in this recording, in the language spoken. Reply with the words only. If nobody speaks, reply with nothing.' }, { type: 'audio', data: Buffer.from(audio).toString('base64'), mime_type: type }] });
     if (out.status === 'failed' || out.status === 'cancelled') throw fail(502, 'The model could not turn that into text.', { reason: 'provider_down' });
-    return geminiText(out).trim();
+    return { text: geminiText(out).trim(), seconds: null, plain: false };
   },
 };
 const bearerAuth = k => (k ? { authorization: `Bearer ${k}` } : {});
@@ -332,9 +352,10 @@ export function createAI({ env, store, fetchImpl = (...a) => fetch(...a), probes
     });
   }
   const judge = async args => (await judgeFull(args)).result;
-  async function transcribe(audio, type) {
+  // → { text, seconds, plain }; hints as in SCRIBES.openai
+  async function transcribe(audio, type, hints = {}) {
     const s = sttNow(); if (!s) throw fail(503, 'Transcription is not configured on the server.', { reason: 'off' });
-    return tracked(s.id, () => SCRIBES[s.api](caller(s), audio, type));
+    return tracked(s.id, () => SCRIBES[s.api](caller(s), audio, type, hints));
   }
 
   // what the app is told: the choice, and for each provider whether it has a key. Never a key.
